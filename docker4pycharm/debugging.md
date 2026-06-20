@@ -75,7 +75,12 @@ The user specifically wanted this document to prevent loss of context.
 
 ---
 
-## Top Priority: Markdown Preview Blank / IDE GUI Hang
+## Historical: Markdown Preview Blank / IDE GUI Hang
+
+Status on 2026-06-20: this is no longer reproduced in the latest iterations and
+has been removed from the active stabilization task list. The comparison note
+for future recurrence lives in
+`implementation-notes/completed-tasks/2026-06-20-markdown-preview-skiko-opengl-hang-retired.md`.
 
 ### Symptom
 

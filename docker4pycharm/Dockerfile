@@ -33,9 +33,12 @@ RUN if [ "$INSTALL_CODEX_CLI" = "1" ]; then \
 
 COPY pycharm/ /opt/pycharm/
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN mkdir -p /usr/local/share/docker4ide
+COPY image-assets/vibe-coding-process.md /usr/local/share/docker4ide/vibe-coding-process.md
 RUN chmod +x /usr/local/bin/entrypoint.sh /opt/pycharm/bin/pycharm.sh \
  && ln -s /opt/pycharm/bin/pycharm.sh /usr/local/bin/pycharm \
- && mkdir -p /var/lib/docker
+ && mkdir -p /var/lib/docker \
+ && chmod 0644 /usr/local/share/docker4ide/vibe-coding-process.md
 
 ENV PROJECT_PATH=/project \
     HOME=/ide-state/home \

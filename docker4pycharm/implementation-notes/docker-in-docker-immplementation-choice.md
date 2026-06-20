@@ -47,6 +47,12 @@ docker ps inside PyCharm == docker ps on the host
 Containers started from inside PyCharm/Codex are host Docker sibling containers,
 not children of the IDE container.
 
+Validation status: the default host Docker passthrough check was removed from
+the active v0 stabilization task list on 2026-06-20. Treat the default mode as
+documented current behavior unless a later image or launcher change affects this
+path. Retrospective note:
+`completed-tasks/2026-06-20-default-host-docker-passthrough-validation-retired.md`.
+
 ## Explicit Docker-in-Docker
 
 Use true Docker-in-Docker only when separate Docker state is wanted:
@@ -78,7 +84,8 @@ access, use `--network host`.
 
 Validation status: explicit Docker-in-Docker was manually tested in the latest
 built VM on 2026-06-20 and worked as expected. Treat this as complete unless a
-later image or launcher change affects the DinD path.
+later image or launcher change affects the DinD path. Retrospective note:
+`completed-tasks/2026-06-20-explicit-docker-in-docker-validation.md`.
 
 ## No Docker
 

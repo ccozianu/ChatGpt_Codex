@@ -45,6 +45,8 @@ TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
 cp "$WORKDIR/Dockerfile" "$WORKDIR/entrypoint.sh" "$TMPDIR/"
+mkdir -p "$TMPDIR/image-assets"
+cp "$WORKDIR/image-assets/vibe-coding-process.md" "$TMPDIR/image-assets/"
 mkdir -p "$TMPDIR/pycharm"
 
 if [ -d "$PYCHARM_SRC" ]; then

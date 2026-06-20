@@ -381,10 +381,15 @@ Suggested next work items:
 
 The post-MVP refactoring direction is documented in `FUTURE_AGENT_REFACTORING_BRIEF.md`. Read it before planning work that generalizes this repository beyond the current `docker4pycharm` prototype.
 
+The human/agent iteration workflow is documented in `WORKFLOW.md`. For using
+the current PyCharm v0 image on an ordinary Python project, see
+`docker4pycharm/implementation-notes/using-v0-for-real-python-projects.md`.
+
 ## Guidance for future AI development agents
 
 When continuing this project inside the bootstrapped IDE:
 
+- Read `WORKFLOW.md` before changing the project handoff or active task list.
 - Treat the repository files as the project knowledge base. Persist important requirements, decisions, current state, and handoff notes in versioned files rather than relying on conversation memory.
 - Keep context focused. Prefer narrow, explicit work targets and update the handoff when the active target changes.
 - Preserve the human role as project director: ask for decisions where product judgment, risk tolerance, or prioritization is genuinely needed, but do not push routine implementation bookkeeping back to the user.
@@ -419,14 +424,6 @@ Current stage: `docker4pycharm` v0/MVP user-experience stabilization.
 
 Current status: PyCharm can run inside the Docker container, open the selected project, and the AI/Codex/ChatGPT plugin path has worked from inside that IDE environment.
 
-Top priority open issue: PyCharm Markdown preview can render blank and make the
-whole IDE GUI unresponsive if the preview is left open. The captured logs point
-at Mesa/DRI/OpenGL context creation failures in the JetBrains Skiko/Markdown
-preview path, including `MESA: error: Failed to query drm device.`, `failed to
-load driver: iris`, `org.jetbrains.skiko.RenderException: Cannot create OpenGL
-context`, and `MarkdownPreviewFileEditor: panel is null, cannot update preview`.
-The full log excerpt is preserved in `docker4pycharm/debugging.md`.
-
 Latest stabilization update: `docker4pycharm/run-pycharm-container.sh` now
 defaults to host Docker daemon passthrough for developer convenience. The
 launcher mounts the host Docker socket at `/run/host-docker.sock`, sets
@@ -444,7 +441,32 @@ image.
 Explicit Docker-in-Docker validation update: on 2026-06-20, the latest built VM
 was tested manually and Docker-in-Docker worked as expected. Do not reopen the
 explicit DinD validation item unless a later image or launcher change regresses
-it.
+it. Retrospective note:
+`docker4pycharm/implementation-notes/completed-tasks/2026-06-20-explicit-docker-in-docker-validation.md`.
+
+Default host Docker validation update: on 2026-06-20, the default host Docker
+passthrough validation item was removed from the active v0 stabilization list.
+Do not reopen it unless a later image or launcher change affects the default
+Docker path. Retrospective note:
+`docker4pycharm/implementation-notes/completed-tasks/2026-06-20-default-host-docker-passthrough-validation-retired.md`.
+
+Retired issue note: the earlier PyCharm Markdown preview blank/hang issue is no
+longer reproduced in the current iterations, so it has been removed from the
+active stabilization task list. Historical symptoms and log signatures are
+preserved in
+`docker4pycharm/implementation-notes/completed-tasks/2026-06-20-markdown-preview-skiko-opengl-hang-retired.md`
+in case it returns.
+
+Process documentation update: the current human/agent iteration loop is now
+captured in `WORKFLOW.md`. Guidance for reusing the current
+`pycharm-isolated:codex-debug-v003` image on an ordinary Python project is in
+`docker4pycharm/implementation-notes/using-v0-for-real-python-projects.md`.
+The image build now includes a reusable bootstrap template at
+`/usr/local/share/docker4ide/vibe-coding-process.md` so a future agent can
+apply the process to a newly mounted project without manual copy/paste by the
+user. Closed or retired tasks now move to
+`docker4pycharm/implementation-notes/completed-tasks/`, while active tasks keep
+explicit done criteria, verification, and reopen conditions.
 
 Build networking remains configurable in `docker4pycharm/build-image.sh`. The
 default build network is Docker's normal `default` mode, while
@@ -456,21 +478,40 @@ Post-MVP refactoring context: `FUTURE_AGENT_REFACTORING_BRIEF.md` has been resto
 When resuming the project, read these files in order:
 
 1. `README.md` for project-wide requirements, architecture, and backlog.
-2. `docker4pycharm/README.md` for the current PyCharm container build/run workflow.
-3. `docker4pycharm/debugging.md` for the handoff from the debugging session that made the current image work.
-4. `user.md` for the human-facing PyCharm AI plugin and ChatGPT subscription setup notes.
-5. `FUTURE_AGENT_REFACTORING_BRIEF.md` before planning post-MVP refactoring beyond the current PyCharm target.
+2. `WORKFLOW.md` for the human/agent iteration process and task-list hygiene.
+3. `docker4pycharm/README.md` for the current PyCharm container build/run workflow.
+4. `docker4pycharm/debugging.md` for the handoff from the debugging session that made the current image work.
+5. `user.md` for the human-facing PyCharm AI plugin and ChatGPT subscription setup notes.
+6. `FUTURE_AGENT_REFACTORING_BRIEF.md` before planning post-MVP refactoring beyond the current PyCharm target.
+7. `docker4pycharm/implementation-notes/using-v0-for-real-python-projects.md` before applying this workflow to a normal Python project with the current v0 image.
+8. `docker4pycharm/implementation-notes/completed-tasks/` only when a retired
+   issue recurs, when doing retrospective work, or when comparing current
+   behavior against a completed task.
 
 Immediate engineering priority: preserve the working MVP while making the setup reproducible and easier to use. Reconcile the debugging handoff with the checked-in Dockerfile, launcher, entrypoint, and docs before making larger design changes.
 
 Planned next stabilization items:
 
-1. Investigate and fix the Markdown preview blank/hang issue before broader
-   refactoring. Preserve the existing AI/Codex path while testing candidate
-   mitigations for Mesa/DRI/OpenGL context creation inside the container.
-2. Relaunch the image from the host and validate that `docker info` reaches the
-   host daemon in the default mode. Explicit `--docker-in-docker` mode was
-   already validated manually in the latest built VM on 2026-06-20.
-3. Confirm the Mesa/OpenGL runtime dependencies that fixed `libGL.so.1` / Skiko failures are present and documented.
-4. Add a small runtime verification helper or documented check sequence.
-5. Keep any isolation relaxation explicit and documented.
+1. Confirm the Mesa/OpenGL runtime dependencies that fixed `libGL.so.1` / Skiko failures are present and documented.
+   Done means: the Dockerfile package list, `docker4pycharm/README.md`, and
+   debugging/handoff docs agree on the Mesa/OpenGL packages needed by JetBrains
+   Skiko.
+   Verification: inspect the package list and run the cheapest available
+   static check; if an image is available, verify `libskiko-linux-x64.so` has no
+   missing `libGL` dependency.
+   Reopen if: Skiko or Markdown preview logs again show missing OpenGL/Mesa
+   runtime dependencies.
+2. Add a small runtime verification helper or documented check sequence.
+   Done means: there is a repeatable command or documented checklist for
+   checking the core v0 runtime assumptions after launch.
+   Verification: run the helper if available, or dry-read the checklist against
+   the current launcher modes.
+   Reopen if: a new launcher mode or dependency changes the expected runtime
+   checks.
+3. Keep any isolation relaxation explicit and documented.
+   Done means: any change that broadens host exposure is represented by a clear
+   launcher option/default, README text, and implementation note.
+   Verification: review Docker/run arguments and docs together before closing
+   each stabilization change.
+   Reopen if: a change adds host access, credentials, networking, devices, or
+   filesystem mounts without matching documentation.

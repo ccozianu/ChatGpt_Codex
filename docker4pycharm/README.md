@@ -8,8 +8,12 @@ PyCharm state, and plugins persistent on the host.
 
 - `../README.md` for project-wide requirements, backlog, and the current state
   and next step recorded at the end of the file.
+- `../WORKFLOW.md` for the human/agent iteration process used by this project
+  and reusable target projects.
 - `debugging.md` for the handoff from the debugging session that made the
   current image work.
+- `implementation-notes/using-v0-for-real-python-projects.md` for applying the
+  current image to an ordinary Python project.
 - `../user.md` for the human-facing PyCharm AI plugin setup guide.
 
 ## Build
@@ -27,6 +31,15 @@ runtime path, the IDE-side agent gets the Docker CLI connected to the host
 Docker daemon through the host Docker socket. Docker commands run inside
 PyCharm/Codex operate on host Docker images, containers, networks, and volumes.
 The image also includes `shellcheck` for launcher-script linting.
+
+The image carries the reusable human/agent process bootstrap template at:
+
+```text
+/usr/local/share/docker4ide/vibe-coding-process.md
+```
+
+Use it when opening an ordinary project that does not yet have local
+`AGENTS.md`, README handoff, or `implementation-notes/` process docs.
 
 If the normal Docker build network cannot reach Ubuntu package repositories on
 the host, opt into host networking for the build:
@@ -104,13 +117,14 @@ Native debugging or aggressive strace use:
 The detailed handoff lives in `debugging.md`. It records the problems seen while
 bringing the MVP to a working state:
 
-- Top priority: Markdown preview can render blank and make the PyCharm GUI
-  unresponsive, with captured Mesa/DRI/OpenGL/Skiko context creation errors in
-  `debugging.md`.
+- Historical note: Markdown preview previously rendered blank and could make
+  the PyCharm GUI unresponsive, but this is no longer reproduced in the current
+  iterations. The old symptoms and log signatures are preserved in
+  `implementation-notes/completed-tasks/2026-06-20-markdown-preview-skiko-opengl-hang-retired.md`.
 - Docker build networking required opt-in host networking on the user's laptop.
 - The default launcher mode now connects the IDE container to the host Docker
-  daemon; validate `docker info` from inside the launched IDE container. Also
-  validate explicit `--docker-in-docker` mode if isolated Docker state is needed.
+  daemon. Explicit `--docker-in-docker` mode is available if isolated Docker
+  state is needed.
 - JetBrains/Skiko failed until Mesa/OpenGL runtime libraries supplied
   `libGL.so.1`.
 - Container runtime warnings included missing `XDG_RUNTIME_DIR` and accessibility
