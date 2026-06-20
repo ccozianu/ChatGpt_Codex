@@ -2,5 +2,6 @@
 /shelf/
 /workspace.xml
 /usage.statistics.xml
+/vcs.xml
 # Editor-based HTTP Client requests
 /httpRequests/
