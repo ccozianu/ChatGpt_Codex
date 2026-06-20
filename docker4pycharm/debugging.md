@@ -38,9 +38,28 @@ The current running environment may include file changes and persistent IDE/cont
 
 ## Important Context for the IDE-Side Agent
 
-The current IDE-side agent is running inside the initial v0 container or a close descendant of it.
+The current IDE-side agent may be running inside the initial v0 container or a
+close descendant of it.
 
 Debugging was performed externally from a browser-based ChatGPT/Codex session.
+
+Latest launcher update: the checked-in image and launcher now support Docker
+from inside PyCharm. The default mode connects the IDE container to the host
+Docker daemon through `/run/host-docker.sock`, while keeping PyCharm as the
+mapped non-root IDE user. True Docker-in-Docker is still available as explicit
+`--docker-in-docker` / `--dind`; in that mode the launcher starts the outer IDE
+container with `--privileged`, and the entrypoint starts an inner `dockerd`
+before dropping PyCharm back to the mapped IDE user. Disable Docker access with
+`--no-docker` or `DOCKER_MODE=none`.
+
+The inner daemon is intentionally started with bridge/iptables management
+disabled because the outer PyCharm container uses host networking. For inner
+builds that need network access, pass `--network host` to `build-image.sh`.
+
+Important bootstrap limitation: an agent running in an older already-launched
+container still may not have the current Docker mode until the PyCharm container
+is relaunched through the updated launcher. Explicit DinD also requires the host
+image to include the updated Dockerfile packages.
 
 Therefore:
 
@@ -49,8 +68,84 @@ Therefore:
 - Some changes may have been applied manually to `Dockerfile`, launcher script, `entrypoint.sh`, or persistent IDE settings.
 - The local IDE-side view may be incomplete until files are inspected.
 - Non-file state must be reconstructed from this document.
+- Build validation may require one more human host-side image rebuild before the
+  IDE-side agent can validate Docker commands internally.
 
 The user specifically wanted this document to prevent loss of context.
+
+---
+
+## Top Priority: Markdown Preview Blank / IDE GUI Hang
+
+### Symptom
+
+The user observed several times that opening a preview window for an `.md` file
+inside the containerized PyCharm instance shows a blank preview. If the preview
+is not closed quickly enough, the whole PyCharm GUI can become unresponsive.
+
+This is a top-priority stabilization issue because this repository relies
+heavily on Markdown handoff documents, and the behavior can interrupt the
+human-to-agent loop.
+
+### Captured Logs
+
+Captured on 2026-06-19 during repeated interaction inside the containerized
+PyCharm environment:
+
+```text
+2026-06-19 23:05:10,349 [ 363248]   WARN - #c.i.i.s.e.FeatureUsageData - Collectors should not reuse platform keys: current_file
+MESA: error: Failed to query drm device.
+glx: failed to create dri3 screen
+failed to load driver: iris
+[SKIKO] warn: Fallback to next API
+org.jetbrains.skiko.RenderException: Cannot create OpenGL context
+MESA: error: Failed to query drm device.
+MESA: error: Failed to query drm device.
+MESA: error: Failed to query drm device.
+MESA: error: Failed to query drm device.
+MESA: error: Failed to query drm device.
+MESA: error: Failed to query drm device.
+MESA: error: Failed to query drm device.
+MESA: error: Failed to query drm device.
+MESA: error: Failed to query drm device.
+MESA: error: Failed to query drm device.
+MESA: error: Failed to query drm device.
+MESA: error: Failed to query drm device.
+MESA: error: Failed to query drm device.
+MESA: error: Failed to query drm device.
+MESA: error: Failed to query drm device.
+2026-06-19 23:08:47,699 [ 580598]   WARN - #org.intellij.plugins.markdown.ui.preview.MarkdownPreviewFileEditor$Companion - MarkdownPreviewFileEditor: panel is null, cannot update preview
+MESA: error: Failed to query drm device.
+MESA: error: Failed to query drm device.
+MESA: error: Failed to query drm device.
+MESA: error: Failed to query drm device.
+2026-06-19 23:09:47,073 [ 639972]   WARN - #org.intellij.plugins.markdown.ui.preview.MarkdownPreviewFileEditor$Companion - MarkdownPreviewFileEditor: panel is null, cannot update preview
+```
+
+### Initial Hypothesis
+
+This appears related to GPU/OpenGL context creation for the JetBrains Markdown
+preview/Skiko rendering path, not merely the earlier missing `libGL.so.1`
+package issue. The image now includes Mesa/OpenGL runtime libraries, but the
+runtime still cannot query a DRM device and Mesa attempts to load the `iris`
+driver before Skiko reports that it cannot create an OpenGL context.
+
+The next agent should investigate whether the right mitigation is to force a
+software rendering path for JetBrains/Skiko/Markdown preview, expose a narrow
+DRI/render device explicitly, adjust Mesa environment variables, or disable the
+problematic preview rendering mode. Any change must preserve the working
+AI/Codex path and remain explicit in the launcher/docs.
+
+### Suggested Validation
+
+- Open this repository in the containerized PyCharm instance.
+- Open a Markdown file such as `README.md`.
+- Open the Markdown preview and leave it open long enough to reproduce or rule
+  out the GUI freeze.
+- Check PyCharm logs for `MESA`, `dri3`, `iris`, `Cannot create OpenGL context`,
+  `SKIKO`, and `MarkdownPreviewFileEditor`.
+- Test candidate mitigations one at a time and document both the launcher/image
+  change and the observed PyCharm behavior.
 
 ---
 
@@ -203,26 +298,34 @@ Usage:
 DOCKER_BUILD_NETWORK=host ./build-image.sh --pycharm /path/to/pycharm.tar.gz
 ```
 
-### Next Task
+### Current Script Status
 
-Inspect the current `docker4pycharm/build-image.sh`.
+`docker4pycharm/build-image.sh` now supports both:
 
-If this patch is not already present, add a proper option such as:
+```bash
+DOCKER_BUILD_NETWORK=host ./build-image.sh --pycharm /path/to/pycharm.tar.gz
+./build-image.sh --network host --pycharm /path/to/pycharm.tar.gz
+```
+
+The default build network is `default`; host networking is no longer hard-coded.
+When `host` is selected, the script also passes the BuildKit entitlement:
+
+```bash
+--allow network.host
+```
+
+### Remaining Validation
+
+Rebuild once on the user's laptop with the normal default network and, if that
+still fails, rebuild with:
 
 ```bash
 ./build-image.sh --network host --pycharm /path/to/pycharm.tar.gz
 ```
 
-or support both:
-
-```bash
-DOCKER_BUILD_NETWORK=host ./build-image.sh ...
-./build-image.sh --network host ...
-```
-
 Acceptance criteria:
 
-- Default behavior remains unchanged.
+- Default behavior uses Docker's normal build network.
 - Host networking can be enabled explicitly.
 - Buildx usage is documented if/when used.
 - The option is mentioned in README/debugging docs.
@@ -805,18 +908,24 @@ This milestone should be captured in Git once the corresponding Dockerfile and s
 
 Do not solve these issues by weakening isolation unnecessarily.
 
-Avoid:
+Avoid in the strict `--no-docker` profile:
 
 ```text
 Mounting host $HOME
 Mounting ~/.ssh
 Mounting ~/.gitconfig
 Mounting /var/run/docker.sock
-Running privileged by default
 Disabling read-only root without a reason
 Baking secrets into the image
 Baking user IDE state into the image
 ```
+
+The default MVP profile now mounts the host Docker socket. This keeps the
+outer IDE container non-root, read-only, and capability-dropped, but it gives
+IDE-side tools broad control over host Docker state. True Docker-in-Docker is
+an explicit exception that runs the outer IDE container with `--privileged` and
+a writable root filesystem. Do not re-enable inner Docker bridge/iptables
+management while the outer container uses host networking.
 
 Acceptable targeted changes:
 

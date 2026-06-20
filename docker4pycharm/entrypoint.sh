@@ -3,15 +3,49 @@ set -euo pipefail
 
 : "${PROJECT_PATH:=/project}"
 : "${HOME:=/ide-state/home}"
+: "${ENABLE_DIND:=0}"
+: "${IDE_UID:=}"
+: "${IDE_GID:=}"
+: "${IDE_USER:=ideuser}"
 
-mkdir -p \
+RUN_AS_IDE_USER=()
+if [ "$(id -u)" -eq 0 ] && [ -n "$IDE_UID" ] && [ -n "$IDE_GID" ]; then
+  RUN_AS_IDE_USER=(gosu "$IDE_UID:$IDE_GID")
+fi
+
+as_ide_user() {
+  if [ "${#RUN_AS_IDE_USER[@]}" -gt 0 ]; then
+    "${RUN_AS_IDE_USER[@]}" "$@"
+  else
+    "$@"
+  fi
+}
+
+install_ide_file() {
+  local src="$1"
+  local dst="$2"
+  local mode="$3"
+
+  if [ "$(id -u)" -eq 0 ] && [ -n "$IDE_UID" ] && [ -n "$IDE_GID" ]; then
+    install -o "$IDE_UID" -g "$IDE_GID" -m "$mode" "$src" "$dst"
+  else
+    install -m "$mode" "$src" "$dst"
+  fi
+}
+
+as_ide_user mkdir -p \
   "$HOME" \
   "$HOME/.ssh" \
   /ide-state/config \
   /ide-state/system \
   /ide-state/log \
   /ide-plugins
-chmod 700 "$HOME/.ssh" 2>/dev/null || true
+as_ide_user chmod 700 "$HOME/.ssh" 2>/dev/null || true
+
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp/runtime-${IDE_UID:-$(id -u)}}"
+as_ide_user mkdir -p "$XDG_RUNTIME_DIR"
+as_ide_user chmod 700 "$XDG_RUNTIME_DIR" 2>/dev/null || true
+export NO_AT_BRIDGE="${NO_AT_BRIDGE:-1}"
 
 IDEA_PROPERTIES=/tmp/pycharm-docker.idea.properties
 cat > "$IDEA_PROPERTIES" <<EOF_PROPS
@@ -22,21 +56,70 @@ idea.log.path=/ide-state/log
 EOF_PROPS
 export PYCHARM_PROPERTIES="$IDEA_PROPERTIES"
 
+start_dind() {
+  if [ "$(id -u)" -ne 0 ]; then
+    echo "Docker-in-Docker was enabled, but the entrypoint is not running as root." >&2
+    echo "Start the container through run-pycharm-container.sh or disable it with --no-docker." >&2
+    exit 1
+  fi
+  if ! command -v dockerd >/dev/null 2>&1; then
+    echo "Docker-in-Docker was enabled, but dockerd is not installed in this image." >&2
+    echo "Rebuild the image with the updated docker4pycharm/Dockerfile." >&2
+    exit 1
+  fi
+
+  mkdir -p /run/docker /var/lib/docker
+  rm -f /run/docker/docker.pid /var/run/docker.sock
+
+  DOCKERD_LOG=/ide-state/log/dockerd.log
+  DOCKER_SOCKET_GROUP="${IDE_GID:-0}"
+  dockerd \
+    --host=unix:///var/run/docker.sock \
+    --group="$DOCKER_SOCKET_GROUP" \
+    --data-root=/var/lib/docker \
+    --exec-root=/run/docker \
+    --pidfile=/run/docker/docker.pid \
+    --bridge=none \
+    --iptables=false \
+    --ip-forward=false \
+    --ip-masq=false \
+    >"$DOCKERD_LOG" 2>&1 &
+  export DOCKER_HOST=unix:///var/run/docker.sock
+
+  for _ in $(seq 1 60); do
+    if docker info >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+
+  echo "Docker-in-Docker daemon failed to become ready. Last dockerd log lines:" >&2
+  tail -n 80 "$DOCKERD_LOG" >&2 || true
+  exit 1
+}
+
+if [ "$ENABLE_DIND" = "1" ]; then
+  start_dind
+fi
+
 # Keep GitHub SSH first-use state inside the isolated IDE home, not in the host home.
 if [ ! -f "$HOME/.ssh/config" ]; then
-  cat > "$HOME/.ssh/config" <<'EOF_SSH'
+  SSH_CONFIG_TMP=/tmp/pycharm-docker-ssh-config
+  cat > "$SSH_CONFIG_TMP" <<'EOF_SSH'
 Host github.com
   StrictHostKeyChecking accept-new
   UserKnownHostsFile ~/.ssh/known_hosts
 EOF_SSH
-  chmod 600 "$HOME/.ssh/config" 2>/dev/null || true
+  install_ide_file "$SSH_CONFIG_TMP" "$HOME/.ssh/config" 600
+  rm -f "$SSH_CONFIG_TMP"
 fi
 
 # Optional HTTPS GitHub credential path. The wrapper mounts the token as a file
 # rather than exposing it as a long-lived Docker environment variable.
 if [ -n "${GITHUB_TOKEN_FILE:-}" ] && [ -r "${GITHUB_TOKEN_FILE}" ]; then
   ASKPASS=/tmp/git-askpass-github.sh
-  cat > "$ASKPASS" <<'EOF_ASKPASS'
+  ASKPASS_TMP=/tmp/git-askpass-github.sh.tmp
+  cat > "$ASKPASS_TMP" <<'EOF_ASKPASS'
 #!/usr/bin/env sh
 case "$1" in
   *Username*|*username*) printf '%s\n' "${GITHUB_USER:-x-access-token}" ;;
@@ -44,13 +127,18 @@ case "$1" in
   *) printf '\n' ;;
 esac
 EOF_ASKPASS
-  chmod 700 "$ASKPASS"
+  install_ide_file "$ASKPASS_TMP" "$ASKPASS" 700
+  rm -f "$ASKPASS_TMP"
   export GIT_ASKPASS="$ASKPASS"
   export GIT_TERMINAL_PROMPT=0
 fi
 
 if [ "$#" -eq 0 ]; then
   set -- /opt/pycharm/bin/pycharm.sh "$PROJECT_PATH"
+fi
+
+if [ "${#RUN_AS_IDE_USER[@]}" -gt 0 ]; then
+  exec "${RUN_AS_IDE_USER[@]}" "$@"
 fi
 
 exec "$@"

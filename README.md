@@ -2,6 +2,16 @@
 
 This repository is a continuation point for the Docker/PyCharm isolation work bootstrapped from a ChatGPT design session. It is intended to be read by both a human developer and a future AI development agent working inside PyCharm.
 
+The long-term goal is to create a line of reproducible, batteries-included development environments that combine:
+
+1. Best-of-breed IDEs for the target development domain.
+2. Best-of-breed AI assistants and coding agents.
+3. Reproducibility, portability, and isolation.
+
+The user experience target is a fast, low-friction human-to-agent loop. A user should not need extensive local setup before working, and the AI agent should have enough tools and environmental completeness to make meaningful progress without stopping every few minutes for permission or missing dependency setup. At the same time, the environment should constrain host exposure so a capable AI agent can operate aggressively inside the development environment without casually reaching into unrelated host state.
+
+This project is also an experiment in documenting a practical human/AI development workflow. The repository should become the durable knowledge base for the project: important decisions, current state, handoffs, and next steps should be persisted in project files. Human attention should be reserved for direction, intuition, product judgment, and creativity. Agent/model pairs should be given narrow, well-documented targets so context stays small and the quality of the AI work stays high.
+
 The first concrete build target is `docker4pycharm`, a Docker/X11 configuration for running PyCharm in a Linux container while keeping PyCharm user state and plugins persistent outside the image and while exposing only an explicitly selected project directory to the IDE.
 
 ## Conversation summary
@@ -80,6 +90,7 @@ The launcher mounts only the required host resources by default:
 /tmp/.docker.xauth -> temporary generated Xauthority file, read-only
 /etc/passwd    -> temporary generated passwd file, read-only
 /etc/group     -> temporary generated group file, read-only
+/run/host-docker.sock -> host Docker daemon socket, default Docker mode
 ```
 
 Optional mounts:
@@ -155,7 +166,17 @@ This is a pragmatic development-workstation choice, not a perfect GUI security b
 
 ### Security posture
 
-The first launcher aims for a constrained default profile:
+The default launcher profile now uses Docker-outside-of-Docker for developer
+convenience: it mounts the host Docker daemon socket into the IDE container at
+`/run/host-docker.sock` and sets `DOCKER_HOST=unix:///run/host-docker.sock`.
+The container still runs PyCharm as the mapped non-root user, keeps the
+read-only root filesystem, drops capabilities, and sets
+`no-new-privileges`, but the Docker socket is a major security exception. Any
+tool inside PyCharm/Codex that can run Docker commands can control host Docker
+images, containers, networks, and bind mounts.
+
+The strict launcher profile, available with `--no-docker`, keeps the original
+constrained posture and does not mount any Docker socket:
 
 - `--read-only` root filesystem by default.
 - Writable `tmpfs` mounts for `/tmp`, `/run`, and `/var/tmp`.
@@ -165,10 +186,25 @@ The first launcher aims for a constrained default profile:
 - PID limit.
 - No host `$HOME` mount.
 - No host `~/.ssh` mount.
-- No Docker socket mount.
 - No system package-cache or language-environment mounts from the host.
+- No Docker daemon access.
 
 The project directory is mounted read/write because normal IDE operation requires editing project files. PyCharm settings, caches, plugins, logs, SSH known-hosts, and any IDE-local home files are stored under `/ide-state` or `/ide-plugins`.
+
+For isolated Docker state, the launcher also supports explicit true
+Docker-in-Docker:
+
+```bash
+./docker4pycharm/run-pycharm-container.sh \
+  --project /repo \
+  --docker-in-docker
+```
+
+This starts the outer IDE container with `--privileged`, a writable root
+filesystem, and an inner `dockerd`. When this mode is active, the launcher
+prints a large stderr warning. Because the outer PyCharm container uses host
+networking, the inner daemon is started without bridge/iptables management; use
+`--network host` for inner Docker builds that need network access.
 
 ### Native-debugging exception
 
@@ -229,8 +265,9 @@ build-essential make cmake pkg-config gcc g++ gdb lldb
 python3 python3-pip python3-venv python3-dev
 netcat-openbsd dnsutils iproute2 iputils-ping traceroute
 procps psmisc lsof strace tcpdump socat telnet whois
-jq ripgrep fd-find fzf tree less vim-tiny nano
+jq ripgrep fd-find fzf shellcheck tree less vim-tiny nano
 tini
+docker.io docker-buildx docker-compose-v2 gosu
 ```
 
 It also installs X11/GTK/font libraries needed by JetBrains IDEs:
@@ -267,6 +304,26 @@ Run PyCharm on a project:
 ./docker4pycharm/run-pycharm-container.sh \
   --project /path/to/project \
   --ssh-agent
+```
+
+By default, Docker commands inside PyCharm/Codex connect to the host Docker
+daemon through the host Docker socket. To launch with a separate inner Docker
+daemon instead:
+
+```bash
+./docker4pycharm/run-pycharm-container.sh \
+  --project /path/to/project \
+  --ssh-agent \
+  --docker-in-docker
+```
+
+To launch a higher-isolation session without Docker access:
+
+```bash
+./docker4pycharm/run-pycharm-container.sh \
+  --project /path/to/project \
+  --ssh-agent \
+  --no-docker
 ```
 
 Use a custom image name:
@@ -322,13 +379,22 @@ Suggested next work items:
 11. Add a mechanism for passing additional trusted CA certificates or corporate proxy settings without mounting host-wide directories.
 12. Add clear documentation for Claude-related plugins in a later revision, after verifying the current recommended PyCharm integration path.
 
+The post-MVP refactoring direction is documented in `FUTURE_AGENT_REFACTORING_BRIEF.md`. Read it before planning work that generalizes this repository beyond the current `docker4pycharm` prototype.
+
 ## Guidance for future AI development agents
 
 When continuing this project inside the bootstrapped IDE:
 
+- Treat the repository files as the project knowledge base. Persist important requirements, decisions, current state, and handoff notes in versioned files rather than relying on conversation memory.
+- Keep context focused. Prefer narrow, explicit work targets and update the handoff when the active target changes.
+- Preserve the human role as project director: ask for decisions where product judgment, risk tolerance, or prioritization is genuinely needed, but do not push routine implementation bookkeeping back to the user.
 - Preserve the core isolation principle: do not mount host directories beyond the explicitly selected project, IDE state, IDE plugins, and narrowly scoped runtime/credential resources.
-- Prefer explicit launcher options over broad default access.
-- Do not mount the host Docker socket by default.
+- Prefer explicit launcher options over broad default access, except for the
+  revised MVP requirement that Docker capability should be available by default
+  to the IDE-side agent through the host Docker socket.
+- Treat Docker capability as a deliberate MVP productivity exception. The
+  default is host Docker socket passthrough; true Docker-in-Docker is an
+  explicit `--docker-in-docker` option; `--no-docker` is the clear opt-out.
 - Do not mount host `~/.ssh`; use SSH agent forwarding or explicit secret files.
 - Do not persist API keys or OAuth tokens into the image.
 - Treat AI plugin authentication as a first-class integration test.
@@ -344,3 +410,67 @@ These links were used to validate the current PyCharm/OpenAI/JetBrains assumptio
 - JetBrains blog: Codex is integrated into JetBrains IDEs: https://blog.jetbrains.com/ai/2026/01/codex-in-jetbrains-ides/
 - JetBrains AI Assistant installation guide: https://www.jetbrains.com/help/ai-assistant/installation-guide-ai-assistant.html
 - JetBrains AI Assistant Marketplace page: https://plugins.jetbrains.com/plugin/22282-jetbrains-ai-assistant
+
+## Current state and next step
+
+This section is the project handoff point. Future agents should update it when completing a stage, changing the project state materially, or ending a session.
+
+Current stage: `docker4pycharm` v0/MVP user-experience stabilization.
+
+Current status: PyCharm can run inside the Docker container, open the selected project, and the AI/Codex/ChatGPT plugin path has worked from inside that IDE environment.
+
+Top priority open issue: PyCharm Markdown preview can render blank and make the
+whole IDE GUI unresponsive if the preview is left open. The captured logs point
+at Mesa/DRI/OpenGL context creation failures in the JetBrains Skiko/Markdown
+preview path, including `MESA: error: Failed to query drm device.`, `failed to
+load driver: iris`, `org.jetbrains.skiko.RenderException: Cannot create OpenGL
+context`, and `MarkdownPreviewFileEditor: panel is null, cannot update preview`.
+The full log excerpt is preserved in `docker4pycharm/debugging.md`.
+
+Latest stabilization update: `docker4pycharm/run-pycharm-container.sh` now
+defaults to host Docker daemon passthrough for developer convenience. The
+launcher mounts the host Docker socket at `/run/host-docker.sock`, sets
+`DOCKER_HOST=unix:///run/host-docker.sock`, and adds the host socket group ID as
+a supplemental group for the mapped IDE user. True Docker-in-Docker remains
+available only as the explicit `--docker-in-docker` / `--dind` mode, which
+starts the outer IDE container with `--privileged`, a writable root filesystem,
+and an inner `dockerd`. Use `--no-docker` or `DOCKER_MODE=none` for the
+higher-isolation no-Docker profile. Legacy `DOCKER_IN_DOCKER=1` still selects
+DinD, and `DOCKER_IN_DOCKER=0` selects no-Docker, for compatibility with the
+previous launcher behavior. The image package baseline now includes
+`shellcheck` so future sessions can lint launcher scripts after rebuilding the
+image.
+
+Explicit Docker-in-Docker validation update: on 2026-06-20, the latest built VM
+was tested manually and Docker-in-Docker worked as expected. Do not reopen the
+explicit DinD validation item unless a later image or launcher change regresses
+it.
+
+Build networking remains configurable in `docker4pycharm/build-image.sh`. The
+default build network is Docker's normal `default` mode, while
+firewall-constrained hosts can opt into host networking with `--network host` or
+`DOCKER_BUILD_NETWORK=host`.
+
+Post-MVP refactoring context: `FUTURE_AGENT_REFACTORING_BRIEF.md` has been restored. It describes the intended move from one-off PyCharm scripts toward a profile-driven `docker4ide` framework with shared runtime orchestration, IDE-family adapters, and product-specific profiles.
+
+When resuming the project, read these files in order:
+
+1. `README.md` for project-wide requirements, architecture, and backlog.
+2. `docker4pycharm/README.md` for the current PyCharm container build/run workflow.
+3. `docker4pycharm/debugging.md` for the handoff from the debugging session that made the current image work.
+4. `user.md` for the human-facing PyCharm AI plugin and ChatGPT subscription setup notes.
+5. `FUTURE_AGENT_REFACTORING_BRIEF.md` before planning post-MVP refactoring beyond the current PyCharm target.
+
+Immediate engineering priority: preserve the working MVP while making the setup reproducible and easier to use. Reconcile the debugging handoff with the checked-in Dockerfile, launcher, entrypoint, and docs before making larger design changes.
+
+Planned next stabilization items:
+
+1. Investigate and fix the Markdown preview blank/hang issue before broader
+   refactoring. Preserve the existing AI/Codex path while testing candidate
+   mitigations for Mesa/DRI/OpenGL context creation inside the container.
+2. Relaunch the image from the host and validate that `docker info` reaches the
+   host daemon in the default mode. Explicit `--docker-in-docker` mode was
+   already validated manually in the latest built VM on 2026-06-20.
+3. Confirm the Mesa/OpenGL runtime dependencies that fixed `libGL.so.1` / Skiko failures are present and documented.
+4. Add a small runtime verification helper or documented check sequence.
+5. Keep any isolation relaxation explicit and documented.

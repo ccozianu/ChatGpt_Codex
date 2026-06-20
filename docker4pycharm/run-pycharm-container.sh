@@ -12,7 +12,22 @@ GITHUB_TOKEN_ENV=""
 GITHUB_USER="x-access-token"
 DEBUG_NATIVE=0
 WRITABLE_ROOT=0
+DOCKER_MODE="${DOCKER_MODE:-}"
+HOST_DOCKER_SOCKET="${HOST_DOCKER_SOCKET:-/var/run/docker.sock}"
+HOST_DOCKER_GID=""
 EXTRA_DOCKER_ARGS=()
+
+if [ -n "${DOCKER_MODE:-}" ]; then
+  DOCKER_MODE="${DOCKER_MODE}"
+elif [ -n "${DOCKER_IN_DOCKER:-}" ]; then
+  case "$DOCKER_IN_DOCKER" in
+    1|true|TRUE|yes|YES|on|ON) DOCKER_MODE="dind" ;;
+    0|false|FALSE|no|NO|off|OFF) DOCKER_MODE="none" ;;
+    *) echo "DOCKER_IN_DOCKER must be 1/0, true/false, yes/no, or on/off." >&2; exit 2 ;;
+  esac
+else
+  DOCKER_MODE="host"
+fi
 
 usage() {
   cat <<'USAGE'
@@ -28,6 +43,10 @@ Options:
   --github-token-file FILE      Mount an HTTPS GitHub token file for Git askpass
   --github-token-env ENVVAR     Read token from host ENVVAR, place it in a temporary mounted file
   --github-user USER            Username for HTTPS GitHub askpass. Default: x-access-token
+  --docker, --host-docker       Connect to the host Docker daemon through /var/run/docker.sock. Default
+  --docker-socket SOCKET        Host Docker socket for --docker. Default: /var/run/docker.sock
+  --docker-in-docker, --dind    Start an isolated inner Docker daemon. Requires --privileged
+  --no-docker                   Disable Docker access and use the stricter container profile
   --debug-native                Add ptrace/seccomp permissions for native debugging/strace of non-child processes
   --writable-root               Do not run the container with a read-only root filesystem
   --docker-arg ARG              Append one raw docker-run argument; repeat for advanced cases
@@ -46,6 +65,10 @@ while [ "$#" -gt 0 ]; do
     --github-token-file) GITHUB_TOKEN_FILE="${2:?missing value for --github-token-file}"; shift 2 ;;
     --github-token-env) GITHUB_TOKEN_ENV="${2:?missing value for --github-token-env}"; shift 2 ;;
     --github-user) GITHUB_USER="${2:?missing value for --github-user}"; shift 2 ;;
+    --docker|--host-docker) DOCKER_MODE=host; shift ;;
+    --docker-socket) HOST_DOCKER_SOCKET="${2:?missing value for --docker-socket}"; shift 2 ;;
+    --docker-in-docker|--dind) DOCKER_MODE=dind; shift ;;
+    --no-docker) DOCKER_MODE=none; shift ;;
     --debug-native) DEBUG_NATIVE=1; shift ;;
     --writable-root) WRITABLE_ROOT=1; shift ;;
     --docker-arg) EXTRA_DOCKER_ARGS+=("${2:?missing value for --docker-arg}"); shift 2 ;;
@@ -63,6 +86,12 @@ if [ -z "${DISPLAY:-}" ]; then
   echo "DISPLAY is not set; this X11 launcher needs an active X session." >&2
   exit 1
 fi
+case "$DOCKER_MODE" in
+  host|HOST|docker|DOCKER|socket|SOCKET) DOCKER_MODE=host ;;
+  dind|DIND|docker-in-docker|DOCKER-IN-DOCKER) DOCKER_MODE=dind ;;
+  none|NONE|off|OFF|no|NO|false|FALSE|0) DOCKER_MODE=none ;;
+  *) echo "DOCKER_MODE must be host, dind, or none." >&2; exit 2 ;;
+esac
 
 PROJECT="$(readlink -f "$PROJECT")"
 STATE_DIR="$(mkdir -p "$STATE_DIR" && readlink -f "$STATE_DIR")"
@@ -71,6 +100,16 @@ PLUGIN_DIR="$(mkdir -p "$PLUGIN_DIR" && readlink -f "$PLUGIN_DIR")"
 if [ ! -d "$PROJECT" ]; then
   echo "Project directory does not exist: $PROJECT" >&2
   exit 1
+fi
+
+if [ "$DOCKER_MODE" = "host" ]; then
+  if [ ! -S "$HOST_DOCKER_SOCKET" ]; then
+    echo "Host Docker socket is not available: $HOST_DOCKER_SOCKET" >&2
+    echo "Start Docker on the host, set HOST_DOCKER_SOCKET, or launch with --docker-in-docker / --no-docker." >&2
+    exit 1
+  fi
+  HOST_DOCKER_SOCKET="$(readlink -f "$HOST_DOCKER_SOCKET")"
+  HOST_DOCKER_GID="$(stat -c '%g' "$HOST_DOCKER_SOCKET")"
 fi
 
 RUNTIME_PARENT="${XDG_RUNTIME_DIR:-/tmp}"
@@ -101,6 +140,9 @@ cat > "$GROUP_FILE" <<EOF_GROUP
 root:x:0:
 $(id -gn):x:$(id -g):
 EOF_GROUP
+if [ -n "$HOST_DOCKER_GID" ] && [ "$HOST_DOCKER_GID" != "$(id -g)" ]; then
+  echo "host-docker:x:$HOST_DOCKER_GID:" >> "$GROUP_FILE"
+fi
 chmod 644 "$PASSWD_FILE" "$GROUP_FILE"
 
 DOCKER_ARGS=(
@@ -108,13 +150,15 @@ DOCKER_ARGS=(
   -i
   --name "$NAME"
   --network=host
-  --user "$(id -u):$(id -g)"
   --workdir /project
   --env DISPLAY
   --env XAUTHORITY=/tmp/.docker.xauth
   --env PROJECT_PATH=/project
   --env HOME=/ide-state/home
   --env CODEX_HOME=/ide-state/home/.codex
+  --env IDE_UID="$(id -u)"
+  --env IDE_GID="$(id -g)"
+  --env IDE_USER="$(id -un)"
   --env QT_X11_NO_MITSHM=1
   --env _JAVA_AWT_WM_NONREPARENTING=1
   --env GITHUB_USER="$GITHUB_USER"
@@ -128,17 +172,79 @@ DOCKER_ARGS=(
   --tmpfs /tmp:rw,exec,nosuid,nodev,size=2g
   --tmpfs /run:rw,nosuid,nodev,size=128m
   --tmpfs /var/tmp:rw,exec,nosuid,nodev,size=1g
-  --cap-drop ALL
-  --security-opt no-new-privileges
   --ipc private
   --pids-limit 4096
 )
 
-if [ "$WRITABLE_ROOT" -eq 0 ]; then
+case "$DOCKER_MODE" in
+  host)
+    cat >&2 <<EOF_HOST_DOCKER
+========================================================================
+HOST DOCKER DAEMON IS CONNECTED TO THIS PYCHARM CONTAINER.
+
+The launcher is mounting the host Docker socket:
+  $HOST_DOCKER_SOCKET
+
+Docker commands inside PyCharm/Codex operate on the host daemon. This is the
+default local-development convenience mode, but it gives tools inside the IDE
+broad control over host Docker images, containers, networks, and bind mounts.
+
+For an isolated inner daemon, run:
+  $0 --project "$PROJECT" --docker-in-docker
+
+For a higher-isolation session with no Docker access, run:
+  $0 --project "$PROJECT" --no-docker
+========================================================================
+EOF_HOST_DOCKER
+    DOCKER_ARGS+=(
+      --user "$(id -u):$(id -g)"
+      --group-add "$HOST_DOCKER_GID"
+      --env ENABLE_DIND=0
+      --env DOCKER_HOST=unix:///run/host-docker.sock
+      --mount "type=bind,src=$HOST_DOCKER_SOCKET,dst=/run/host-docker.sock"
+      --cap-drop ALL
+      --security-opt no-new-privileges
+    )
+    ;;
+  dind)
+  cat >&2 <<EOF_DIND
+========================================================================
+DOCKER-IN-DOCKER IS ENABLED FOR THIS PYCHARM CONTAINER.
+
+The launcher is starting this IDE container with --privileged, a writable
+root filesystem, and an inner Docker daemon. Use this when you want separate
+Docker images, containers, and volumes inside the PyCharm environment.
+The inner daemon does not manage bridge/iptables networking; use --network host
+for inner builds that need network access.
+
+To use the default host Docker daemon instead, run:
+  $0 --project "$PROJECT" --docker
+
+To turn Docker off for a higher-isolation session, run:
+  $0 --project "$PROJECT" --no-docker
+========================================================================
+EOF_DIND
+  DOCKER_ARGS+=(
+    --privileged
+    --env ENABLE_DIND=1
+    --mount "type=volume,dst=/var/lib/docker"
+  )
+    ;;
+  none)
+  DOCKER_ARGS+=(
+    --user "$(id -u):$(id -g)"
+    --env ENABLE_DIND=0
+    --cap-drop ALL
+    --security-opt no-new-privileges
+  )
+    ;;
+esac
+
+if [ "$WRITABLE_ROOT" -eq 0 ] && [ "$DOCKER_MODE" != "dind" ]; then
   DOCKER_ARGS+=(--read-only)
 fi
 
-if [ "$DEBUG_NATIVE" -eq 1 ]; then
+if [ "$DEBUG_NATIVE" -eq 1 ] && [ "$DOCKER_MODE" != "dind" ]; then
   DOCKER_ARGS+=(--cap-add SYS_PTRACE --security-opt seccomp=unconfined)
 fi
 

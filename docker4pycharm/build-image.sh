@@ -3,14 +3,23 @@ set -euo pipefail
 
 IMAGE="pycharm-isolated:latest"
 PYCHARM_SRC=""
+BUILD_NETWORK="${DOCKER_BUILD_NETWORK:-default}"
 
 usage() {
   cat <<'USAGE'
 Usage:
-  ./build-image.sh --pycharm /path/to/pycharm.tar.gz|/path/to/unpacked-pycharm [--image pycharm-isolated:latest]
+  ./build-image.sh --pycharm /path/to/pycharm.tar.gz|/path/to/unpacked-pycharm [--image pycharm-isolated:latest] [--network default|host|none|...]
 
 The script normalizes the supplied PyCharm distribution into the Docker build
 context as ./pycharm/, then builds the image.
+
+Options:
+  --pycharm PATH     PyCharm .tar.gz or unpacked PyCharm directory
+  --image IMAGE      Docker image tag. Default: pycharm-isolated:latest
+  --network MODE     Docker build network mode. Default: default, or DOCKER_BUILD_NETWORK if set
+
+Set DOCKER_BUILD_NETWORK=host or pass --network host only when the normal Docker
+build network cannot reach package repositories from this host.
 USAGE
 }
 
@@ -18,6 +27,7 @@ while [ "$#" -gt 0 ]; do
   case "$1" in
     --pycharm) PYCHARM_SRC="${2:?missing value for --pycharm}"; shift 2 ;;
     --image) IMAGE="${2:?missing value for --image}"; shift 2 ;;
+    --network) BUILD_NETWORK="${2:?missing value for --network}"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -57,4 +67,13 @@ if [ ! -x "$TMPDIR/pycharm/bin/pycharm.sh" ]; then
   exit 1
 fi
 
-docker buildx build --network=host   --allow network.host -t "$IMAGE" "$TMPDIR"
+BUILD_ARGS=(
+  --network="$BUILD_NETWORK"
+  -t "$IMAGE"
+)
+
+if [ "$BUILD_NETWORK" = "host" ]; then
+  BUILD_ARGS+=(--allow network.host)
+fi
+
+docker buildx build "${BUILD_ARGS[@]}" "$TMPDIR"
