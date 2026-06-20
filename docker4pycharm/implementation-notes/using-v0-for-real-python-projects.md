@@ -10,7 +10,7 @@ Use the current debug image as the practical starting point:
 
 ```bash
 ./docker4pycharm/run-pycharm-container.sh \
-  --image pycharm-isolated:codex-debug-v003 \
+  --image pycharm-isolated:codex-debug-v004 \
   --project /path/to/python-project \
   --ssh-agent
 ```
@@ -49,7 +49,8 @@ template at:
 ```
 
 If an existing `pycharm-isolated:codex-debug-v003` tag was built before this
-change, rebuild or retag a newer image before relying on that path.
+change, use `pycharm-isolated:codex-debug-v004` or rebuild/retag a newer image
+before relying on that path.
 
 For a new or existing Python project, ask the agent in that launched IDE
 environment:

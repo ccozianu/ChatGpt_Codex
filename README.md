@@ -459,7 +459,7 @@ in case it returns.
 
 Process documentation update: the current human/agent iteration loop is now
 captured in `WORKFLOW.md`. Guidance for reusing the current
-`pycharm-isolated:codex-debug-v003` image on an ordinary Python project is in
+`pycharm-isolated:codex-debug-v004` image on an ordinary Python project is in
 `docker4pycharm/implementation-notes/using-v0-for-real-python-projects.md`.
 The image build now includes a reusable bootstrap template at
 `/usr/local/share/docker4ide/vibe-coding-process.md` so a future agent can
@@ -467,6 +467,16 @@ apply the process to a newly mounted project without manual copy/paste by the
 user. Closed or retired tasks now move to
 `docker4pycharm/implementation-notes/completed-tasks/`, while active tasks keep
 explicit done criteria, verification, and reopen conditions.
+
+Bootstrap process template validation update: on 2026-06-20,
+`pycharm-isolated:codex-debug-v004` was confirmed as the running image for this
+agent session, and `/usr/local/share/docker4ide/vibe-coding-process.md` was
+confirmed present and close enough to `WORKFLOW.md` to serve as the reusable
+bootstrap process instructions. This was an improvement over the previously
+referenced `pycharm-isolated:codex-debug-v003` image. Do not reopen this unless
+a later image removes the template or the template drifts materially from the
+current workflow. Retrospective note:
+`docker4pycharm/implementation-notes/completed-tasks/2026-06-20-bootstrap-process-template-v004-validation.md`.
 
 Build networking remains configurable in `docker4pycharm/build-image.sh`. The
 default build network is Docker's normal `default` mode, while
