@@ -10,9 +10,13 @@ PROJECT_STATE_DIR="${PYCHARM_PROJECT_STATE_DIR:-}"
 PLUGIN_DIR="${PYCHARM_PLUGIN_DIR:-$BASE_DATA_DIR/plugins}"
 PROJECT_MOUNT="${PYCHARM_PROJECT_MOUNT:-}"
 USE_SSH_AGENT=0
-GITHUB_TOKEN_FILE=""
-GITHUB_TOKEN_ENV=""
-GITHUB_USER="x-access-token"
+GIT_USER_NAME="${PYCHARM_GIT_USER_NAME:-}"
+GIT_USER_EMAIL="${PYCHARM_GIT_USER_EMAIL:-}"
+GIT_IDENTITY_FROM_HOST="${PYCHARM_GIT_IDENTITY_FROM_HOST:-0}"
+GIT_TOKEN_FILE="${PYCHARM_GIT_TOKEN_FILE:-${GITHUB_TOKEN_FILE:-}}"
+GIT_TOKEN_ENV="${PYCHARM_GIT_TOKEN_ENV:-${GITHUB_TOKEN_ENV:-}}"
+GIT_TOKEN_USERNAME="${PYCHARM_GIT_TOKEN_USERNAME:-${GITHUB_USER:-x-access-token}}"
+GIT_TOKEN_HOSTS="${PYCHARM_GIT_TOKEN_HOSTS:-github.com}"
 DEBUG_NATIVE=0
 WRITABLE_ROOT=0
 DOCKER_MODE="${DOCKER_MODE:-}"
@@ -85,9 +89,16 @@ Options:
   --project-mount PATH          In-container project path. Default: /workspace/<project-id>
   --plugins DIR                 Persistent PyCharm plugins dir. Default: ~/.local/share/pycharm-docker/plugins
   --ssh-agent                   Forward host SSH agent socket into the container
-  --github-token-file FILE      Mount an HTTPS GitHub token file for Git askpass
-  --github-token-env ENVVAR     Read token from host ENVVAR, place it in a temporary mounted file
-  --github-user USER            Username for HTTPS GitHub askpass. Default: x-access-token
+  --git-user-name NAME          Configure Git user.name inside the isolated IDE home
+  --git-user-email EMAIL        Configure Git user.email inside the isolated IDE home
+  --git-identity-from-host      Read host global Git user.name/user.email and pass only those values
+  --git-token-file FILE         Mount an HTTPS Git token file for Git askpass
+  --git-token-env ENVVAR        Read token from host ENVVAR, place it in a temporary mounted file
+  --git-token-user USER         Username for HTTPS Git askpass. Default: x-access-token
+  --git-token-host HOSTS        Comma/space-separated hosts allowed to receive the token. Default: github.com
+  --github-token-file FILE      Alias for --git-token-file
+  --github-token-env ENVVAR     Alias for --git-token-env
+  --github-user USER            Alias for --git-token-user
   --docker, --host-docker       Connect to the host Docker daemon through /var/run/docker.sock. Default
   --docker-socket SOCKET        Host Docker socket for --docker. Default: /var/run/docker.sock
   --docker-in-docker, --dind    Start an isolated inner Docker daemon. Requires --privileged
@@ -116,9 +127,13 @@ while [ "$#" -gt 0 ]; do
     --project-mount) PROJECT_MOUNT="${2:?missing value for --project-mount}"; shift 2 ;;
     --plugins) PLUGIN_DIR="${2:?missing value for --plugins}"; shift 2 ;;
     --ssh-agent) USE_SSH_AGENT=1; shift ;;
-    --github-token-file) GITHUB_TOKEN_FILE="${2:?missing value for --github-token-file}"; shift 2 ;;
-    --github-token-env) GITHUB_TOKEN_ENV="${2:?missing value for --github-token-env}"; shift 2 ;;
-    --github-user) GITHUB_USER="${2:?missing value for --github-user}"; shift 2 ;;
+    --git-user-name) GIT_USER_NAME="${2:?missing value for --git-user-name}"; shift 2 ;;
+    --git-user-email) GIT_USER_EMAIL="${2:?missing value for --git-user-email}"; shift 2 ;;
+    --git-identity-from-host) GIT_IDENTITY_FROM_HOST=1; shift ;;
+    --git-token-file|--github-token-file) GIT_TOKEN_FILE="${2:?missing value for $1}"; shift 2 ;;
+    --git-token-env|--github-token-env) GIT_TOKEN_ENV="${2:?missing value for $1}"; shift 2 ;;
+    --git-token-user|--github-user) GIT_TOKEN_USERNAME="${2:?missing value for $1}"; shift 2 ;;
+    --git-token-host) GIT_TOKEN_HOSTS="${2:?missing value for --git-token-host}"; shift 2 ;;
     --docker|--host-docker) DOCKER_MODE=host; shift ;;
     --docker-socket) HOST_DOCKER_SOCKET="${2:?missing value for --docker-socket}"; shift 2 ;;
     --docker-in-docker|--dind) DOCKER_MODE=dind; shift ;;
@@ -145,6 +160,11 @@ case "$DOCKER_MODE" in
   dind|DIND|docker-in-docker|DOCKER-IN-DOCKER) DOCKER_MODE=dind ;;
   none|NONE|off|OFF|no|NO|false|FALSE|0) DOCKER_MODE=none ;;
   *) echo "DOCKER_MODE must be host, dind, or none." >&2; exit 2 ;;
+esac
+case "$GIT_IDENTITY_FROM_HOST" in
+  1|true|TRUE|yes|YES|on|ON) GIT_IDENTITY_FROM_HOST=1 ;;
+  0|false|FALSE|no|NO|off|OFF|"") GIT_IDENTITY_FROM_HOST=0 ;;
+  *) echo "PYCHARM_GIT_IDENTITY_FROM_HOST must be 1/0, true/false, yes/no, or on/off." >&2; exit 2 ;;
 esac
 
 PROJECT="$(readlink -f "$PROJECT")"
@@ -185,6 +205,23 @@ if [ "$DOCKER_MODE" = "host" ]; then
   fi
   HOST_DOCKER_SOCKET="$(readlink -f "$HOST_DOCKER_SOCKET")"
   HOST_DOCKER_GID="$(stat -c '%g' "$HOST_DOCKER_SOCKET")"
+fi
+
+if [ "$GIT_IDENTITY_FROM_HOST" -eq 1 ]; then
+  if ! command -v git >/dev/null 2>&1; then
+    echo "--git-identity-from-host was requested, but git is not installed on the host." >&2
+    exit 1
+  fi
+  if [ -z "$GIT_USER_NAME" ]; then
+    GIT_USER_NAME="$(git config --global --get user.name 2>/dev/null || true)"
+  fi
+  if [ -z "$GIT_USER_EMAIL" ]; then
+    GIT_USER_EMAIL="$(git config --global --get user.email 2>/dev/null || true)"
+  fi
+  if [ -z "$GIT_USER_NAME" ] || [ -z "$GIT_USER_EMAIL" ]; then
+    echo "Warning: --git-identity-from-host did not find both host user.name and user.email." >&2
+    echo "Pass --git-user-name and --git-user-email to configure them explicitly." >&2
+  fi
 fi
 
 RUNTIME_PARENT="${XDG_RUNTIME_DIR:-/tmp}"
@@ -246,7 +283,6 @@ DOCKER_ARGS=(
   --env LIBGL_ALWAYS_SOFTWARE="$PYCHARM_LIBGL_ALWAYS_SOFTWARE"
   --env MESA_LOADER_DRIVER_OVERRIDE="$PYCHARM_MESA_LOADER_DRIVER_OVERRIDE"
   --env LIBGL_DRI3_DISABLE="$PYCHARM_LIBGL_DRI3_DISABLE"
-  --env GITHUB_USER="$GITHUB_USER"
   --mount "type=bind,src=$PROJECT,dst=$PROJECT_MOUNT"
   --mount "type=bind,src=$GLOBAL_SETTINGS_DIR,dst=/ide-global-settings"
   --mount "type=bind,src=$PROJECT_STATE_DIR,dst=/ide-project-state"
@@ -261,6 +297,13 @@ DOCKER_ARGS=(
   --ipc private
   --pids-limit 4096
 )
+
+if [ -n "$GIT_USER_NAME" ]; then
+  DOCKER_ARGS+=(--env GIT_USER_NAME="$GIT_USER_NAME")
+fi
+if [ -n "$GIT_USER_EMAIL" ]; then
+  DOCKER_ARGS+=(--env GIT_USER_EMAIL="$GIT_USER_EMAIL")
+fi
 
 case "$DOCKER_MODE" in
   host)
@@ -345,26 +388,28 @@ if [ "$USE_SSH_AGENT" -eq 1 ]; then
   )
 fi
 
-if [ -n "$GITHUB_TOKEN_ENV" ]; then
-  if [ -z "${!GITHUB_TOKEN_ENV:-}" ]; then
-    echo "--github-token-env $GITHUB_TOKEN_ENV was requested, but that variable is empty or unset." >&2
+if [ -n "$GIT_TOKEN_ENV" ]; then
+  if [ -z "${!GIT_TOKEN_ENV:-}" ]; then
+    echo "--git-token-env $GIT_TOKEN_ENV was requested, but that variable is empty or unset." >&2
     exit 1
   fi
-  TOKEN_TMP="$(mktemp "$RUNTIME_PARENT/pycharm-docker-gh-token.XXXXXX")"
-  printf '%s' "${!GITHUB_TOKEN_ENV}" > "$TOKEN_TMP"
+  TOKEN_TMP="$(mktemp "$RUNTIME_PARENT/pycharm-docker-git-token.XXXXXX")"
+  printf '%s' "${!GIT_TOKEN_ENV}" > "$TOKEN_TMP"
   chmod 600 "$TOKEN_TMP"
-  GITHUB_TOKEN_FILE="$TOKEN_TMP"
+  GIT_TOKEN_FILE="$TOKEN_TMP"
 fi
 
-if [ -n "$GITHUB_TOKEN_FILE" ]; then
-  GITHUB_TOKEN_FILE="$(readlink -f "$GITHUB_TOKEN_FILE")"
-  if [ ! -r "$GITHUB_TOKEN_FILE" ]; then
-    echo "GitHub token file is not readable: $GITHUB_TOKEN_FILE" >&2
+if [ -n "$GIT_TOKEN_FILE" ]; then
+  GIT_TOKEN_FILE="$(readlink -f "$GIT_TOKEN_FILE")"
+  if [ ! -r "$GIT_TOKEN_FILE" ]; then
+    echo "Git token file is not readable: $GIT_TOKEN_FILE" >&2
     exit 1
   fi
   DOCKER_ARGS+=(
-    --mount "type=bind,src=$GITHUB_TOKEN_FILE,dst=/run/secrets/github-token,ro"
-    --env GITHUB_TOKEN_FILE=/run/secrets/github-token
+    --mount "type=bind,src=$GIT_TOKEN_FILE,dst=/run/secrets/git-token,ro"
+    --env GIT_TOKEN_FILE=/run/secrets/git-token
+    --env GIT_TOKEN_USERNAME="$GIT_TOKEN_USERNAME"
+    --env GIT_TOKEN_HOSTS="$GIT_TOKEN_HOSTS"
   )
 fi
 

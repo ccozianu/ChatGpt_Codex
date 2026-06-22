@@ -98,7 +98,7 @@ Optional mounts:
 
 ```text
 /run/host-ssh-agent.sock      -> host SSH agent socket, only with --ssh-agent
-/run/secrets/github-token     -> temporary GitHub HTTPS token file, only with --github-token-file or --github-token-env
+/run/secrets/git-token        -> temporary HTTPS Git token file, only with --git-token-file or --git-token-env
 ```
 
 The default persistent host locations are:
@@ -238,9 +238,29 @@ This adds:
 
 Use this only when needed for native debugging, non-child process tracing, or similar development work.
 
-### GitHub credential model
+### Git identity and credential model
 
-The first implementation avoids mounting host `~/.ssh` or embedding credentials in the image.
+The launcher avoids mounting host `~/.gitconfig`, host `~/.ssh`, or host
+credential directories. Git author identity can be passed explicitly:
+
+```bash
+./docker4pycharm/run-pycharm-container.sh \
+  --project /repo \
+  --git-user-name "Your Name" \
+  --git-user-email you@example.com
+```
+
+Or the launcher can read only the host's global `user.name` and `user.email`
+values and pass those into the container:
+
+```bash
+./docker4pycharm/run-pycharm-container.sh \
+  --project /repo \
+  --git-identity-from-host
+```
+
+When identity values are supplied, the entrypoint writes them to the isolated
+IDE home Git config under `/ide-global-settings/home/.gitconfig`.
 
 Preferred SSH workflow:
 
@@ -259,18 +279,26 @@ Optional HTTPS token workflow:
 export GITHUB_TOKEN=ghp_...
 ./docker4pycharm/run-pycharm-container.sh \
   --project /repo \
-  --github-token-env GITHUB_TOKEN
+  --git-token-env GITHUB_TOKEN
 ```
 
-The wrapper writes the environment variable value to a temporary file, mounts that file read-only at `/run/secrets/github-token`, and configures `GIT_ASKPASS` inside the container. This avoids persisting the token in the Docker image and avoids placing it directly in a long-lived Docker environment variable.
+The wrapper writes the environment variable value to a temporary file, mounts
+that file read-only at `/run/secrets/git-token`, and configures `GIT_ASKPASS`
+inside the container. This avoids persisting the token in the Docker image and
+avoids placing it directly in a long-lived Docker environment variable. The
+askpass helper only releases the token for the configured host list, which
+defaults to `github.com`.
 
 A token file can also be supplied directly:
 
 ```bash
 ./docker4pycharm/run-pycharm-container.sh \
   --project /repo \
-  --github-token-file /path/to/token-file
+  --git-token-file /path/to/token-file
 ```
+
+The legacy `--github-token-env`, `--github-token-file`, and `--github-user`
+flags remain as aliases for the Git token options.
 
 ## Installed tool baseline
 
@@ -329,7 +357,8 @@ Run PyCharm on a project:
 ```bash
 ./docker4pycharm/run-pycharm-container.sh \
   --project /path/to/project \
-  --ssh-agent
+  --ssh-agent \
+  --git-identity-from-host
 ```
 
 By default, Docker commands inside PyCharm/Codex connect to the host Docker
@@ -340,6 +369,7 @@ daemon instead:
 ./docker4pycharm/run-pycharm-container.sh \
   --project /path/to/project \
   --ssh-agent \
+  --git-identity-from-host \
   --docker-in-docker
 ```
 
@@ -349,6 +379,7 @@ To launch a higher-isolation session without Docker access:
 ./docker4pycharm/run-pycharm-container.sh \
   --project /path/to/project \
   --ssh-agent \
+  --git-identity-from-host \
   --no-docker
 ```
 
@@ -362,7 +393,8 @@ Use a custom image name:
 ./docker4pycharm/run-pycharm-container.sh \
   --image docker4pycharm:dev \
   --project /path/to/project \
-  --ssh-agent
+  --ssh-agent \
+  --git-identity-from-host
 ```
 
 ## AI plugin direction
@@ -577,9 +609,11 @@ When resuming the project, read these files in order:
 7. `docker4pycharm/implementation-notes/using-v0-for-real-python-projects.md` before applying this workflow to a normal Python project with the current v0 image.
 8. `docker4pycharm/implementation-notes/2026-06-21-per-project-ide-state-split.md`
    before changing PyCharm state, settings, or project mount behavior.
-9. `docker4pycharm/implementation-notes/2026-06-22-mesa-software-gl-default.md`
+9. `docker4pycharm/implementation-notes/2026-06-22-git-identity-and-credentials.md`
+   before changing Git identity, SSH-agent, or HTTPS token credential behavior.
+10. `docker4pycharm/implementation-notes/2026-06-22-mesa-software-gl-default.md`
    before changing Mesa/OpenGL, Skiko, Markdown preview, or GPU passthrough behavior.
-10. `docker4pycharm/implementation-notes/completed-tasks/` only when a retired
+11. `docker4pycharm/implementation-notes/completed-tasks/` only when a retired
    issue recurs, when doing retrospective work, or when comparing current
    behavior against a completed task.
 
@@ -587,7 +621,22 @@ Immediate engineering priority: preserve the working MVP while making the setup 
 
 Planned next stabilization items:
 
-1. Keep any isolation relaxation explicit and documented.
+1. Manually validate Git identity and Git remote credentials in v0.
+   Done means: a launched PyCharm/Codex container has the intended Git
+   `user.name` and `user.email`, commits made inside the selected project use
+   that author identity, SSH remotes work through `--ssh-agent`, and HTTPS
+   GitHub remotes work through `--git-token-env` or `--git-token-file` without
+   mounting host credential directories.
+   Verification: launch with either explicit `--git-user-name` /
+   `--git-user-email` or `--git-identity-from-host`; run `git config --global
+   --get user.name` and `git config --global --get user.email` inside the
+   container; make a local test commit and inspect its author; run a non-secret
+   `git ls-remote` or fetch/push test against the intended GitHub remote using
+   SSH agent forwarding or a token secret.
+   Reopen if: commits fall back to the container auto-generated identity,
+   GitHub token values appear in Docker inspect output or persistent files, or
+   remote credential prompts hang instead of succeeding or failing clearly.
+2. Keep any isolation relaxation explicit and documented.
    Done means: any change that broadens host exposure is represented by a clear
    launcher option/default, README text, and implementation note.
    Verification: review Docker/run arguments and docs together before closing

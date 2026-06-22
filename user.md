@@ -36,8 +36,58 @@ Then run PyCharm:
 ```bash
 ./run-pycharm-container.sh \
   --project /path/to/this/repository \
-  --ssh-agent
+  --ssh-agent \
+  --git-identity-from-host
 ```
+
+## Git identity and GitHub access
+
+For normal development, launch PyCharm with a Git author identity and one
+explicit remote credential path.
+
+To reuse only the host global Git identity values:
+
+```bash
+./run-pycharm-container.sh \
+  --project /path/to/this/repository \
+  --ssh-agent \
+  --git-identity-from-host
+```
+
+To set identity explicitly:
+
+```bash
+./run-pycharm-container.sh \
+  --project /path/to/this/repository \
+  --ssh-agent \
+  --git-user-name "Your Name" \
+  --git-user-email you@example.com
+```
+
+For GitHub remotes, prefer SSH agent forwarding when your host agent already
+has a suitable key:
+
+```bash
+ssh-add -l
+./run-pycharm-container.sh \
+  --project /path/to/this/repository \
+  --ssh-agent \
+  --git-identity-from-host
+```
+
+For HTTPS GitHub remotes, pass a token as a temporary secret:
+
+```bash
+export GITHUB_TOKEN=ghp_...
+./run-pycharm-container.sh \
+  --project /path/to/this/repository \
+  --git-identity-from-host \
+  --git-token-env GITHUB_TOKEN
+```
+
+Do not mount host `~/.ssh`, `~/.gitconfig`, or credential-manager directories
+into the IDE container. The launcher passes only the requested identity values,
+SSH agent socket, or token secret.
 
 ## Install JetBrains AI Assistant in PyCharm
 
@@ -91,7 +141,7 @@ Do not broaden Docker access casually just to make login work. Any relaxation su
 Once PyCharm is running and JetBrains AI Assistant/Codex is connected, open this repository in the Dockerized IDE and ask the development agent something like:
 
 ```text
-Read README.md and user.md. Continue the DockerForIDEIsolation project. The first build target is docker4pycharm. Preserve the isolation model: only the selected project, IDE state, IDE plugins, X11 runtime resources, and narrowly scoped credential resources should be mounted. Start by reviewing docker4pycharm/run-pycharm-container.sh and propose the next safe development step.
+Read README.md and user.md. Continue the DockerForIDEIsolation project. The first build target is docker4pycharm. Preserve the isolation model: only the selected project, IDE state, IDE plugins, X11 runtime resources, and narrowly scoped credential resources should be mounted. Focus next on manually validating Git identity and GitHub remote credentials in the current v0 launcher.
 ```
 
 ## Links to re-check later

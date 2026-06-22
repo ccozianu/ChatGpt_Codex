@@ -56,7 +56,7 @@ By default, Docker commands inside PyCharm/Codex connect to the host Docker
 daemon through `/run/host-docker.sock`:
 
 ```bash
-./run-pycharm-container.sh --project /path/to/project --ssh-agent
+./run-pycharm-container.sh --project /path/to/project --ssh-agent --git-identity-from-host
 ```
 
 This default is convenient for local development, but it is not a strong
@@ -66,9 +66,9 @@ Use true Docker-in-Docker only when you explicitly want separate Docker state
 inside the PyCharm container:
 
 ```bash
-./run-pycharm-container.sh --project /path/to/project --ssh-agent --docker-in-docker
+./run-pycharm-container.sh --project /path/to/project --ssh-agent --git-identity-from-host --docker-in-docker
 # or
-./run-pycharm-container.sh --project /path/to/project --ssh-agent --dind
+./run-pycharm-container.sh --project /path/to/project --ssh-agent --git-identity-from-host --dind
 ```
 
 When DinD is enabled, the launcher prints a large stderr warning and starts the
@@ -76,9 +76,9 @@ outer IDE container with `--privileged`, a writable root filesystem, and an
 inner `dockerd`. Disable Docker entirely for a higher-isolation session with:
 
 ```bash
-./run-pycharm-container.sh --project /path/to/project --ssh-agent --no-docker
+./run-pycharm-container.sh --project /path/to/project --ssh-agent --git-identity-from-host --no-docker
 # or
-DOCKER_MODE=none ./run-pycharm-container.sh --project /path/to/project --ssh-agent
+DOCKER_MODE=none ./run-pycharm-container.sh --project /path/to/project --ssh-agent --git-identity-from-host
 ```
 
 The inner daemon is started without bridge/iptables management because the outer
@@ -179,7 +179,28 @@ in-container path:
 Avoid reusing the same `--project-state` or `--project-mount` for unrelated
 projects; doing so can make PyCharm restore stale project-window state.
 
-## GitHub credential options
+## Git identity and credential options
+
+Git author identity is not copied from host `~/.gitconfig` by mounting that
+file. Pass it explicitly:
+
+```bash
+./run-pycharm-container.sh \
+  --project /path/to/project \
+  --git-user-name "Your Name" \
+  --git-user-email you@example.com
+```
+
+Or pass only the host global `user.name` and `user.email` values:
+
+```bash
+./run-pycharm-container.sh \
+  --project /path/to/project \
+  --git-identity-from-host
+```
+
+The entrypoint writes supplied identity values into the isolated IDE home Git
+config, so they persist with `--global-settings`.
 
 SSH agent forwarding:
 
@@ -192,8 +213,14 @@ HTTPS token via environment variable without storing the token in Docker inspect
 
 ```bash
 export GITHUB_TOKEN=ghp_...
-./run-pycharm-container.sh --project /path/to/project --github-token-env GITHUB_TOKEN
+./run-pycharm-container.sh --project /path/to/project --git-token-env GITHUB_TOKEN
 ```
+
+The token is copied to a temporary file on the host, mounted read-only at
+`/run/secrets/git-token`, and served through `GIT_ASKPASS` only for configured
+hosts. The default host is `github.com`; use `--git-token-host` for a GitHub
+Enterprise or other HTTPS Git host. The older `--github-token-env`,
+`--github-token-file`, and `--github-user` flags are still accepted as aliases.
 
 Native debugging or aggressive strace use:
 

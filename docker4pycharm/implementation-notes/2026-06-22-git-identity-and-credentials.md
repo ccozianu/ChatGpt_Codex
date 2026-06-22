@@ -1,0 +1,114 @@
+# Decision: Git Identity And Remote Credential Transport
+
+Date: 2026-06-22
+
+Status: implemented, pending manual validation in a launched v0 image
+
+## Context
+
+The v0 PyCharm container needs to make commits and use Git remotes from inside
+the isolated IDE/Codex environment. Earlier commits from inside the container
+could fall back to an auto-generated container identity. The existing launcher
+already supported SSH agent forwarding and GitHub HTTPS token secrets, but it
+did not configure Git `user.name` and `user.email`.
+
+The project should not solve this by mounting host `~/.gitconfig`, host
+`~/.ssh`, credential-manager directories, or other broad host state.
+
+## Decision
+
+Add explicit launcher options:
+
+```text
+--git-user-name NAME
+--git-user-email EMAIL
+--git-identity-from-host
+--git-token-env ENVVAR
+--git-token-file FILE
+--git-token-user USER
+--git-token-host HOSTS
+```
+
+`--git-identity-from-host` reads only the host global Git `user.name` and
+`user.email` values and passes those strings into the container. It does not
+mount the host Git config.
+
+When identity values are present, the entrypoint writes them into the isolated
+IDE home Git config at `/ide-global-settings/home/.gitconfig`, which persists
+with the shared global settings directory.
+
+The HTTPS token path remains file-based. Tokens passed from host environment
+variables are copied into temporary host files and mounted read-only at
+`/run/secrets/git-token`. The entrypoint configures `GIT_ASKPASS` and
+`GIT_TERMINAL_PROMPT=0`. The askpass helper releases the token only when Git's
+prompt URL host matches the configured `GIT_TOKEN_HOSTS` list, defaulting to
+`github.com`.
+
+Legacy GitHub-specific flags remain as aliases:
+
+```text
+--github-token-env
+--github-token-file
+--github-user
+```
+
+## Verification
+
+Completed static checks:
+
+```bash
+bash -n docker4pycharm/run-pycharm-container.sh docker4pycharm/entrypoint.sh
+shellcheck docker4pycharm/run-pycharm-container.sh docker4pycharm/entrypoint.sh
+git diff --check
+./docker4pycharm/run-pycharm-container.sh --help
+```
+
+Completed isolated entrypoint smoke test:
+
+```bash
+IDE_GLOBAL_SETTINGS_PATH=<temp>/global \
+IDE_PROJECT_STATE_PATH=<temp>/project \
+HOME=<temp>/home \
+GIT_USER_NAME='Docker Test User' \
+GIT_USER_EMAIL='docker-test@example.invalid' \
+./docker4pycharm/entrypoint.sh sh -c \
+  'git config --global --get user.name && git config --global --get user.email'
+```
+
+Observed result:
+
+```text
+Docker Test User
+docker-test@example.invalid
+```
+
+Completed askpass smoke test:
+
+- With `GIT_TOKEN_HOSTS=github.com`, a dummy token file, and
+  `GIT_TOKEN_USERNAME=x-access-token`, the generated helper returned the
+  username for a `https://github.com` username prompt.
+- The helper returned the dummy token for a `https://x-access-token@github.com`
+  password prompt.
+- The helper returned only a blank line for a
+  `https://x-access-token@gitlab.com` password prompt.
+
+Pending manual validation:
+
+- Launch with `--git-identity-from-host` and confirm `git config --global
+  --get user.name` and `git config --global --get user.email` inside the
+  container match the host global values.
+- Launch with explicit `--git-user-name` and `--git-user-email` and confirm
+  those override values are written inside the isolated IDE home.
+- Make a local test commit inside the selected project and confirm the author
+  identity is correct.
+- Validate GitHub SSH remotes with `--ssh-agent`.
+- Validate HTTPS GitHub remotes with `--git-token-env GITHUB_TOKEN` or
+  `--git-token-file`, without token persistence in the image or broad host
+  credential mounts.
+
+## Reopen If
+
+Reopen if commits fall back to an auto-generated container identity, if token
+values appear in Docker inspect output or persistent files, if the askpass host
+filter sends a token to an unintended host, or if Git remote credential prompts
+hang rather than succeeding or failing clearly.

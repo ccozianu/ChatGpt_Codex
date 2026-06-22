@@ -140,16 +140,59 @@ EOF_SSH
   rm -f "$SSH_CONFIG_TMP"
 fi
 
-# Optional HTTPS GitHub credential path. The wrapper mounts the token as a file
+# Optional Git identity. The wrapper passes only explicit values or host global
+# user.name/user.email values, then Git stores them in the isolated IDE home.
+if command -v git >/dev/null 2>&1; then
+  if [ -n "${GIT_USER_NAME:-}" ]; then
+    as_ide_user git config --global user.name "$GIT_USER_NAME"
+  fi
+  if [ -n "${GIT_USER_EMAIL:-}" ]; then
+    as_ide_user git config --global user.email "$GIT_USER_EMAIL"
+  fi
+fi
+
+# Optional HTTPS Git credential path. The wrapper mounts the token as a file
 # rather than exposing it as a long-lived Docker environment variable.
-if [ -n "${GITHUB_TOKEN_FILE:-}" ] && [ -r "${GITHUB_TOKEN_FILE}" ]; then
-  ASKPASS=/tmp/git-askpass-github.sh
-  ASKPASS_TMP=/tmp/git-askpass-github.sh.tmp
+GIT_TOKEN_FILE="${GIT_TOKEN_FILE:-${GITHUB_TOKEN_FILE:-}}"
+GIT_TOKEN_USERNAME="${GIT_TOKEN_USERNAME:-${GITHUB_USER:-x-access-token}}"
+GIT_TOKEN_HOSTS="${GIT_TOKEN_HOSTS:-github.com}"
+if [ -n "$GIT_TOKEN_FILE" ] && [ -r "$GIT_TOKEN_FILE" ]; then
+  ASKPASS=/tmp/git-askpass-token.sh
+  ASKPASS_TMP=/tmp/git-askpass-token.sh.tmp
   cat > "$ASKPASS_TMP" <<'EOF_ASKPASS'
 #!/usr/bin/env sh
+prompt="$1"
+allowed=0
+prompt_host=""
+
+prompt_url="$(printf '%s\n' "$prompt" | sed -n "s/.*'\([^']*:\/\/[^']*\)'.*/\1/p")"
+if [ -n "$prompt_url" ]; then
+  prompt_host="${prompt_url#*://}"
+  prompt_host="${prompt_host%%/*}"
+  prompt_host="${prompt_host#*@}"
+  prompt_host="${prompt_host%%:*}"
+fi
+
+if [ -z "${GIT_TOKEN_HOSTS:-}" ]; then
+  allowed=1
+else
+  hosts="$(printf '%s\n' "$GIT_TOKEN_HOSTS" | tr ',[:space:]' ' ')"
+  for host in $hosts; do
+    if [ "$prompt_host" = "$host" ]; then
+      allowed=1
+      break
+    fi
+  done
+fi
+
+if [ "$allowed" -ne 1 ]; then
+  printf '\n'
+  exit 0
+fi
+
 case "$1" in
-  *Username*|*username*) printf '%s\n' "${GITHUB_USER:-x-access-token}" ;;
-  *Password*|*password*) cat "${GITHUB_TOKEN_FILE}" ;;
+  *Username*|*username*) printf '%s\n' "${GIT_TOKEN_USERNAME:-x-access-token}" ;;
+  *Password*|*password*) cat "${GIT_TOKEN_FILE}" ;;
   *) printf '\n' ;;
 esac
 EOF_ASKPASS
