@@ -2,7 +2,7 @@
 
 This is a first-revision Docker/X11 wrapper for running a tarball-based PyCharm
 installation in an isolated Linux container while keeping project files,
-PyCharm state, and plugins persistent on the host.
+PyCharm settings, per-project IDE state, and plugins persistent on the host.
 
 ## Related project notes
 
@@ -85,10 +85,93 @@ The inner daemon is started without bridge/iptables management because the outer
 PyCharm container uses host networking. For inner image builds that need network
 access, pass `--network host` to `build-image.sh`.
 
+## Mesa / OpenGL runtime
+
+The image installs Mesa/OpenGL runtime packages required by JetBrains Skiko:
+
+```text
+libgl1 libglx-mesa0 libgl1-mesa-dri mesa-utils
+```
+
+The launcher and entrypoint default PyCharm to Mesa software GL through:
+
+```text
+LIBGL_ALWAYS_SOFTWARE=1
+MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
+LIBGL_DRI3_DISABLE=1
+```
+
+This is intentional. The default isolation model does not mount host
+`/dev/dri` render devices, so Mesa's hardware GLX path can log:
+
+```text
+MESA: error: Failed to query drm device.
+glx: failed to create dri3 screen
+failed to load driver: iris
+```
+
+Those lines mean Mesa tried the host GPU/DRI path and fell back. They are
+different from the earlier blocking `libGL.so.1: cannot open shared object
+file` failure, which meant required libraries were missing from the image.
+
+Override the software GL defaults only for targeted rendering tests:
+
+```bash
+PYCHARM_LIBGL_ALWAYS_SOFTWARE=0 \
+PYCHARM_MESA_LOADER_DRIVER_OVERRIDE= \
+PYCHARM_LIBGL_DRI3_DISABLE=0 \
+./run-pycharm-container.sh --project /path/to/project
+```
+
+Do not mount host `/dev/dri` or other GPU devices as a quiet default; make that
+an explicit documented launcher option if the project later decides hardware GL
+is worth the extra host exposure.
+
 By default, persistent data lands in:
 
-- `~/.local/share/pycharm-docker/state`
-- `~/.local/share/pycharm-docker/plugins`
+- `~/.local/share/pycharm-docker/state` for shared IDE configuration and the isolated IDE home
+- `~/.local/share/pycharm-docker/project-state/<project-id>` for per-project caches, logs, and volatile workspace state
+- `~/.local/share/pycharm-docker/plugins` for shared user-installed plugins
+
+The launcher mounts the selected host project at a per-project container path
+like `/workspace/<project-id>` instead of always using `/project`. This is
+intentional: JetBrains IDEs record project/recent-workspace state by path, and
+different host projects should not all look like the same in-container project.
+
+Useful storage options:
+
+```bash
+./run-pycharm-container.sh \
+  --project /path/to/project \
+  --global-settings ~/.local/share/pycharm-docker/state \
+  --plugins ~/.local/share/pycharm-docker/plugins
+```
+
+`--global-settings` should be shared when you want the same PyCharm appearance,
+keymaps, plugin settings, AI login state, Git SSH known-hosts, and other
+IDE-local home files across projects. `--state` is kept as a legacy alias for
+`--global-settings`.
+
+Use `--project-state` only when you want to override the automatically generated
+per-project state directory:
+
+```bash
+./run-pycharm-container.sh \
+  --project /path/to/project \
+  --project-state ~/.local/share/pycharm-docker/project-state/my-project
+```
+
+Use `--project-mount` only when a project or tool truly needs a fixed
+in-container path:
+
+```bash
+./run-pycharm-container.sh \
+  --project /path/to/project \
+  --project-mount /workspace/my-project
+```
+
+Avoid reusing the same `--project-state` or `--project-mount` for unrelated
+projects; doing so can make PyCharm restore stale project-window state.
 
 ## GitHub credential options
 
@@ -112,6 +195,25 @@ Native debugging or aggressive strace use:
 ./run-pycharm-container.sh --project /path/to/project --debug-native
 ```
 
+## Runtime verification
+
+Inside a launched PyCharm container, run:
+
+```bash
+docker4ide-check-runtime-deps
+```
+
+When running from this repository before rebuilding the image, the same helper
+is available as:
+
+```bash
+./docker4pycharm/check-runtime-deps.sh
+```
+
+The helper checks the IDE runtime's Skiko native `libGL` dependency resolution,
+`XDG_RUNTIME_DIR`, writable IDE paths, and the GLX renderer path. The expected
+renderer under the default isolation model is Mesa `llvmpipe`.
+
 ## Debugging handoff
 
 The detailed handoff lives in `debugging.md`. It records the problems seen while
@@ -127,6 +229,8 @@ bringing the MVP to a working state:
   state is needed.
 - JetBrains/Skiko failed until Mesa/OpenGL runtime libraries supplied
   `libGL.so.1`.
+- Mesa is intentionally defaulted to software GL/`llvmpipe` so the container
+  does not need host `/dev/dri` access.
 - Container runtime warnings included missing `XDG_RUNTIME_DIR` and accessibility
   bus warnings.
 - A JetBrains duplicate-feature error appeared in the Full Line / ML completion

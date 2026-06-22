@@ -19,6 +19,21 @@ The launcher defaults to host Docker daemon passthrough. Use
 `--docker-in-docker` only when isolated Docker state is needed, and use
 `--no-docker` when the Python project does not need Docker access.
 
+The launcher also defaults to a split IDE storage model:
+
+- Shared PyCharm configuration and IDE-local home:
+  `~/.local/share/pycharm-docker/state`
+- Shared plugins:
+  `~/.local/share/pycharm-docker/plugins`
+- Per-project caches, logs, and volatile workspace state:
+  `~/.local/share/pycharm-docker/project-state/<project-id>`
+
+Keep `--global-settings` and `--plugins` shared when you want the same IDE
+comfort across Python projects, but do not force unrelated projects to reuse
+the same `--project-state` or `--project-mount`. JetBrains IDEs remember
+project-window state by path; mounting every project as the same `/project`
+path can produce stale Project view or open-file state from a previous project.
+
 ## Two Parallel Tracks
 
 Track 1 is this repository:

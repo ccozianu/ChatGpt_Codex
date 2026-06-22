@@ -141,12 +141,33 @@ DRI/render device explicitly, adjust Mesa environment variables, or disable the
 problematic preview rendering mode. Any change must preserve the working
 AI/Codex path and remain explicit in the launcher/docs.
 
+### 2026-06-22 Runtime Update
+
+The image dependency side is now separate from the runtime rendering path:
+
+- `libgl1`, `libglx-mesa0`, `libgl1-mesa-dri`, and `mesa-utils` are present in
+  the Dockerfile package list.
+- `ldd /opt/pycharm/lib/skiko-awt-runtime-all/libskiko-linux-x64.so` resolves
+  `libGL.so.1`; the earlier missing-library failure is not the current issue.
+- Running `glxinfo -B` without Mesa overrides reproduces the noisy
+  `Failed to query drm device`, `failed to create dri3 screen`, and
+  `failed to load driver: iris` path.
+- Running with `LIBGL_ALWAYS_SOFTWARE=1`,
+  `MESA_LOADER_DRIVER_OVERRIDE=llvmpipe`, and `LIBGL_DRI3_DISABLE=1` removes
+  that noise while still producing a Mesa `llvmpipe` OpenGL context.
+
+The launcher, entrypoint, and Dockerfile now default to that software GL path.
+This keeps the current no-`/dev/dri` isolation posture. If hardware GL is later
+needed, add it as an explicit launcher option with documented device passthrough
+rather than quietly mounting host GPU devices.
+
 ### Suggested Validation
 
 - Open this repository in the containerized PyCharm instance.
 - Open a Markdown file such as `README.md`.
 - Open the Markdown preview and leave it open long enough to reproduce or rule
   out the GUI freeze.
+- Run `docker4ide-check-runtime-deps` inside the launched container.
 - Check PyCharm logs for `MESA`, `dri3`, `iris`, `Cannot create OpenGL context`,
   `SKIKO`, and `MarkdownPreviewFileEditor`.
 - Test candidate mitigations one at a time and document both the launcher/image

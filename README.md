@@ -1,4 +1,4 @@
-# DockerForIDEIsolation
+   # DockerForIDEIsolation
 
 This repository is a continuation point for the Docker/PyCharm isolation work bootstrapped from a ChatGPT design session. It is intended to be read by both a human developer and a future AI development agent working inside PyCharm.
 
@@ -83,14 +83,15 @@ The default entrypoint is:
 The launcher mounts only the required host resources by default:
 
 ```text
-/project       -> selected host project directory, read/write
-/ide-state     -> persistent PyCharm state root, read/write
-/ide-plugins   -> persistent PyCharm plugins root, read/write
-/tmp/.X11-unix -> host X11 socket directory, read-only
-/tmp/.docker.xauth -> temporary generated Xauthority file, read-only
-/etc/passwd    -> temporary generated passwd file, read-only
-/etc/group     -> temporary generated group file, read-only
-/run/host-docker.sock -> host Docker daemon socket, default Docker mode
+/workspace/<project-id> -> selected host project directory, read/write
+/ide-global-settings    -> shared PyCharm configuration and IDE-local home, read/write
+/ide-project-state      -> per-project PyCharm caches/logs/workspace state, read/write
+/ide-plugins            -> persistent PyCharm plugins root, read/write
+/tmp/.X11-unix          -> host X11 socket directory, read-only
+/tmp/.docker.xauth      -> temporary generated Xauthority file, read-only
+/etc/passwd             -> temporary generated passwd file, read-only
+/etc/group              -> temporary generated group file, read-only
+/run/host-docker.sock   -> host Docker daemon socket, default Docker mode
 ```
 
 Optional mounts:
@@ -104,47 +105,58 @@ The default persistent host locations are:
 
 ```text
 ~/.local/share/pycharm-docker/state
+~/.local/share/pycharm-docker/project-state/<project-id>
 ~/.local/share/pycharm-docker/plugins
 ```
 
 These can be overridden with:
 
 ```bash
---state /some/state/dir
+--global-settings /some/shared/settings/dir
+--project-state /some/per-project/state/dir
 --plugins /some/plugins/dir
 ```
+
+`--state` remains as a legacy alias for `--global-settings`.
 
 ### PyCharm state redirection
 
 The container entrypoint creates an `idea.properties` file at runtime and sets `PYCHARM_PROPERTIES` so PyCharm uses externalized state paths:
 
 ```properties
-idea.config.path=/ide-state/config
-idea.system.path=/ide-state/system
+idea.config.path=/ide-global-settings/config
+idea.system.path=/ide-project-state/system
 idea.plugins.path=/ide-plugins
-idea.log.path=/ide-state/log
+idea.log.path=/ide-project-state/log
 ```
 
 The container also sets:
 
 ```text
-HOME=/ide-state/home
-XDG_CONFIG_HOME=/ide-state/home/.config
-XDG_CACHE_HOME=/ide-state/home/.cache
-XDG_DATA_HOME=/ide-state/home/.local/share
+HOME=/ide-global-settings/home
+XDG_CONFIG_HOME=/ide-global-settings/home/.config
+XDG_CACHE_HOME=/ide-project-state/home/.cache
+XDG_DATA_HOME=/ide-global-settings/home/.local/share
 ```
 
-This gives PyCharm, Git, SSH, shell tools, and plugins a writable home-like location without mounting the host home directory.
+This gives PyCharm, Git, SSH, shell tools, and plugins a writable home-like
+location without mounting the host home directory. Shared IDE settings and
+login-like IDE home state persist across projects, while caches, logs, and
+volatile project workspace state are namespaced per host project by default.
 
 ### PyCharm launch behavior
 
-PyCharm is launched with the selected project mounted as `/project` and passed as the command-line argument:
+PyCharm is launched with the selected project mounted at a stable per-project
+container path and that path passed as the command-line argument:
 
 ```bash
-/opt/pycharm/bin/pycharm.sh /project
+/opt/pycharm/bin/pycharm.sh /workspace/<project-id>
 ```
 
-This should open PyCharm directly on the mapped project directory.
+This avoids making different host projects all look like the same `/project`
+directory to JetBrains project/recent-workspace state. The mount path can be
+overridden with `--project-mount`, but the default should be preferred unless a
+specific integration requires a fixed container path.
 
 ### GUI model
 
@@ -189,7 +201,10 @@ constrained posture and does not mount any Docker socket:
 - No system package-cache or language-environment mounts from the host.
 - No Docker daemon access.
 
-The project directory is mounted read/write because normal IDE operation requires editing project files. PyCharm settings, caches, plugins, logs, SSH known-hosts, and any IDE-local home files are stored under `/ide-state` or `/ide-plugins`.
+The project directory is mounted read/write because normal IDE operation
+requires editing project files. Shared PyCharm settings and IDE-local home files
+are stored under `/ide-global-settings`, project-specific caches and logs are
+stored under `/ide-project-state`, and plugins are stored under `/ide-plugins`.
 
 For isolated Docker state, the launcher also supports explicit true
 Docker-in-Docker:
@@ -234,7 +249,9 @@ ssh-add -l
 ./docker4pycharm/run-pycharm-container.sh --project /repo --ssh-agent
 ```
 
-The container gets only the forwarded SSH agent socket. SSH known-hosts are stored in `/ide-state/home/.ssh/known_hosts`, not on the host home directory.
+The container gets only the forwarded SSH agent socket. SSH known-hosts are
+stored in `/ide-global-settings/home/.ssh/known_hosts`, not on the host home
+directory.
 
 Optional HTTPS token workflow:
 
@@ -276,7 +293,16 @@ It also installs X11/GTK/font libraries needed by JetBrains IDEs:
 libx11-6 libxext6 libxrender1 libxtst6 libxi6 libxrandr2 libxss1 libxkbfile1
 libgtk-3-0 libnss3 libnspr4 libasound2t64 libfontconfig1 libfreetype6
 libdbus-1-3 xdg-utils fonts-dejavu fonts-liberation
+libgl1 libglx-mesa0 libgl1-mesa-dri mesa-utils
 ```
+
+Because the default isolation model does not mount host `/dev/dri` render
+devices, the launcher and entrypoint default Mesa to software GL with
+`LIBGL_ALWAYS_SOFTWARE=1`, `MESA_LOADER_DRIVER_OVERRIDE=llvmpipe`, and
+`LIBGL_DRI3_DISABLE=1`. This avoids the noisy hardware-DRI probe path that logs
+`Failed to query drm device`, `failed to create dri3 screen`, and
+`failed to load driver: iris` while preserving the no-extra-device-mount
+posture.
 
 ## Build and run quickstart
 
@@ -375,7 +401,7 @@ Suggested next work items:
 7. Add a separate `--login-relaxed` or similar mode only if AI plugin OAuth requires additional browser/network handling.
 8. Consider rootless Docker or Podman compatibility.
 9. Consider Wayland-native and `xpra`/VNC alternatives to direct X11 socket sharing.
-10. Consider a per-project state namespace so different projects can have separate IDE caches and plugin sets when desired.
+10. Consider an explicit settings import/export or template mechanism if sharing only selected global settings becomes preferable to sharing the whole PyCharm configuration directory.
 11. Add a mechanism for passing additional trusted CA certificates or corporate proxy settings without mounting host-wide directories.
 12. Add clear documentation for Claude-related plugins in a later revision, after verifying the current recommended PyCharm integration path.
 
@@ -468,6 +494,28 @@ user. Closed or retired tasks now move to
 `docker4pycharm/implementation-notes/completed-tasks/`, while active tasks keep
 explicit done criteria, verification, and reopen conditions.
 
+Per-project IDE state update: on 2026-06-21, the launcher was changed to split
+shared IDE configuration from volatile per-project state. The old default
+`~/.local/share/pycharm-docker/state` is now treated as the shared
+`--global-settings` root and remains available through the legacy `--state`
+alias. Plugins remain shared through `--plugins`. Per-project caches, logs, and
+workspace state now default to
+`~/.local/share/pycharm-docker/project-state/<project-id>`, and projects are
+mounted inside the container at `/workspace/<project-id>` instead of all sharing
+the same `/project` path. This is intended to avoid stale JetBrains Project view
+or open-file state when the same PyCharm setup is reused across unrelated host
+projects. Implementation note:
+`docker4pycharm/implementation-notes/2026-06-21-per-project-ide-state-split.md`.
+
+Per-project IDE state manual validation update: on 2026-06-22, the user
+manually launched this repository and a separate ordinary Python project with
+the same shared global settings and plugins while using the default per-project
+state and mount paths. The Project view, open-file state, and recent workspace
+state behaved as intended for the current mounted project. Do not reopen this
+unless stale Project view contents, open files, or project-window state from one
+host project appear when opening a different host project with default
+per-project state.
+
 Bootstrap process template validation update: on 2026-06-20,
 `pycharm-isolated:codex-debug-v004` was confirmed as the running image for this
 agent session, and `/usr/local/share/docker4ide/vibe-coding-process.md` was
@@ -483,6 +531,23 @@ default build network is Docker's normal `default` mode, while
 firewall-constrained hosts can opt into host networking with `--network host` or
 `DOCKER_BUILD_NETWORK=host`.
 
+Mesa/OpenGL runtime update: on 2026-06-22, the image and launcher were updated
+to make the current working Mesa path explicit. The Dockerfile includes
+`libgl1`, `libglx-mesa0`, `libgl1-mesa-dri`, and `mesa-utils`; the launcher and
+entrypoint default JetBrains/Skiko rendering to Mesa `llvmpipe` software GL
+without mounting host `/dev/dri`; and the image includes
+`docker4ide-check-runtime-deps` for repeatable checks. This addresses the
+`drm` / `dri3` / `iris` warning class separately from the earlier missing
+`libGL.so.1` dependency failure.
+
+Checkpoint update: on 2026-06-22, the current repository state was prepared for
+manual validation against the next image build. Changed items include the
+per-project IDE state split, explicit Mesa software-GL defaults, and the
+framework-named `docker4ide-check-runtime-deps` helper. Script syntax,
+ShellCheck, whitespace checks, and the repository-local runtime helper passed in
+the currently running container. Not yet validated: a fresh PyCharm launch from
+a rebuilt image using these changes.
+
 Post-MVP refactoring context: `FUTURE_AGENT_REFACTORING_BRIEF.md` has been restored. It describes the intended move from one-off PyCharm scripts toward a profile-driven `docker4ide` framework with shared runtime orchestration, IDE-family adapters, and product-specific profiles.
 
 When resuming the project, read these files in order:
@@ -494,7 +559,11 @@ When resuming the project, read these files in order:
 5. `user.md` for the human-facing PyCharm AI plugin and ChatGPT subscription setup notes.
 6. `FUTURE_AGENT_REFACTORING_BRIEF.md` before planning post-MVP refactoring beyond the current PyCharm target.
 7. `docker4pycharm/implementation-notes/using-v0-for-real-python-projects.md` before applying this workflow to a normal Python project with the current v0 image.
-8. `docker4pycharm/implementation-notes/completed-tasks/` only when a retired
+8. `docker4pycharm/implementation-notes/2026-06-21-per-project-ide-state-split.md`
+   before changing PyCharm state, settings, or project mount behavior.
+9. `docker4pycharm/implementation-notes/2026-06-22-mesa-software-gl-default.md`
+   before changing Mesa/OpenGL, Skiko, Markdown preview, or GPU passthrough behavior.
+10. `docker4pycharm/implementation-notes/completed-tasks/` only when a retired
    issue recurs, when doing retrospective work, or when comparing current
    behavior against a completed task.
 
@@ -502,23 +571,17 @@ Immediate engineering priority: preserve the working MVP while making the setup 
 
 Planned next stabilization items:
 
-1. Confirm the Mesa/OpenGL runtime dependencies that fixed `libGL.so.1` / Skiko failures are present and documented.
-   Done means: the Dockerfile package list, `docker4pycharm/README.md`, and
-   debugging/handoff docs agree on the Mesa/OpenGL packages needed by JetBrains
-   Skiko.
-   Verification: inspect the package list and run the cheapest available
-   static check; if an image is available, verify `libskiko-linux-x64.so` has no
-   missing `libGL` dependency.
-   Reopen if: Skiko or Markdown preview logs again show missing OpenGL/Mesa
-   runtime dependencies.
-2. Add a small runtime verification helper or documented check sequence.
-   Done means: there is a repeatable command or documented checklist for
-   checking the core v0 runtime assumptions after launch.
-   Verification: run the helper if available, or dry-read the checklist against
-   the current launcher modes.
-   Reopen if: a new launcher mode or dependency changes the expected runtime
-   checks.
-3. Keep any isolation relaxation explicit and documented.
+1. Manually validate the explicit Mesa software-GL runtime after a fresh launch.
+   Done means: PyCharm is relaunched through the updated launcher or a rebuilt
+   image, Markdown preview remains usable, and IDE logs no longer show the
+   `Failed to query drm device` / `dri3` / `iris` noise or Skiko
+   `Cannot create OpenGL context` during normal preview use.
+   Verification: run `docker4ide-check-runtime-deps` inside the launched
+   container, open a Markdown preview, and inspect `/ide-project-state/log` for
+   the OpenGL signatures.
+   Reopen if: software GL defaults regress, hardware DRI is made default, or
+   Skiko/Markdown preview logs again show OpenGL context failures.
+2. Keep any isolation relaxation explicit and documented.
    Done means: any change that broadens host exposure is represented by a clear
    launcher option/default, README text, and implementation note.
    Verification: review Docker/run arguments and docs together before closing

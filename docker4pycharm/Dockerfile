@@ -33,19 +33,25 @@ RUN if [ "$INSTALL_CODEX_CLI" = "1" ]; then \
 
 COPY pycharm/ /opt/pycharm/
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY check-runtime-deps.sh /usr/local/bin/docker4ide-check-runtime-deps
 RUN mkdir -p /usr/local/share/docker4ide
 COPY image-assets/vibe-coding-process.md /usr/local/share/docker4ide/vibe-coding-process.md
-RUN chmod +x /usr/local/bin/entrypoint.sh /opt/pycharm/bin/pycharm.sh \
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/docker4ide-check-runtime-deps /opt/pycharm/bin/pycharm.sh \
  && ln -s /opt/pycharm/bin/pycharm.sh /usr/local/bin/pycharm \
  && mkdir -p /var/lib/docker \
  && chmod 0644 /usr/local/share/docker4ide/vibe-coding-process.md
 
-ENV PROJECT_PATH=/project \
-    HOME=/ide-state/home \
-    XDG_CONFIG_HOME=/ide-state/home/.config \
-    XDG_CACHE_HOME=/ide-state/home/.cache \
-    XDG_DATA_HOME=/ide-state/home/.local/share \
+ENV PROJECT_PATH=/workspace/project \
+    IDE_GLOBAL_SETTINGS_PATH=/ide-global-settings \
+    IDE_PROJECT_STATE_PATH=/ide-project-state \
+    HOME=/ide-global-settings/home \
+    XDG_CONFIG_HOME=/ide-global-settings/home/.config \
+    XDG_CACHE_HOME=/ide-project-state/home/.cache \
+    XDG_DATA_HOME=/ide-global-settings/home/.local/share \
     QT_X11_NO_MITSHM=1 \
-    _JAVA_AWT_WM_NONREPARENTING=1
+    _JAVA_AWT_WM_NONREPARENTING=1 \
+    LIBGL_ALWAYS_SOFTWARE=1 \
+    MESA_LOADER_DRIVER_OVERRIDE=llvmpipe \
+    LIBGL_DRI3_DISABLE=1
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint.sh"]

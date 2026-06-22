@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${PROJECT_PATH:=/project}"
-: "${HOME:=/ide-state/home}"
+: "${PROJECT_PATH:=/workspace/project}"
+: "${IDE_GLOBAL_SETTINGS_PATH:=/ide-global-settings}"
+: "${IDE_PROJECT_STATE_PATH:=/ide-project-state}"
+: "${HOME:=$IDE_GLOBAL_SETTINGS_PATH/home}"
 : "${ENABLE_DIND:=0}"
 : "${IDE_UID:=}"
 : "${IDE_GID:=}"
 : "${IDE_USER:=ideuser}"
+
+export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$IDE_PROJECT_STATE_PATH/home/.cache}"
+export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 
 RUN_AS_IDE_USER=()
 if [ "$(id -u)" -eq 0 ] && [ -n "$IDE_UID" ] && [ -n "$IDE_GID" ]; then
@@ -34,11 +40,16 @@ install_ide_file() {
 }
 
 as_ide_user mkdir -p \
+  "$IDE_GLOBAL_SETTINGS_PATH" \
+  "$IDE_GLOBAL_SETTINGS_PATH/config" \
+  "$IDE_PROJECT_STATE_PATH" \
+  "$IDE_PROJECT_STATE_PATH/system" \
+  "$IDE_PROJECT_STATE_PATH/log" \
   "$HOME" \
   "$HOME/.ssh" \
-  /ide-state/config \
-  /ide-state/system \
-  /ide-state/log \
+  "$XDG_CONFIG_HOME" \
+  "$XDG_CACHE_HOME" \
+  "$XDG_DATA_HOME" \
   /ide-plugins
 as_ide_user chmod 700 "$HOME/.ssh" 2>/dev/null || true
 
@@ -46,13 +57,28 @@ export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp/runtime-${IDE_UID:-$(id -u)}}"
 as_ide_user mkdir -p "$XDG_RUNTIME_DIR"
 as_ide_user chmod 700 "$XDG_RUNTIME_DIR" 2>/dev/null || true
 export NO_AT_BRIDGE="${NO_AT_BRIDGE:-1}"
+if [ -z "${LIBGL_ALWAYS_SOFTWARE+x}" ]; then
+  export LIBGL_ALWAYS_SOFTWARE=1
+else
+  export LIBGL_ALWAYS_SOFTWARE
+fi
+if [ -z "${MESA_LOADER_DRIVER_OVERRIDE+x}" ]; then
+  export MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
+else
+  export MESA_LOADER_DRIVER_OVERRIDE
+fi
+if [ -z "${LIBGL_DRI3_DISABLE+x}" ]; then
+  export LIBGL_DRI3_DISABLE=1
+else
+  export LIBGL_DRI3_DISABLE
+fi
 
 IDEA_PROPERTIES=/tmp/pycharm-docker.idea.properties
 cat > "$IDEA_PROPERTIES" <<EOF_PROPS
-idea.config.path=/ide-state/config
-idea.system.path=/ide-state/system
+idea.config.path=$IDE_GLOBAL_SETTINGS_PATH/config
+idea.system.path=$IDE_PROJECT_STATE_PATH/system
 idea.plugins.path=/ide-plugins
-idea.log.path=/ide-state/log
+idea.log.path=$IDE_PROJECT_STATE_PATH/log
 EOF_PROPS
 export PYCHARM_PROPERTIES="$IDEA_PROPERTIES"
 
@@ -71,7 +97,7 @@ start_dind() {
   mkdir -p /run/docker /var/lib/docker
   rm -f /run/docker/docker.pid /var/run/docker.sock
 
-  DOCKERD_LOG=/ide-state/log/dockerd.log
+  DOCKERD_LOG=$IDE_PROJECT_STATE_PATH/log/dockerd.log
   DOCKER_SOCKET_GROUP="${IDE_GID:-0}"
   dockerd \
     --host=unix:///var/run/docker.sock \

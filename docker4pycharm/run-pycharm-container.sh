@@ -4,8 +4,11 @@ set -euo pipefail
 IMAGE="${IMAGE:-pycharm-isolated:latest}"
 NAME="pycharm-isolated-$(id -un)-$(date +%s)"
 PROJECT=""
-STATE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/pycharm-docker/state"
-PLUGIN_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/pycharm-docker/plugins"
+BASE_DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/pycharm-docker"
+GLOBAL_SETTINGS_DIR="${PYCHARM_GLOBAL_SETTINGS_DIR:-$BASE_DATA_DIR/state}"
+PROJECT_STATE_DIR="${PYCHARM_PROJECT_STATE_DIR:-}"
+PLUGIN_DIR="${PYCHARM_PLUGIN_DIR:-$BASE_DATA_DIR/plugins}"
+PROJECT_MOUNT="${PYCHARM_PROJECT_MOUNT:-}"
 USE_SSH_AGENT=0
 GITHUB_TOKEN_FILE=""
 GITHUB_TOKEN_ENV=""
@@ -16,17 +19,56 @@ DOCKER_MODE="${DOCKER_MODE:-}"
 HOST_DOCKER_SOCKET="${HOST_DOCKER_SOCKET:-/var/run/docker.sock}"
 HOST_DOCKER_GID=""
 EXTRA_DOCKER_ARGS=()
+PYCHARM_LIBGL_ALWAYS_SOFTWARE="${PYCHARM_LIBGL_ALWAYS_SOFTWARE-${LIBGL_ALWAYS_SOFTWARE-1}}"
+PYCHARM_MESA_LOADER_DRIVER_OVERRIDE="${PYCHARM_MESA_LOADER_DRIVER_OVERRIDE-${MESA_LOADER_DRIVER_OVERRIDE-llvmpipe}}"
+PYCHARM_LIBGL_DRI3_DISABLE="${PYCHARM_LIBGL_DRI3_DISABLE-${LIBGL_DRI3_DISABLE-1}}"
 
-if [ -n "${DOCKER_MODE:-}" ]; then
-  DOCKER_MODE="${DOCKER_MODE}"
-elif [ -n "${DOCKER_IN_DOCKER:-}" ]; then
-  case "$DOCKER_IN_DOCKER" in
-    1|true|TRUE|yes|YES|on|ON) DOCKER_MODE="dind" ;;
-    0|false|FALSE|no|NO|off|OFF) DOCKER_MODE="none" ;;
-    *) echo "DOCKER_IN_DOCKER must be 1/0, true/false, yes/no, or on/off." >&2; exit 2 ;;
-  esac
-else
-  DOCKER_MODE="host"
+sanitize_name() {
+  local value="$1"
+
+  value="$(printf '%s' "$value" | tr -c '[:alnum:]._-' '-')"
+  while [[ "$value" == -* ]]; do
+    value="${value#-}"
+  done
+  while [[ "$value" == *- ]]; do
+    value="${value%-}"
+  done
+
+  if [ -z "$value" ]; then
+    value="project"
+  fi
+
+  printf '%s' "$value"
+}
+
+project_namespace() {
+  local path="$1"
+  local base safe_base hash
+
+  base="$(basename "$path")"
+  safe_base="$(sanitize_name "$base")"
+  if command -v sha256sum >/dev/null 2>&1; then
+    hash="$(printf '%s' "$path" | sha256sum)"
+    hash="${hash%% *}"
+    hash="${hash:0:12}"
+  else
+    hash="$(printf '%s' "$path" | cksum)"
+    hash="${hash%% *}"
+  fi
+
+  printf '%s-%s' "$hash" "$safe_base"
+}
+
+if [ -z "${DOCKER_MODE:-}" ]; then
+  if [ -n "${DOCKER_IN_DOCKER:-}" ]; then
+    case "$DOCKER_IN_DOCKER" in
+      1|true|TRUE|yes|YES|on|ON) DOCKER_MODE="dind" ;;
+      0|false|FALSE|no|NO|off|OFF) DOCKER_MODE="none" ;;
+      *) echo "DOCKER_IN_DOCKER must be 1/0, true/false, yes/no, or on/off." >&2; exit 2 ;;
+    esac
+  else
+    DOCKER_MODE="host"
+  fi
 fi
 
 usage() {
@@ -37,7 +79,10 @@ Usage:
 Options:
   --image IMAGE                 Docker image to run. Default: pycharm-isolated:latest
   --name NAME                   Container name. Default: unique name with timestamp
-  --state DIR                   Persistent IDE state root. Default: ~/.local/share/pycharm-docker/state
+  --global-settings DIR         Shared IDE config/home root. Default: ~/.local/share/pycharm-docker/state
+  --state DIR                   Legacy alias for --global-settings
+  --project-state DIR           Per-project IDE cache/log/workspace root. Default: auto under ~/.local/share/pycharm-docker/project-state
+  --project-mount PATH          In-container project path. Default: /workspace/<project-id>
   --plugins DIR                 Persistent PyCharm plugins dir. Default: ~/.local/share/pycharm-docker/plugins
   --ssh-agent                   Forward host SSH agent socket into the container
   --github-token-file FILE      Mount an HTTPS GitHub token file for Git askpass
@@ -51,6 +96,12 @@ Options:
   --writable-root               Do not run the container with a read-only root filesystem
   --docker-arg ARG              Append one raw docker-run argument; repeat for advanced cases
   -h, --help                    Show this help
+
+Mesa/OpenGL defaults:
+  The launcher defaults JetBrains/Skiko GL to Mesa llvmpipe software rendering
+  so X11 runs without mounting host /dev/dri devices. Override with
+  PYCHARM_LIBGL_ALWAYS_SOFTWARE, PYCHARM_MESA_LOADER_DRIVER_OVERRIDE, or
+  PYCHARM_LIBGL_DRI3_DISABLE when testing another rendering path.
 USAGE
 }
 
@@ -59,7 +110,10 @@ while [ "$#" -gt 0 ]; do
     --project) PROJECT="${2:?missing value for --project}"; shift 2 ;;
     --image) IMAGE="${2:?missing value for --image}"; shift 2 ;;
     --name) NAME="${2:?missing value for --name}"; shift 2 ;;
-    --state) STATE_DIR="${2:?missing value for --state}"; shift 2 ;;
+    --global-settings) GLOBAL_SETTINGS_DIR="${2:?missing value for --global-settings}"; shift 2 ;;
+    --state) GLOBAL_SETTINGS_DIR="${2:?missing value for --state}"; shift 2 ;;
+    --project-state) PROJECT_STATE_DIR="${2:?missing value for --project-state}"; shift 2 ;;
+    --project-mount) PROJECT_MOUNT="${2:?missing value for --project-mount}"; shift 2 ;;
     --plugins) PLUGIN_DIR="${2:?missing value for --plugins}"; shift 2 ;;
     --ssh-agent) USE_SSH_AGENT=1; shift ;;
     --github-token-file) GITHUB_TOKEN_FILE="${2:?missing value for --github-token-file}"; shift 2 ;;
@@ -94,7 +148,28 @@ case "$DOCKER_MODE" in
 esac
 
 PROJECT="$(readlink -f "$PROJECT")"
-STATE_DIR="$(mkdir -p "$STATE_DIR" && readlink -f "$STATE_DIR")"
+PROJECT_ID="$(project_namespace "$PROJECT")"
+if [ -z "$PROJECT_STATE_DIR" ]; then
+  PROJECT_STATE_DIR="$BASE_DATA_DIR/project-state/$PROJECT_ID"
+fi
+if [ -z "$PROJECT_MOUNT" ]; then
+  PROJECT_MOUNT="/workspace/$PROJECT_ID"
+fi
+if [ "$PROJECT_MOUNT" != "/" ]; then
+  PROJECT_MOUNT="${PROJECT_MOUNT%/}"
+fi
+case "$PROJECT_MOUNT" in
+  /*) ;;
+  *) echo "--project-mount must be an absolute in-container path." >&2; exit 2 ;;
+esac
+case "$PROJECT_MOUNT" in
+  /|/dev|/dev/*|/etc|/etc/*|/home|/home/*|/ide-global-settings|/ide-global-settings/*|/ide-plugins|/ide-plugins/*|/ide-project-state|/ide-project-state/*|/opt|/opt/*|/proc|/proc/*|/run|/run/*|/sys|/sys/*|/tmp|/tmp/*|/usr|/usr/*|/var|/var/*)
+    echo "--project-mount uses a reserved container path: $PROJECT_MOUNT" >&2
+    exit 2
+    ;;
+esac
+GLOBAL_SETTINGS_DIR="$(mkdir -p "$GLOBAL_SETTINGS_DIR" && readlink -f "$GLOBAL_SETTINGS_DIR")"
+PROJECT_STATE_DIR="$(mkdir -p "$PROJECT_STATE_DIR" && readlink -f "$PROJECT_STATE_DIR")"
 PLUGIN_DIR="$(mkdir -p "$PLUGIN_DIR" && readlink -f "$PLUGIN_DIR")"
 
 if [ ! -d "$PROJECT" ]; then
@@ -134,7 +209,7 @@ fi
 
 cat > "$PASSWD_FILE" <<EOF_PASSWD
 root:x:0:0:root:/root:/bin/bash
-$(id -un):x:$(id -u):$(id -g):PyCharm Docker User:/ide-state/home:/bin/bash
+$(id -un):x:$(id -u):$(id -g):PyCharm Docker User:/ide-global-settings/home:/bin/bash
 EOF_PASSWD
 cat > "$GROUP_FILE" <<EOF_GROUP
 root:x:0:
@@ -145,25 +220,36 @@ if [ -n "$HOST_DOCKER_GID" ] && [ "$HOST_DOCKER_GID" != "$(id -g)" ]; then
 fi
 chmod 644 "$PASSWD_FILE" "$GROUP_FILE"
 
+# Docker --mount values are intentionally comma-delimited single arguments.
+# shellcheck disable=SC2054
 DOCKER_ARGS=(
   --rm
   -i
   --name "$NAME"
   --network=host
-  --workdir /project
+  --workdir "$PROJECT_MOUNT"
   --env DISPLAY
   --env XAUTHORITY=/tmp/.docker.xauth
-  --env PROJECT_PATH=/project
-  --env HOME=/ide-state/home
-  --env CODEX_HOME=/ide-state/home/.codex
+  --env PROJECT_PATH="$PROJECT_MOUNT"
+  --env HOME=/ide-global-settings/home
+  --env CODEX_HOME=/ide-global-settings/home/.codex
+  --env XDG_CONFIG_HOME=/ide-global-settings/home/.config
+  --env XDG_CACHE_HOME=/ide-project-state/home/.cache
+  --env XDG_DATA_HOME=/ide-global-settings/home/.local/share
+  --env IDE_GLOBAL_SETTINGS_PATH=/ide-global-settings
+  --env IDE_PROJECT_STATE_PATH=/ide-project-state
   --env IDE_UID="$(id -u)"
   --env IDE_GID="$(id -g)"
   --env IDE_USER="$(id -un)"
   --env QT_X11_NO_MITSHM=1
   --env _JAVA_AWT_WM_NONREPARENTING=1
+  --env LIBGL_ALWAYS_SOFTWARE="$PYCHARM_LIBGL_ALWAYS_SOFTWARE"
+  --env MESA_LOADER_DRIVER_OVERRIDE="$PYCHARM_MESA_LOADER_DRIVER_OVERRIDE"
+  --env LIBGL_DRI3_DISABLE="$PYCHARM_LIBGL_DRI3_DISABLE"
   --env GITHUB_USER="$GITHUB_USER"
-  --mount "type=bind,src=$PROJECT,dst=/project"
-  --mount "type=bind,src=$STATE_DIR,dst=/ide-state"
+  --mount "type=bind,src=$PROJECT,dst=$PROJECT_MOUNT"
+  --mount "type=bind,src=$GLOBAL_SETTINGS_DIR,dst=/ide-global-settings"
+  --mount "type=bind,src=$PROJECT_STATE_DIR,dst=/ide-project-state"
   --mount "type=bind,src=$PLUGIN_DIR,dst=/ide-plugins"
   --mount "type=bind,src=/tmp/.X11-unix,dst=/tmp/.X11-unix,ro"
   --mount "type=bind,src=$XAUTH_FILE,dst=/tmp/.docker.xauth,ro"
@@ -284,4 +370,12 @@ fi
 
 DOCKER_ARGS+=("${EXTRA_DOCKER_ARGS[@]}")
 
-exec docker run "${DOCKER_ARGS[@]}" "$IMAGE" /opt/pycharm/bin/pycharm.sh /project
+cat >&2 <<EOF_STORAGE
+PyCharm storage:
+  Shared global settings: $GLOBAL_SETTINGS_DIR
+  Shared plugins:         $PLUGIN_DIR
+  Per-project state:      $PROJECT_STATE_DIR
+  Container project path: $PROJECT_MOUNT
+EOF_STORAGE
+
+exec docker run "${DOCKER_ARGS[@]}" "$IMAGE" /opt/pycharm/bin/pycharm.sh "$PROJECT_MOUNT"
