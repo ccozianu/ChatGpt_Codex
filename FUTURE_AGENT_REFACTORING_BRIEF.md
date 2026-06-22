@@ -229,6 +229,7 @@ Container user mapping
 Native debugging mode
 Network mode
 Device passthrough where explicitly required
+Explicit NVIDIA GPU workload profile for Python ML projects
 Environment variable policy
 Container naming
 Image tagging
@@ -236,6 +237,11 @@ Cleanup of temporary host files
 ```
 
 The runtime should keep the default security posture conservative.
+
+GPU passthrough should be a deliberate profile-level capability, not a default
+GUI/rendering workaround. The first GPU profile should assume NVIDIA hardware
+and CUDA-oriented Python ML workflows, require the host NVIDIA container runtime
+or equivalent Docker support, and document the resulting host-device exposure.
 
 ---
 

@@ -161,7 +161,18 @@ This keeps the current no-`/dev/dri` isolation posture. If hardware GL is later
 needed, add it as an explicit launcher option with documented device passthrough
 rather than quietly mounting host GPU devices.
 
-### Suggested Validation
+### 2026-06-22 Manual Validation Status
+
+After the fresh image was tested again, the user reported that everything looks
+OK now. Treat the Markdown preview / Skiko OpenGL context investigation as
+closed for the current v0 image. Reopen only if Markdown preview becomes blank
+or unresponsive again, or if logs again show active `Cannot create OpenGL
+context` failures under the default launcher path.
+
+Retrospective note:
+`implementation-notes/completed-tasks/2026-06-22-mesa-skiko-markdown-validation.md`.
+
+### Historical Validation Checklist
 
 - Open this repository in the containerized PyCharm instance.
 - Open a Markdown file such as `README.md`.

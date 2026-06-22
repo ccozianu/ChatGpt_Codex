@@ -540,13 +540,29 @@ without mounting host `/dev/dri`; and the image includes
 `drm` / `dri3` / `iris` warning class separately from the earlier missing
 `libGL.so.1` dependency failure.
 
-Checkpoint update: on 2026-06-22, the current repository state was prepared for
-manual validation against the next image build. Changed items include the
-per-project IDE state split, explicit Mesa software-GL defaults, and the
-framework-named `docker4ide-check-runtime-deps` helper. Script syntax,
-ShellCheck, whitespace checks, and the repository-local runtime helper passed in
-the currently running container. Not yet validated: a fresh PyCharm launch from
-a rebuilt image using these changes.
+Mesa/OpenGL manual validation update: on 2026-06-22, after the fresh image was
+tested again, the user reported that everything looks OK now. Treat the
+software-GL path, Markdown preview behavior, and related Skiko/OpenGL logging as
+manually validated for the current v0 image. Do not reopen the Skiko/OpenGL
+context item unless Markdown preview again becomes blank/unresponsive or the
+logs again show active `Cannot create OpenGL context` failures under the default
+launcher path. Retrospective note:
+`docker4pycharm/implementation-notes/completed-tasks/2026-06-22-mesa-skiko-markdown-validation.md`.
+
+Deferred GPU passthrough note: do not use NVIDIA or `/dev/dri` passthrough as
+the next rendering fix. Preserve GPU passthrough for a later explicit
+developer-workload profile, especially for Python ML projects on hosts with
+NVIDIA hardware. That future option should assume NVIDIA first, be documented as
+a host-exposure relaxation, and remain separate from the v0 default software-GL
+rendering path.
+
+Checkpoint update: on 2026-06-22, the repository state was prepared for manual
+validation against the next image build. Changed items included the per-project
+IDE state split, explicit Mesa software-GL defaults, and the framework-named
+`docker4ide-check-runtime-deps` helper. Script syntax, ShellCheck, whitespace
+checks, and the repository-local runtime helper passed in the then-running
+container. The follow-up fresh PyCharm launch has now been manually accepted by
+the user for the current v0 stabilization pass.
 
 Post-MVP refactoring context: `FUTURE_AGENT_REFACTORING_BRIEF.md` has been restored. It describes the intended move from one-off PyCharm scripts toward a profile-driven `docker4ide` framework with shared runtime orchestration, IDE-family adapters, and product-specific profiles.
 
@@ -571,17 +587,7 @@ Immediate engineering priority: preserve the working MVP while making the setup 
 
 Planned next stabilization items:
 
-1. Manually validate the explicit Mesa software-GL runtime after a fresh launch.
-   Done means: PyCharm is relaunched through the updated launcher or a rebuilt
-   image, Markdown preview remains usable, and IDE logs no longer show the
-   `Failed to query drm device` / `dri3` / `iris` noise or Skiko
-   `Cannot create OpenGL context` during normal preview use.
-   Verification: run `docker4ide-check-runtime-deps` inside the launched
-   container, open a Markdown preview, and inspect `/ide-project-state/log` for
-   the OpenGL signatures.
-   Reopen if: software GL defaults regress, hardware DRI is made default, or
-   Skiko/Markdown preview logs again show OpenGL context failures.
-2. Keep any isolation relaxation explicit and documented.
+1. Keep any isolation relaxation explicit and documented.
    Done means: any change that broadens host exposure is represented by a clear
    launcher option/default, README text, and implementation note.
    Verification: review Docker/run arguments and docs together before closing

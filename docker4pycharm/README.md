@@ -127,6 +127,12 @@ Do not mount host `/dev/dri` or other GPU devices as a quiet default; make that
 an explicit documented launcher option if the project later decides hardware GL
 is worth the extra host exposure.
 
+NVIDIA GPU passthrough is intentionally deferred. The likely future use case is
+not IDE rendering, but Python ML development where CUDA-capable NVIDIA hardware
+is useful inside the selected project environment. Add that later as an
+explicit documented profile or launcher option, not as part of the default
+software-GL path.
+
 By default, persistent data lands in:
 
 - `~/.local/share/pycharm-docker/state` for shared IDE configuration and the isolated IDE home

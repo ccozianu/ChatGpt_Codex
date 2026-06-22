@@ -2,7 +2,7 @@
 
 Date: 2026-06-22
 
-Status: implemented, pending fresh-launch manual validation
+Status: implemented and manually validated for the current v0 image
 
 ## Context
 
@@ -62,13 +62,45 @@ Observed result:
 - The software-GL environment removes those warnings and reports Mesa
   `llvmpipe`.
 
-Pending manual validation:
+Original manual validation plan:
 
 - Relaunch PyCharm through the updated launcher or rebuilt image.
 - Run `docker4ide-check-runtime-deps` in the launched container.
 - Open Markdown preview and confirm the IDE stays responsive.
 - Inspect `/ide-project-state/log` for absence of the OpenGL warning signatures
   during normal preview use.
+
+Manual validation update on 2026-06-22:
+
+- The user reported that `Failed to query drm device` appears to have
+  disappeared in the latest image.
+- At that point, logs still included `[SKIKO] warn: Fallback to next API`
+  followed by `org.jetbrains.skiko.RenderException: Cannot create OpenGL
+  context`.
+- At that point, the Mesa hardware-probe warning was treated as improved, while
+  the remaining Skiko OpenGL context failure stayed active until the follow-up
+  validation below.
+
+Follow-up manual validation update on 2026-06-22:
+
+- After the fresh image was tested again, the user reported that everything
+  looks OK now.
+- Treat the default Mesa software-GL path, Markdown preview behavior, and the
+  related Skiko/OpenGL logging as accepted for the current v0 image.
+- The active Skiko/OpenGL context failure item has been removed from the root
+  README handoff. Retrospective note:
+  `completed-tasks/2026-06-22-mesa-skiko-markdown-validation.md`.
+
+Deferred GPU passthrough note:
+
+- Do not use NVIDIA or `/dev/dri` passthrough as the next rendering fix.
+- Preserve GPU passthrough for a later explicit developer-workload profile,
+  especially for Python ML projects on hosts with NVIDIA hardware.
+- Treat that future profile as a documented host-exposure relaxation, not as
+  part of the v0 default rendering path.
+- The first GPU profile should assume NVIDIA because the current motivating
+  host has an NVIDIA GA107M / GeForce RTX 3050 Mobile and Python ML workloads
+  are a more compelling use case than IDE rendering.
 
 ## Consequences
 
@@ -82,6 +114,7 @@ limited host exposure.
 
 ## Reopen If
 
-Reopen if Skiko or Markdown preview again logs OpenGL context failures under the
-default launcher path, if a future change removes the Mesa software-GL defaults,
-or if the project decides to add explicit GPU device passthrough.
+Reopen if Markdown preview becomes blank or unresponsive again, if Skiko or
+Markdown preview again logs OpenGL context failures under the default launcher
+path, if a future change removes the Mesa software-GL defaults, or if the
+project decides to add explicit GPU device passthrough.
