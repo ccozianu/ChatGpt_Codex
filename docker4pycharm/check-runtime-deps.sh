@@ -77,6 +77,7 @@ else
 fi
 
 check_dir_writable "${IDE_GLOBAL_SETTINGS_PATH:-/ide-global-settings}"
+check_dir_writable "${IDE_CONFIG_PATH:-/ide-config}"
 check_dir_writable "${IDE_PROJECT_STATE_PATH:-/ide-project-state}"
 check_dir_writable /ide-plugins
 check_dir_writable "${HOME:-/ide-global-settings/home}"
@@ -95,6 +96,19 @@ if command -v glxinfo >/dev/null 2>&1 && [ -n "${DISPLAY:-}" ]; then
   fi
 else
   warn "Skipping GLX check; glxinfo or DISPLAY is unavailable"
+fi
+
+if command -v sudo >/dev/null 2>&1; then
+  pass "sudo command is installed"
+  if [ "${ENABLE_SUDO:-0}" = "1" ] && [ "$(id -u)" -ne 0 ]; then
+    if sudo -n true >/dev/null 2>&1; then
+      pass "passwordless sudo is enabled for this runtime user"
+    else
+      fail "ENABLE_SUDO=1, but passwordless sudo failed for this runtime user"
+    fi
+  fi
+else
+  fail "sudo command is missing"
 fi
 
 if [ "$FAILURES" -gt 0 ]; then

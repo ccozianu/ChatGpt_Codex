@@ -3,9 +3,11 @@ set -euo pipefail
 
 : "${PROJECT_PATH:=/workspace/project}"
 : "${IDE_GLOBAL_SETTINGS_PATH:=/ide-global-settings}"
+: "${IDE_CONFIG_PATH:=$IDE_GLOBAL_SETTINGS_PATH/config}"
 : "${IDE_PROJECT_STATE_PATH:=/ide-project-state}"
 : "${HOME:=$IDE_GLOBAL_SETTINGS_PATH/home}"
 : "${ENABLE_DIND:=0}"
+: "${ENABLE_SUDO:=0}"
 : "${IDE_UID:=}"
 : "${IDE_GID:=}"
 : "${IDE_USER:=ideuser}"
@@ -16,7 +18,11 @@ export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 
 RUN_AS_IDE_USER=()
 if [ "$(id -u)" -eq 0 ] && [ -n "$IDE_UID" ] && [ -n "$IDE_GID" ]; then
-  RUN_AS_IDE_USER=(gosu "$IDE_UID:$IDE_GID")
+  if [ "$ENABLE_SUDO" = "1" ] && getent passwd "$IDE_USER" >/dev/null 2>&1; then
+    RUN_AS_IDE_USER=(gosu "$IDE_USER")
+  else
+    RUN_AS_IDE_USER=(gosu "$IDE_UID:$IDE_GID")
+  fi
 fi
 
 as_ide_user() {
@@ -41,7 +47,7 @@ install_ide_file() {
 
 as_ide_user mkdir -p \
   "$IDE_GLOBAL_SETTINGS_PATH" \
-  "$IDE_GLOBAL_SETTINGS_PATH/config" \
+  "$IDE_CONFIG_PATH" \
   "$IDE_PROJECT_STATE_PATH" \
   "$IDE_PROJECT_STATE_PATH/system" \
   "$IDE_PROJECT_STATE_PATH/log" \
@@ -75,7 +81,7 @@ fi
 
 IDEA_PROPERTIES=/tmp/pycharm-docker.idea.properties
 cat > "$IDEA_PROPERTIES" <<EOF_PROPS
-idea.config.path=$IDE_GLOBAL_SETTINGS_PATH/config
+idea.config.path=$IDE_CONFIG_PATH
 idea.system.path=$IDE_PROJECT_STATE_PATH/system
 idea.plugins.path=/ide-plugins
 idea.log.path=$IDE_PROJECT_STATE_PATH/log

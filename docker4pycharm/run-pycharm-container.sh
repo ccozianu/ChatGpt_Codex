@@ -7,18 +7,23 @@ PROJECT=""
 BASE_DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/pycharm-docker"
 GLOBAL_SETTINGS_DIR="${PYCHARM_GLOBAL_SETTINGS_DIR:-$BASE_DATA_DIR/state}"
 PROJECT_STATE_DIR="${PYCHARM_PROJECT_STATE_DIR:-}"
+IDE_CONFIG_DIR="${PYCHARM_IDE_CONFIG_DIR:-}"
+IDE_CONFIG_MODE="${PYCHARM_IDE_CONFIG_MODE:-shared}"
 PLUGIN_DIR="${PYCHARM_PLUGIN_DIR:-$BASE_DATA_DIR/plugins}"
 PROJECT_MOUNT="${PYCHARM_PROJECT_MOUNT:-}"
 USE_SSH_AGENT=0
 GIT_USER_NAME="${PYCHARM_GIT_USER_NAME:-}"
 GIT_USER_EMAIL="${PYCHARM_GIT_USER_EMAIL:-}"
-GIT_IDENTITY_FROM_HOST="${PYCHARM_GIT_IDENTITY_FROM_HOST:-0}"
+GIT_IDENTITY_FROM_HOST="${PYCHARM_GIT_IDENTITY_FROM_HOST:-auto}"
 GIT_TOKEN_FILE="${PYCHARM_GIT_TOKEN_FILE:-${GITHUB_TOKEN_FILE:-}}"
 GIT_TOKEN_ENV="${PYCHARM_GIT_TOKEN_ENV:-${GITHUB_TOKEN_ENV:-}}"
 GIT_TOKEN_USERNAME="${PYCHARM_GIT_TOKEN_USERNAME:-${GITHUB_USER:-x-access-token}}"
 GIT_TOKEN_HOSTS="${PYCHARM_GIT_TOKEN_HOSTS:-github.com}"
 DEBUG_NATIVE=0
 WRITABLE_ROOT=0
+ENABLE_SUDO="${PYCHARM_ENABLE_SUDO:-0}"
+IDE_SUDO_GID="${PYCHARM_IDE_SUDO_GID:-44000}"
+IGNORE_CONFIG_LOCK="${PYCHARM_IGNORE_CONFIG_LOCK:-0}"
 DOCKER_MODE="${DOCKER_MODE:-}"
 HOST_DOCKER_SOCKET="${HOST_DOCKER_SOCKET:-/var/run/docker.sock}"
 HOST_DOCKER_GID=""
@@ -86,12 +91,16 @@ Options:
   --global-settings DIR         Shared IDE config/home root. Default: ~/.local/share/pycharm-docker/state
   --state DIR                   Legacy alias for --global-settings
   --project-state DIR           Per-project IDE cache/log/workspace root. Default: auto under ~/.local/share/pycharm-docker/project-state
+  --project-config              Store PyCharm config under per-project state for concurrent IDE sessions
+  --shared-config               Store PyCharm config under shared global settings. Default
+  --ide-config DIR              Explicit PyCharm config dir for idea.config.path
   --project-mount PATH          In-container project path. Default: /workspace/<project-id>
   --plugins DIR                 Persistent PyCharm plugins dir. Default: ~/.local/share/pycharm-docker/plugins
   --ssh-agent                   Forward host SSH agent socket into the container
   --git-user-name NAME          Configure Git user.name inside the isolated IDE home
   --git-user-email EMAIL        Configure Git user.email inside the isolated IDE home
   --git-identity-from-host      Read host global Git user.name/user.email and pass only those values
+  --no-git-identity-from-host   Disable automatic host Git identity import
   --git-token-file FILE         Mount an HTTPS Git token file for Git askpass
   --git-token-env ENVVAR        Read token from host ENVVAR, place it in a temporary mounted file
   --git-token-user USER         Username for HTTPS Git askpass. Default: x-access-token
@@ -104,7 +113,9 @@ Options:
   --docker-in-docker, --dind    Start an isolated inner Docker daemon. Requires --privileged
   --no-docker                   Disable Docker access and use the stricter container profile
   --debug-native                Add ptrace/seccomp permissions for native debugging/strace of non-child processes
+  --dev-sudo, --sudo            Enable passwordless sudo for the IDE user. Implies --writable-root and keeps default container capabilities
   --writable-root               Do not run the container with a read-only root filesystem
+  --ignore-config-lock          Skip the launcher preflight for an existing PyCharm config .lock
   --docker-arg ARG              Append one raw docker-run argument; repeat for advanced cases
   -h, --help                    Show this help
 
@@ -124,12 +135,16 @@ while [ "$#" -gt 0 ]; do
     --global-settings) GLOBAL_SETTINGS_DIR="${2:?missing value for --global-settings}"; shift 2 ;;
     --state) GLOBAL_SETTINGS_DIR="${2:?missing value for --state}"; shift 2 ;;
     --project-state) PROJECT_STATE_DIR="${2:?missing value for --project-state}"; shift 2 ;;
+    --project-config) IDE_CONFIG_MODE=project; IDE_CONFIG_DIR=""; shift ;;
+    --shared-config) IDE_CONFIG_MODE=shared; IDE_CONFIG_DIR=""; shift ;;
+    --ide-config) IDE_CONFIG_MODE=custom; IDE_CONFIG_DIR="${2:?missing value for --ide-config}"; shift 2 ;;
     --project-mount) PROJECT_MOUNT="${2:?missing value for --project-mount}"; shift 2 ;;
     --plugins) PLUGIN_DIR="${2:?missing value for --plugins}"; shift 2 ;;
     --ssh-agent) USE_SSH_AGENT=1; shift ;;
     --git-user-name) GIT_USER_NAME="${2:?missing value for --git-user-name}"; shift 2 ;;
     --git-user-email) GIT_USER_EMAIL="${2:?missing value for --git-user-email}"; shift 2 ;;
     --git-identity-from-host) GIT_IDENTITY_FROM_HOST=1; shift ;;
+    --no-git-identity-from-host) GIT_IDENTITY_FROM_HOST=0; shift ;;
     --git-token-file|--github-token-file) GIT_TOKEN_FILE="${2:?missing value for $1}"; shift 2 ;;
     --git-token-env|--github-token-env) GIT_TOKEN_ENV="${2:?missing value for $1}"; shift 2 ;;
     --git-token-user|--github-user) GIT_TOKEN_USERNAME="${2:?missing value for $1}"; shift 2 ;;
@@ -139,7 +154,9 @@ while [ "$#" -gt 0 ]; do
     --docker-in-docker|--dind) DOCKER_MODE=dind; shift ;;
     --no-docker) DOCKER_MODE=none; shift ;;
     --debug-native) DEBUG_NATIVE=1; shift ;;
+    --dev-sudo|--sudo) ENABLE_SUDO=1; shift ;;
     --writable-root) WRITABLE_ROOT=1; shift ;;
+    --ignore-config-lock) IGNORE_CONFIG_LOCK=1; shift ;;
     --docker-arg) EXTRA_DOCKER_ARGS+=("${2:?missing value for --docker-arg}"); shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
@@ -162,10 +179,33 @@ case "$DOCKER_MODE" in
   *) echo "DOCKER_MODE must be host, dind, or none." >&2; exit 2 ;;
 esac
 case "$GIT_IDENTITY_FROM_HOST" in
+  auto|AUTO|default|DEFAULT) GIT_IDENTITY_FROM_HOST=auto ;;
   1|true|TRUE|yes|YES|on|ON) GIT_IDENTITY_FROM_HOST=1 ;;
   0|false|FALSE|no|NO|off|OFF|"") GIT_IDENTITY_FROM_HOST=0 ;;
-  *) echo "PYCHARM_GIT_IDENTITY_FROM_HOST must be 1/0, true/false, yes/no, or on/off." >&2; exit 2 ;;
+  *) echo "PYCHARM_GIT_IDENTITY_FROM_HOST must be auto, 1/0, true/false, yes/no, or on/off." >&2; exit 2 ;;
 esac
+case "$IDE_CONFIG_MODE" in
+  shared|SHARED) IDE_CONFIG_MODE=shared ;;
+  project|PROJECT|per-project|PER-PROJECT) IDE_CONFIG_MODE=project ;;
+  custom|CUSTOM|explicit|EXPLICIT) IDE_CONFIG_MODE=custom ;;
+  *) echo "PYCHARM_IDE_CONFIG_MODE must be shared, project, or custom." >&2; exit 2 ;;
+esac
+case "$IGNORE_CONFIG_LOCK" in
+  1|true|TRUE|yes|YES|on|ON) IGNORE_CONFIG_LOCK=1 ;;
+  0|false|FALSE|no|NO|off|OFF|"") IGNORE_CONFIG_LOCK=0 ;;
+  *) echo "PYCHARM_IGNORE_CONFIG_LOCK must be 1/0, true/false, yes/no, or on/off." >&2; exit 2 ;;
+esac
+case "$ENABLE_SUDO" in
+  1|true|TRUE|yes|YES|on|ON) ENABLE_SUDO=1 ;;
+  0|false|FALSE|no|NO|off|OFF|"") ENABLE_SUDO=0 ;;
+  *) echo "PYCHARM_ENABLE_SUDO must be 1/0, true/false, yes/no, or on/off." >&2; exit 2 ;;
+esac
+case "$IDE_SUDO_GID" in
+  ''|*[!0-9]*) echo "PYCHARM_IDE_SUDO_GID must be a numeric group ID." >&2; exit 2 ;;
+esac
+if [ "$ENABLE_SUDO" -eq 1 ]; then
+  WRITABLE_ROOT=1
+fi
 
 PROJECT="$(readlink -f "$PROJECT")"
 PROJECT_ID="$(project_namespace "$PROJECT")"
@@ -190,10 +230,44 @@ case "$PROJECT_MOUNT" in
 esac
 GLOBAL_SETTINGS_DIR="$(mkdir -p "$GLOBAL_SETTINGS_DIR" && readlink -f "$GLOBAL_SETTINGS_DIR")"
 PROJECT_STATE_DIR="$(mkdir -p "$PROJECT_STATE_DIR" && readlink -f "$PROJECT_STATE_DIR")"
+case "$IDE_CONFIG_MODE" in
+  shared)
+    IDE_CONFIG_DIR="${IDE_CONFIG_DIR:-$GLOBAL_SETTINGS_DIR/config}"
+    ;;
+  project)
+    IDE_CONFIG_DIR="${IDE_CONFIG_DIR:-$PROJECT_STATE_DIR/config}"
+    ;;
+  custom)
+    if [ -z "$IDE_CONFIG_DIR" ]; then
+      echo "--ide-config or PYCHARM_IDE_CONFIG_DIR is required when PYCHARM_IDE_CONFIG_MODE=custom." >&2
+      exit 2
+    fi
+    ;;
+esac
+IDE_CONFIG_DIR="$(mkdir -p "$IDE_CONFIG_DIR" && readlink -f "$IDE_CONFIG_DIR")"
 PLUGIN_DIR="$(mkdir -p "$PLUGIN_DIR" && readlink -f "$PLUGIN_DIR")"
 
 if [ ! -d "$PROJECT" ]; then
   echo "Project directory does not exist: $PROJECT" >&2
+  exit 1
+fi
+
+if [ "$IGNORE_CONFIG_LOCK" -eq 0 ] && [ "$IDE_CONFIG_MODE" != "project" ] && [ -e "$IDE_CONFIG_DIR/.lock" ]; then
+  cat >&2 <<EOF_CONFIG_LOCK
+PyCharm config directory appears to be locked:
+  $IDE_CONFIG_DIR/.lock
+
+The default shared config directory can only be used by one live PyCharm
+process at a time. For concurrent sessions against different projects, launch
+the second IDE with:
+  $0 --project "$PROJECT" --project-config
+
+That stores JetBrains idea.config.path under the per-project state directory:
+  $PROJECT_STATE_DIR/config
+
+If you are sure this is a stale lock from a crashed IDE, remove the lock file
+or rerun with --ignore-config-lock to let PyCharm decide.
+EOF_CONFIG_LOCK
   exit 1
 fi
 
@@ -206,21 +280,33 @@ if [ "$DOCKER_MODE" = "host" ]; then
   HOST_DOCKER_SOCKET="$(readlink -f "$HOST_DOCKER_SOCKET")"
   HOST_DOCKER_GID="$(stat -c '%g' "$HOST_DOCKER_SOCKET")"
 fi
+if [ "$ENABLE_SUDO" -eq 1 ]; then
+  while [ "$IDE_SUDO_GID" = "0" ] || [ "$IDE_SUDO_GID" = "$(id -g)" ] || { [ -n "$HOST_DOCKER_GID" ] && [ "$IDE_SUDO_GID" = "$HOST_DOCKER_GID" ]; }; do
+    IDE_SUDO_GID=$((IDE_SUDO_GID + 1))
+  done
+fi
 
-if [ "$GIT_IDENTITY_FROM_HOST" -eq 1 ]; then
+if [ "$GIT_IDENTITY_FROM_HOST" = "1" ] || [ "$GIT_IDENTITY_FROM_HOST" = "auto" ]; then
   if ! command -v git >/dev/null 2>&1; then
-    echo "--git-identity-from-host was requested, but git is not installed on the host." >&2
-    exit 1
-  fi
-  if [ -z "$GIT_USER_NAME" ]; then
-    GIT_USER_NAME="$(git config --global --get user.name 2>/dev/null || true)"
-  fi
-  if [ -z "$GIT_USER_EMAIL" ]; then
-    GIT_USER_EMAIL="$(git config --global --get user.email 2>/dev/null || true)"
+    if [ "$GIT_IDENTITY_FROM_HOST" = "1" ]; then
+      echo "--git-identity-from-host was requested, but git is not installed on the host." >&2
+      exit 1
+    fi
+  else
+    if [ -z "$GIT_USER_NAME" ]; then
+      GIT_USER_NAME="$(git config --global --get user.name 2>/dev/null || true)"
+    fi
+    if [ -z "$GIT_USER_EMAIL" ]; then
+      GIT_USER_EMAIL="$(git config --global --get user.email 2>/dev/null || true)"
+    fi
   fi
   if [ -z "$GIT_USER_NAME" ] || [ -z "$GIT_USER_EMAIL" ]; then
-    echo "Warning: --git-identity-from-host did not find both host user.name and user.email." >&2
-    echo "Pass --git-user-name and --git-user-email to configure them explicitly." >&2
+    if [ "$GIT_IDENTITY_FROM_HOST" = "1" ]; then
+      echo "Warning: --git-identity-from-host did not find both host user.name and user.email." >&2
+    else
+      echo "Warning: no complete Git author identity was provided or found in host global Git config." >&2
+    fi
+    echo "Pass --git-user-name and --git-user-email, or launch with --no-git-identity-from-host to suppress host identity lookup." >&2
   fi
 fi
 
@@ -255,7 +341,26 @@ EOF_GROUP
 if [ -n "$HOST_DOCKER_GID" ] && [ "$HOST_DOCKER_GID" != "$(id -g)" ]; then
   echo "host-docker:x:$HOST_DOCKER_GID:" >> "$GROUP_FILE"
 fi
+if [ "$ENABLE_SUDO" -eq 1 ]; then
+  echo "ide-sudo:x:$IDE_SUDO_GID:$(id -un)" >> "$GROUP_FILE"
+fi
 chmod 644 "$PASSWD_FILE" "$GROUP_FILE"
+
+if [ "$ENABLE_SUDO" -eq 1 ]; then
+  cat >&2 <<EOF_SUDO
+========================================================================
+DEVELOPMENT SUDO IS ENABLED FOR THIS PYCHARM CONTAINER.
+
+The mapped IDE user can run passwordless sudo inside the container. The
+launcher is also using a writable root filesystem and preserving the default
+Docker container capabilities so package installs and similar development
+commands can work.
+
+This is a development convenience profile. Use the default launcher profile
+when you do not need sudo.
+========================================================================
+EOF_SUDO
+fi
 
 # Docker --mount values are intentionally comma-delimited single arguments.
 # shellcheck disable=SC2054
@@ -274,6 +379,7 @@ DOCKER_ARGS=(
   --env XDG_CACHE_HOME=/ide-project-state/home/.cache
   --env XDG_DATA_HOME=/ide-global-settings/home/.local/share
   --env IDE_GLOBAL_SETTINGS_PATH=/ide-global-settings
+  --env IDE_CONFIG_PATH=/ide-config
   --env IDE_PROJECT_STATE_PATH=/ide-project-state
   --env IDE_UID="$(id -u)"
   --env IDE_GID="$(id -g)"
@@ -285,6 +391,7 @@ DOCKER_ARGS=(
   --env LIBGL_DRI3_DISABLE="$PYCHARM_LIBGL_DRI3_DISABLE"
   --mount "type=bind,src=$PROJECT,dst=$PROJECT_MOUNT"
   --mount "type=bind,src=$GLOBAL_SETTINGS_DIR,dst=/ide-global-settings"
+  --mount "type=bind,src=$IDE_CONFIG_DIR,dst=/ide-config"
   --mount "type=bind,src=$PROJECT_STATE_DIR,dst=/ide-project-state"
   --mount "type=bind,src=$PLUGIN_DIR,dst=/ide-plugins"
   --mount "type=bind,src=/tmp/.X11-unix,dst=/tmp/.X11-unix,ro"
@@ -329,14 +436,19 @@ EOF_HOST_DOCKER
       --user "$(id -u):$(id -g)"
       --group-add "$HOST_DOCKER_GID"
       --env ENABLE_DIND=0
+      --env ENABLE_SUDO="$ENABLE_SUDO"
+      --env IDE_SUDO_GID="$IDE_SUDO_GID"
       --env DOCKER_HOST=unix:///run/host-docker.sock
       --mount "type=bind,src=$HOST_DOCKER_SOCKET,dst=/run/host-docker.sock"
-      --cap-drop ALL
-      --security-opt no-new-privileges
     )
+    if [ "$ENABLE_SUDO" -eq 1 ]; then
+      DOCKER_ARGS+=(--group-add "$IDE_SUDO_GID")
+    else
+      DOCKER_ARGS+=(--cap-drop ALL --security-opt no-new-privileges)
+    fi
     ;;
   dind)
-  cat >&2 <<EOF_DIND
+    cat >&2 <<EOF_DIND
 ========================================================================
 DOCKER-IN-DOCKER IS ENABLED FOR THIS PYCHARM CONTAINER.
 
@@ -353,19 +465,29 @@ To turn Docker off for a higher-isolation session, run:
   $0 --project "$PROJECT" --no-docker
 ========================================================================
 EOF_DIND
-  DOCKER_ARGS+=(
-    --privileged
-    --env ENABLE_DIND=1
-    --mount "type=volume,dst=/var/lib/docker"
-  )
+    DOCKER_ARGS+=(
+      --privileged
+      --env ENABLE_DIND=1
+      --env ENABLE_SUDO="$ENABLE_SUDO"
+      --env IDE_SUDO_GID="$IDE_SUDO_GID"
+      --mount "type=volume,dst=/var/lib/docker"
+    )
+    if [ "$ENABLE_SUDO" -eq 1 ]; then
+      DOCKER_ARGS+=(--group-add "$IDE_SUDO_GID")
+    fi
     ;;
   none)
-  DOCKER_ARGS+=(
-    --user "$(id -u):$(id -g)"
-    --env ENABLE_DIND=0
-    --cap-drop ALL
-    --security-opt no-new-privileges
-  )
+    DOCKER_ARGS+=(
+      --user "$(id -u):$(id -g)"
+      --env ENABLE_DIND=0
+      --env ENABLE_SUDO="$ENABLE_SUDO"
+      --env IDE_SUDO_GID="$IDE_SUDO_GID"
+    )
+    if [ "$ENABLE_SUDO" -eq 1 ]; then
+      DOCKER_ARGS+=(--group-add "$IDE_SUDO_GID")
+    else
+      DOCKER_ARGS+=(--cap-drop ALL --security-opt no-new-privileges)
+    fi
     ;;
 esac
 
@@ -418,6 +540,7 @@ DOCKER_ARGS+=("${EXTRA_DOCKER_ARGS[@]}")
 cat >&2 <<EOF_STORAGE
 PyCharm storage:
   Shared global settings: $GLOBAL_SETTINGS_DIR
+  PyCharm config:         $IDE_CONFIG_DIR ($IDE_CONFIG_MODE)
   Shared plugins:         $PLUGIN_DIR
   Per-project state:      $PROJECT_STATE_DIR
   Container project path: $PROJECT_MOUNT

@@ -7,10 +7,11 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends \
     ca-certificates curl wget git openssh-client gnupg2 xauth \
     build-essential make cmake pkg-config gcc g++ gdb lldb \
-    python3 python3-pip python3-venv python3-dev \
+    python3 python-is-python3 python3-pip python3-venv python3-dev \
     netcat-openbsd dnsutils iproute2 iputils-ping traceroute \
-    procps psmisc lsof strace tcpdump socat telnet whois \
-    jq ripgrep fd-find fzf shellcheck tree less vim-tiny nano \
+    procps psmisc lsof strace tcpdump socat telnet whois file \
+    jq ripgrep fd-find fzf shellcheck tree less vim-tiny nano sudo \
+    libpq5 libpq-dev \
     tini \
     docker.io docker-buildx docker-compose-v2 gosu \
     libx11-6 libxext6 libxrender1 libxtst6 libxi6 libxrandr2 libxss1 libxkbfile1 \
@@ -33,12 +34,15 @@ RUN if [ "$INSTALL_CODEX_CLI" = "1" ]; then \
 
 COPY pycharm/ /opt/pycharm/
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY bootstrap-project.sh /usr/local/bin/docker4ide-bootstrap-project
 COPY check-runtime-deps.sh /usr/local/bin/docker4ide-check-runtime-deps
 RUN mkdir -p /usr/local/share/docker4ide
 COPY image-assets/vibe-coding-process.md /usr/local/share/docker4ide/vibe-coding-process.md
-RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/docker4ide-check-runtime-deps /opt/pycharm/bin/pycharm.sh \
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/docker4ide-bootstrap-project /usr/local/bin/docker4ide-check-runtime-deps /opt/pycharm/bin/pycharm.sh \
  && ln -s /opt/pycharm/bin/pycharm.sh /usr/local/bin/pycharm \
- && mkdir -p /var/lib/docker \
+ && printf '%%ide-sudo ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/ide-sudo \
+ && chmod 0440 /etc/sudoers.d/ide-sudo \
+ && mkdir -p /ide-config /var/lib/docker \
  && chmod 0644 /usr/local/share/docker4ide/vibe-coding-process.md
 
 ENV PROJECT_PATH=/workspace/project \

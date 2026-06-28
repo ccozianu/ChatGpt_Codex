@@ -2,7 +2,7 @@
 
 Date: 2026-06-22
 
-Status: implemented, pending manual validation in a launched v0 image
+Status: implemented, updated 2026-06-24, pending manual validation in a launched v0 image
 
 ## Context
 
@@ -23,15 +23,20 @@ Add explicit launcher options:
 --git-user-name NAME
 --git-user-email EMAIL
 --git-identity-from-host
+--no-git-identity-from-host
 --git-token-env ENVVAR
 --git-token-file FILE
 --git-token-user USER
 --git-token-host HOSTS
 ```
 
-`--git-identity-from-host` reads only the host global Git `user.name` and
-`user.email` values and passes those strings into the container. It does not
-mount the host Git config.
+As of 2026-06-24, the default launcher behavior is equivalent to an automatic,
+best-effort host identity lookup: it reads only the host global Git `user.name`
+and `user.email` values when they are available and passes those strings into
+the container. It does not mount the host Git config. Use
+`--no-git-identity-from-host` or `PYCHARM_GIT_IDENTITY_FROM_HOST=0` to disable
+that lookup for a session. Use `--git-identity-from-host` when host lookup
+should be explicit and warn if values are missing.
 
 When identity values are present, the entrypoint writes them into the isolated
 IDE home Git config at `/ide-global-settings/home/.gitconfig`, which persists
@@ -94,9 +99,13 @@ Completed askpass smoke test:
 
 Pending manual validation:
 
-- Launch with `--git-identity-from-host` and confirm `git config --global
-  --get user.name` and `git config --global --get user.email` inside the
-  container match the host global values.
+- Launch with the default Git identity behavior and confirm `git config
+  --global --get user.name` and `git config --global --get user.email` inside
+  the container match the host global values when the host has both values.
+- Launch with `--no-git-identity-from-host` and confirm host identity lookup is
+  disabled.
+- Launch with `--git-identity-from-host` and confirm missing host values warn
+  clearly.
 - Launch with explicit `--git-user-name` and `--git-user-email` and confirm
   those override values are written inside the isolated IDE home.
 - Make a local test commit inside the selected project and confirm the author

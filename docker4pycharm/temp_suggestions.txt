@@ -1,0 +1,14 @@
+Reflectively: the environment is basically workable. The issues I hit were small, but a few defaults would make agent work smoother:
+1.
+Configure Git author in the image or launcher Every commit warns that Git guessed PyCharm Docker User <costin@pop-os.localdomain>. Setting user.name and user.email would remove noise and avoid bad commit metadata.
+2.
+Provide python as an alias to python3 The container has python3 but not python. Many Python docs, course commands, and venv examples assume python. Installing python-is-python3 or equivalent would reduce friction.
+3.
+Include a few tiny diagnostic tools I missed file once while checking staged files. A minimal set like file plus a port-inspection tool such as lsof or reliable ss support would help. This is not a request for a huge toolbox.
+4.
+Seed new workspaces with basic Python ignores The repo had tracked .pyc and .idea files. A default .gitignore template with __pycache__/, *.py[cod], .venv/, .idea/, .pytest_cache/, etc. would prevent most of that.
+5.
+Keep dependency/runtime policy explicit The Psycopg issue was a good example. For simple educational FastAPI/Postgres work, psycopg[binary] in project requirements is fine. If the environment is intended to support non-binary Psycopg by default, then it should include libpq runtime packages. I would not bake in full Postgres/Redis services unless a project asks for them.
+6.
+Maybe provide a tiny project bootstrap helper Not a framework, just something that can create AGENTS.md, README.md handoff, implementation-notes/, and sane ignores. The existing bootstrap markdown worked; a command wrapper would reduce manual steps.
+What I would avoid adding by default: Conda, Poetry, pre-commit stacks, multiple linters, database servers, and heavy orchestration. For this workflow, a clean Python, venv, Git, and small Unix-tool baseline is enough.

@@ -18,8 +18,9 @@ documented, the user can ask:
 ```text
 Bootstrap the vibe-coding process documentation from
 /usr/local/share/docker4ide/vibe-coding-process.md into this project.
-Create or update AGENTS.md, README.md, and implementation-notes/ as appropriate.
-Preserve existing project docs and adapt the process to this repository.
+Create or update AGENTS.md, README.md, REQUIREMENTS.md, and
+implementation-notes/ as appropriate. Preserve existing project docs and adapt
+the process to this repository.
 ```
 
 ## Agent Instructions
@@ -29,17 +30,22 @@ If you are the agent receiving that prompt:
 1. Inspect the current repository before editing.
 2. Preserve existing project documentation and conventions.
 3. Create or update `AGENTS.md` so future agents read the project brief first.
-4. Ensure `README.md` contains or links to the project purpose, requirements,
-   current state, and active next task list.
-5. Create `implementation-notes/` if the project does not already have a better
+4. Ensure `README.md` contains or links to the project purpose, current state,
+   and active next task list.
+5. Create or update `REQUIREMENTS.md` as the canonical requirements register
+   with stable IDs, priorities, statuses, implementation references, validation
+   references, and related task or bug links.
+6. Create `implementation-notes/` if the project does not already have a better
    equivalent.
-6. Create `implementation-notes/completed-tasks/` for closed task records.
-7. Add a short process note under `implementation-notes/` if useful, but do not
+7. Create `implementation-notes/bugs/` for active bug records.
+8. Create `implementation-notes/completed-tasks/` for closed task records.
+9. Add a short process note under `implementation-notes/` if useful, but do not
    duplicate large boilerplate into multiple places.
-8. Keep active tasks separate from historical context.
-9. Add explicit done criteria and verification notes for active tasks.
-10. Run a cheap validation check if available.
-11. Report exactly what changed and what remains uncommitted.
+10. Keep active tasks separate from historical context.
+11. Add explicit requirement IDs, done criteria, and verification notes for
+    active tasks.
+12. Run a cheap validation check if available.
+13. Report exactly what changed and what remains uncommitted.
 
 ## Recommended AGENTS.md
 
@@ -58,8 +64,8 @@ Pay special attention to the final current-state and next-step section. Then
 read any target-specific or handoff documents referenced there.
 
 After reading the required documents, acknowledge that you understand the
-project purpose, requirements, current state, and planned next step before
-proceeding.
+project purpose, requirements register, current state, and planned next step
+before proceeding.
 
 If the brief defines a planned next step, state that next step to the user
 before proceeding.
@@ -74,6 +80,79 @@ agent/model pair can resume from the current state.
 
 If the target project already has an `AGENTS.md`, merge these instructions
 without deleting project-specific constraints.
+
+## Recommended REQUIREMENTS.md
+
+Create or adapt this file at the repository root:
+
+````markdown
+# Requirements Register
+
+This file is the project-level source of truth for accepted requirements. It
+does not replace the active task list in `README.md`; it gives tasks, bugs, and
+implementation notes stable requirement IDs to reference.
+
+## Status Values
+
+- `proposed`: captured, but not yet accepted as a project requirement.
+- `accepted`: accepted, but not yet implemented.
+- `implemented`: code or docs exist, but validation is incomplete.
+- `repo-validated`: static checks, smoke tests, or automated checks passed.
+- `manually validated`: the user or agent validated behavior in the running
+  product.
+- `deferred`: accepted direction, but intentionally outside the current target.
+- `rejected`: considered and intentionally not pursued.
+
+## Priority Bands
+
+- `MVP`: required for the first useful version.
+- `current stabilization`: required before closing the current stabilization
+  pass.
+- `later`: useful, but not required for the current target.
+
+## Requirement Template
+
+```markdown
+### R-AREA-000: Short Name
+
+Statement: ...
+
+Priority: MVP | current stabilization | later
+Status: proposed | accepted | implemented | repo-validated | manually validated | deferred | rejected
+
+Implementation:
+- ...
+
+Validation:
+- ...
+
+Related:
+- ...
+```
+
+Every active task, bug, or completed-task record should include a
+`Requirements:` line when it materially implements, validates, changes, defers,
+or reinterprets a requirement.
+
+## Current Requirements
+
+### R-BOOT-001: Define Initial Requirements
+
+Statement: Replace this bootstrap placeholder with the project's real accepted
+requirements.
+
+Priority: current stabilization
+Status: proposed
+
+Implementation:
+- `REQUIREMENTS.md`
+
+Validation:
+- Future agents can map active tasks and bugs to stable requirement IDs.
+
+Related:
+- `README.md`
+````
 
 ## Recommended README.md Handoff Section
 
@@ -101,11 +180,14 @@ Retired or historical issues:
 When resuming the project, read these files in order:
 
 1. `README.md`
-2. `implementation-notes/...`
+2. `REQUIREMENTS.md`
+3. `implementation-notes/bugs/` for active bug records, if relevant
+4. `implementation-notes/...`
 
 Planned next items:
 
 1. ...
+   Requirements: R-...
    Done means: ...
    Verification: ...
    Reopen if: ...
@@ -127,6 +209,12 @@ active task list:
 - External constraints such as credentials, services, datasets, deployment
   targets, or host setup.
 - Risk and security notes.
+
+Use `implementation-notes/bugs/` for one file per active or recently
+investigated bug. Each bug file should capture affected requirements, symptom,
+environment, reproduction, evidence such as logs or stack traces, current
+hypothesis, verification target, fix notes, and close criteria. Keep secrets
+out of bug records.
 
 Use `implementation-notes/completed-tasks/` for one file per task that was
 completed, manually validated, retired, or no longer reproduced.
@@ -152,6 +240,10 @@ Status: completed | retired | manually validated | no longer reproduced
 
 ...
 
+## Requirements
+
+R-...
+
 ## Done Means
 
 ...
@@ -176,12 +268,80 @@ Status: completed | retired | manually validated | no longer reproduced
 ...
 ````
 
+Recommended bug file:
+
+````markdown
+# Bug: Short Title
+
+Date opened:
+
+Status: open | reproduced | fixed | cannot reproduce | retired
+
+Requirements:
+
+- R-...
+
+## Symptom
+
+What the user or agent observed.
+
+## Environment
+
+- Image:
+- Launcher command:
+- Project path/mount:
+- Host assumptions:
+- Relevant package/app versions:
+
+## Reproduction
+
+Manual steps:
+
+1. ...
+
+Expected:
+
+Actual:
+
+Reproducibility: always | intermittent | once | unknown
+
+## Evidence
+
+Logs, stack traces, screenshots, commands, timestamps.
+Do not include secrets.
+
+## Hypothesis
+
+Current best explanation, with uncertainty.
+
+## Verification Target
+
+Cheapest check that should catch this later:
+
+- Automated test:
+- Script/check:
+- Manual validation:
+
+## Fix Notes
+
+Files changed, decision made, tradeoffs.
+
+## Close Criteria
+
+Done means:
+Verification:
+Reopen if:
+````
+
 ## Session Close Checklist
 
 At the end of a meaningful session, update the project handoff with:
 
 ```text
 Changed:
+- ...
+
+Requirements:
 - ...
 
 Validated:

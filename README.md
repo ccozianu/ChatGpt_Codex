@@ -84,7 +84,8 @@ The launcher mounts only the required host resources by default:
 
 ```text
 /workspace/<project-id> -> selected host project directory, read/write
-/ide-global-settings    -> shared PyCharm configuration and IDE-local home, read/write
+/ide-global-settings    -> shared IDE-local home and default config root, read/write
+/ide-config             -> selected PyCharm idea.config.path, read/write
 /ide-project-state      -> per-project PyCharm caches/logs/workspace state, read/write
 /ide-plugins            -> persistent PyCharm plugins root, read/write
 /tmp/.X11-unix          -> host X11 socket directory, read-only
@@ -105,6 +106,7 @@ The default persistent host locations are:
 
 ```text
 ~/.local/share/pycharm-docker/state
+~/.local/share/pycharm-docker/state/config
 ~/.local/share/pycharm-docker/project-state/<project-id>
 ~/.local/share/pycharm-docker/plugins
 ```
@@ -113,18 +115,22 @@ These can be overridden with:
 
 ```bash
 --global-settings /some/shared/settings/dir
+--ide-config /some/config/dir
 --project-state /some/per-project/state/dir
 --plugins /some/plugins/dir
 ```
 
 `--state` remains as a legacy alias for `--global-settings`.
+`--project-config` stores JetBrains config under the per-project state root
+instead of the shared global settings root, which is the preferred mode for
+running two different projects concurrently.
 
 ### PyCharm state redirection
 
 The container entrypoint creates an `idea.properties` file at runtime and sets `PYCHARM_PROPERTIES` so PyCharm uses externalized state paths:
 
 ```properties
-idea.config.path=/ide-global-settings/config
+idea.config.path=/ide-config
 idea.system.path=/ide-project-state/system
 idea.plugins.path=/ide-plugins
 idea.log.path=/ide-project-state/log
@@ -140,9 +146,12 @@ XDG_DATA_HOME=/ide-global-settings/home/.local/share
 ```
 
 This gives PyCharm, Git, SSH, shell tools, and plugins a writable home-like
-location without mounting the host home directory. Shared IDE settings and
-login-like IDE home state persist across projects, while caches, logs, and
-volatile project workspace state are namespaced per host project by default.
+location without mounting the host home directory. Shared IDE-local home state
+persists across projects, while caches, logs, and volatile project workspace
+state are namespaced per host project by default. JetBrains config defaults to
+the shared global settings root for continuity, but `--project-config` moves it
+under per-project state to avoid JetBrains config-directory locks when running
+multiple projects concurrently.
 
 ### PyCharm launch behavior
 
@@ -186,6 +195,15 @@ read-only root filesystem, drops capabilities, and sets
 `no-new-privileges`, but the Docker socket is a major security exception. Any
 tool inside PyCharm/Codex that can run Docker commands can control host Docker
 images, containers, networks, and bind mounts.
+
+The image includes `sudo` for development work, but sudo elevation is not
+enabled in the default profile because `no-new-privileges`, dropped
+capabilities, and a read-only root filesystem intentionally prevent setuid
+privilege escalation. Use `--dev-sudo` or `--sudo` when the IDE-side user needs
+passwordless sudo for package installs or similar container-local development
+tasks. That mode is explicit, prints a warning, implies `--writable-root`, and
+keeps the default Docker container capabilities in host-Docker and no-Docker
+modes.
 
 The strict launcher profile, available with `--no-docker`, keeps the original
 constrained posture and does not mount any Docker socket:
@@ -259,8 +277,16 @@ values and pass those into the container:
   --git-identity-from-host
 ```
 
-When identity values are supplied, the entrypoint writes them to the isolated
-IDE home Git config under `/ide-global-settings/home/.gitconfig`.
+By default, the launcher now tries to read only the host global Git
+`user.name` and `user.email` strings and pass them into the isolated IDE home.
+This avoids accidental commits with the auto-generated container identity
+without mounting host `~/.gitconfig`. Use `--no-git-identity-from-host` to
+disable that automatic lookup for a session, or pass `--git-user-name` and
+`--git-user-email` to set explicit values.
+
+When identity values are supplied or auto-detected, the entrypoint writes them
+to the isolated IDE home Git config under
+`/ide-global-settings/home/.gitconfig`.
 
 Preferred SSH workflow:
 
@@ -307,10 +333,11 @@ Revision 0 installs common development and debugging utilities including:
 ```text
 ca-certificates curl wget git openssh-client gnupg2 xauth
 build-essential make cmake pkg-config gcc g++ gdb lldb
-python3 python3-pip python3-venv python3-dev
+python3 python-is-python3 python3-pip python3-venv python3-dev
 netcat-openbsd dnsutils iproute2 iputils-ping traceroute
-procps psmisc lsof strace tcpdump socat telnet whois
-jq ripgrep fd-find fzf shellcheck tree less vim-tiny nano
+procps psmisc lsof strace tcpdump socat telnet whois file
+jq ripgrep fd-find fzf shellcheck tree less vim-tiny nano sudo
+libpq5 libpq-dev
 tini
 docker.io docker-buildx docker-compose-v2 gosu
 ```
@@ -433,14 +460,18 @@ Suggested next work items:
 7. Add a separate `--login-relaxed` or similar mode only if AI plugin OAuth requires additional browser/network handling.
 8. Consider rootless Docker or Podman compatibility.
 9. Consider Wayland-native and `xpra`/VNC alternatives to direct X11 socket sharing.
-10. Consider an explicit settings import/export or template mechanism if sharing only selected global settings becomes preferable to sharing the whole PyCharm configuration directory.
+10. Add a per-IDE settings profile mechanism so a user can maintain a global
+    PyCharm/Python preference set and use it to seed the initial config for a
+    new containerized PyCharm project without sharing the same live
+    lock-bearing JetBrains config directory.
 11. Add a mechanism for passing additional trusted CA certificates or corporate proxy settings without mounting host-wide directories.
 12. Add clear documentation for Claude-related plugins in a later revision, after verifying the current recommended PyCharm integration path.
 
 The post-MVP refactoring direction is documented in `FUTURE_AGENT_REFACTORING_BRIEF.md`. Read it before planning work that generalizes this repository beyond the current `docker4pycharm` prototype.
 
-The human/agent iteration workflow is documented in `WORKFLOW.md`. For using
-the current PyCharm v0 image on an ordinary Python project, see
+The human/agent iteration workflow is documented in `WORKFLOW.md`. The
+requirements register is documented in `REQUIREMENTS.md`. For using the current
+PyCharm v0 image on an ordinary Python project, see
 `docker4pycharm/implementation-notes/using-v0-for-real-python-projects.md`.
 
 ## Guidance for future AI development agents
@@ -448,6 +479,8 @@ the current PyCharm v0 image on an ordinary Python project, see
 When continuing this project inside the bootstrapped IDE:
 
 - Read `WORKFLOW.md` before changing the project handoff or active task list.
+- Read `REQUIREMENTS.md` before changing behavior, validation scope, or
+  prioritization.
 - Treat the repository files as the project knowledge base. Persist important requirements, decisions, current state, and handoff notes in versioned files rather than relying on conversation memory.
 - Keep context focused. Prefer narrow, explicit work targets and update the handoff when the active target changes.
 - Preserve the human role as project director: ask for decisions where product judgment, risk tolerance, or prioritization is genuinely needed, but do not push routine implementation bookkeeping back to the user.
@@ -516,15 +549,84 @@ preserved in
 in case it returns.
 
 Process documentation update: the current human/agent iteration loop is now
-captured in `WORKFLOW.md`. Guidance for reusing the current
+captured in `WORKFLOW.md`, and accepted requirements now live in
+`REQUIREMENTS.md` with stable IDs, priority, status, implementation references,
+validation references, and related task or bug links. Active tasks and bug
+records should cite requirement IDs when they materially implement, validate,
+change, defer, or reinterpret a requirement. Guidance for reusing the current
 `pycharm-isolated:codex-debug-v004` image on an ordinary Python project is in
 `docker4pycharm/implementation-notes/using-v0-for-real-python-projects.md`.
 The image build now includes a reusable bootstrap template at
 `/usr/local/share/docker4ide/vibe-coding-process.md` so a future agent can
 apply the process to a newly mounted project without manual copy/paste by the
-user. Closed or retired tasks now move to
+user. The process now includes `implementation-notes/bugs/` for durable bug
+reports with reproduction steps, evidence, hypotheses, verification targets,
+close criteria, and affected requirements. Closed or retired tasks now move to
 `docker4pycharm/implementation-notes/completed-tasks/`, while active tasks keep
-explicit done criteria, verification, and reopen conditions.
+explicit requirement IDs, done criteria, verification, and reopen conditions.
+
+Python-project UX update: on 2026-06-24, feedback from using the image in a
+separate test Python project was folded into the checked-in image and launcher.
+The image package baseline now includes `python-is-python3`, `file`, `sudo`, and
+PostgreSQL `libpq` client development/runtime packages for Psycopg source-build
+compatibility, while still avoiding bundled database services. The image also
+adds `docker4ide-bootstrap-project`, an idempotent helper that creates
+`AGENTS.md`, `REQUIREMENTS.md`, a README handoff section,
+`implementation-notes/`, `implementation-notes/bugs/`, and basic Python
+`.gitignore` entries in a mounted project. The launcher now defaults to
+auto-importing only host global
+Git author identity strings when available and adds
+`--no-git-identity-from-host` as the opt-out. Implementation note:
+`docker4pycharm/implementation-notes/2026-06-24-python-project-ux-defaults.md`.
+Repository-side validation passed for this change: Bash syntax checks,
+ShellCheck, `git diff --check`, launcher `--help`, and scratch-project
+idempotence checks for `docker4ide-bootstrap-project`. Still not validated:
+fresh image rebuild and a launched PyCharm container confirming `python`,
+`file`, `sudo`, `libpq` packages, default Git identity auto-import, opt-out
+behavior, and the baked-in bootstrap command.
+
+Development sudo profile update: on 2026-06-24, the Dockerfile was updated to
+install `sudo`, and the launcher gained explicit `--dev-sudo` / `--sudo`
+support. That profile adds the mapped IDE user to a runtime-only `ide-sudo`
+group with passwordless sudo, implies a writable root filesystem, and avoids
+the default `no-new-privileges` / `--cap-drop ALL` restrictions so
+container-local package installs can work. The default host-Docker and
+no-Docker profiles still keep sudo escalation disabled. Implementation note:
+`docker4pycharm/implementation-notes/2026-06-24-development-sudo-profile.md`.
+Repository-side validation passed for this change: Bash syntax checks,
+ShellCheck, `git diff --check`, launcher `--help`, and fake-Docker argument
+checks for default versus `--dev-sudo` profile flags. Still not validated:
+fresh image rebuild and a launched container confirming `sudo -n true` works
+with `--dev-sudo`.
+
+Concurrent shared-config limitation update: on 2026-06-24, manual testing
+found that two different projects cannot run concurrently when they share the
+same JetBrains `idea.config.path`; PyCharm/IDEA-family IDEs lock that config
+directory while an IDE process is running. This is now treated as a documented
+IDE limitation rather than an unresolved requirement to make one live config
+directory concurrent. Limitation record:
+`docker4pycharm/implementation-notes/bugs/2026-06-24-concurrent-projects-shared-global-settings-lock.md`.
+
+Concurrent-project config update: the launcher now mounts JetBrains config at
+`/ide-config` and adds `--project-config`, which maps `idea.config.path` to
+`<project-state>/config` for concurrent sessions. The default remains shared
+config at `<global-settings>/config` for backward compatibility and settings
+continuity. In shared/custom config modes, the launcher fails early if
+`.lock` already exists and suggests `--project-config`; `--ignore-config-lock`
+is available for an intentionally stale-lock recovery attempt. Repository-side
+checks passed:
+script syntax, ShellCheck, `git diff --check`, launcher `--help`, entrypoint
+`IDE_CONFIG_PATH` property generation, shared-config lock preflight, and
+`--project-config` path selection using a fake Docker executable. Full GUI
+validation of a second live project with `--project-config` remains useful, but
+is no longer a blocker for closing the current task.
+
+Deferred settings-profile note: the user may later want a global settings
+profile per IDE or IDE family, for example Python/PyCharm, that seeds the
+initial settings for a new per-project config directory. That would preserve
+common preferences such as notebook execution behavior without requiring
+unrelated or concurrent projects to share the same lock-bearing live
+`idea.config.path`. Requirement: `R-SETTINGS-001`.
 
 Per-project IDE state update: on 2026-06-21, the launcher was changed to split
 shared IDE configuration from volatile per-project state. The old default
@@ -598,45 +700,122 @@ the user for the current v0 stabilization pass.
 
 Post-MVP refactoring context: `FUTURE_AGENT_REFACTORING_BRIEF.md` has been restored. It describes the intended move from one-off PyCharm scripts toward a profile-driven `docker4ide` framework with shared runtime orchestration, IDE-family adapters, and product-specific profiles.
 
+Product positioning update: `docs/working-backwards-press-release.md` now
+captures a working-backwards v1 product narrative for Docker4IDE as
+one-command environment rehydration plus repo-local project memory
+rehydration. `docs/index.html` is a self-contained GitHub Pages-friendly
+version of the same story, and `docs/linkedin-announcement.md` contains draft
+LinkedIn announcement copy with a placeholder GitHub Pages URL.
+
 When resuming the project, read these files in order:
 
 1. `README.md` for project-wide requirements, architecture, and backlog.
-2. `WORKFLOW.md` for the human/agent iteration process and task-list hygiene.
-3. `docker4pycharm/README.md` for the current PyCharm container build/run workflow.
-4. `docker4pycharm/debugging.md` for the handoff from the debugging session that made the current image work.
-5. `user.md` for the human-facing PyCharm AI plugin and ChatGPT subscription setup notes.
-6. `FUTURE_AGENT_REFACTORING_BRIEF.md` before planning post-MVP refactoring beyond the current PyCharm target.
-7. `docker4pycharm/implementation-notes/using-v0-for-real-python-projects.md` before applying this workflow to a normal Python project with the current v0 image.
-8. `docker4pycharm/implementation-notes/2026-06-21-per-project-ide-state-split.md`
+2. `REQUIREMENTS.md` for accepted requirements, priority, status, and
+   traceability to implementation and validation.
+3. `WORKFLOW.md` for the human/agent iteration process, requirements hygiene,
+   and task-list hygiene.
+4. `docker4pycharm/README.md` for the current PyCharm container build/run workflow.
+5. `docker4pycharm/debugging.md` for the handoff from the debugging session that made the current image work.
+6. `user.md` for the human-facing PyCharm AI plugin and ChatGPT subscription setup notes.
+7. `FUTURE_AGENT_REFACTORING_BRIEF.md` before planning post-MVP refactoring beyond the current PyCharm target.
+8. `docs/working-backwards-press-release.md` before changing v1 product
+   positioning, onboarding goals, or open-source launch messaging.
+9. `docker4pycharm/implementation-notes/using-v0-for-real-python-projects.md` before applying this workflow to a normal Python project with the current v0 image.
+10. `docker4pycharm/implementation-notes/bugs/` for active bug records,
+   especially before changing launcher state or runtime behavior.
+11. `docker4pycharm/implementation-notes/2026-06-21-per-project-ide-state-split.md`
    before changing PyCharm state, settings, or project mount behavior.
-9. `docker4pycharm/implementation-notes/2026-06-22-git-identity-and-credentials.md`
+12. `docker4pycharm/implementation-notes/2026-06-22-git-identity-and-credentials.md`
    before changing Git identity, SSH-agent, or HTTPS token credential behavior.
-10. `docker4pycharm/implementation-notes/2026-06-22-mesa-software-gl-default.md`
+13. `docker4pycharm/implementation-notes/2026-06-22-mesa-software-gl-default.md`
    before changing Mesa/OpenGL, Skiko, Markdown preview, or GPU passthrough behavior.
-11. `docker4pycharm/implementation-notes/completed-tasks/` only when a retired
+14. `docker4pycharm/implementation-notes/completed-tasks/` only when a retired
    issue recurs, when doing retrospective work, or when comparing current
    behavior against a completed task.
 
 Immediate engineering priority: preserve the working MVP while making the setup reproducible and easier to use. Reconcile the debugging handoff with the checked-in Dockerfile, launcher, entrypoint, and docs before making larger design changes.
 
+Active docs cleanup note: `/project` is no longer the default mounted project
+path for PyCharm v0. The current launcher intentionally mounts projects at
+`/workspace/<project-id>` by default to avoid stale JetBrains project-window
+state; use `--project-mount` only when a tool truly needs a fixed in-container
+path. Treat active instructions that require `/project/README.md` as stale
+fixed-path assumptions to remove or replace with repository-relative
+`README.md` guidance. Historical debugging notes and future framework sketches
+may still mention `/project` when describing older behavior or conceptual
+targets.
+
+Session close update for 2026-06-24: repository-side work has been completed
+for the latest Python-project UX defaults, concurrent config handling, stale
+`/project/README.md` instruction cleanup, and the explicit development sudo
+profile. The next validation pass should use a freshly rebuilt image and a
+launched PyCharm/Codex container to confirm these changes show up in the image
+before marking them manually validated.
+
+Manual validation update for 2026-06-28: the user started verifying the rebuilt
+image for R-DEV-001. The latest development baseline is currently good except
+for the explicit `--dev-sudo` path. Launching with `--dev-sudo` reaches the
+container, but `sudo -n true` fails with:
+
+```text
+sudo: account validation failure, is your account locked?
+sudo: a password is required
+```
+
+Treat this as the top next task. Record:
+`docker4pycharm/implementation-notes/bugs/2026-06-28-dev-sudo-account-validation.md`.
+
 Planned next stabilization items:
 
-1. Manually validate Git identity and Git remote credentials in v0.
+1. Fix `--dev-sudo` account validation inside the launched container.
+   Requirements: R-DEV-001.
+   Done means: launching a freshly rebuilt image with `--dev-sudo` gives the
+   mapped IDE user passwordless sudo, and `sudo -n true` succeeds inside the
+   container without weakening the default non-sudo profile.
+   Verification: rebuild the image, launch a PyCharm/Codex container with
+   `--dev-sudo`, run `id`, inspect the mapped account/group state as needed,
+   run `sudo -n true`, and run `docker4ide-check-runtime-deps`; relaunch without
+   `--dev-sudo` and confirm the default profile still does not permit sudo
+   escalation.
+   Reopen if: `sudo` reports account validation failure, asks for a password in
+   `--dev-sudo` mode, or the default profile unexpectedly allows sudo
+   escalation.
+2. Finish validating the next rebuilt image contains the latest development baseline.
+   Requirements: R-DEV-001.
+   Done means: a freshly rebuilt and launched image includes the expected
+   `python` alias, `file`, PostgreSQL `libpq` packages, `sudo`,
+   `docker4ide-bootstrap-project`, and the updated runtime dependency check;
+   `--dev-sudo` allows the mapped IDE user to run `sudo -n true`; the default
+   profile still does not permit sudo escalation.
+   Verification: rebuild the image, launch a PyCharm/Codex container, run
+   `python --version`, `file --version`, a simple `libpq`/`pg_config` presence
+   check if appropriate, `command -v docker4ide-bootstrap-project`, and
+   `docker4ide-check-runtime-deps`; relaunch with `--dev-sudo` and confirm
+   `sudo -n true` succeeds.
+   Reopen if: any expected tool is missing from the rebuilt image, the bootstrap
+   helper is absent, `--dev-sudo` does not provide passwordless sudo, or the
+   default profile unexpectedly allows sudo escalation.
+3. Manually validate Git identity and Git remote credentials in v0.
+   Requirements: R-GIT-001.
    Done means: a launched PyCharm/Codex container has the intended Git
-   `user.name` and `user.email`, commits made inside the selected project use
-   that author identity, SSH remotes work through `--ssh-agent`, and HTTPS
+   `user.name` and `user.email` through the default host-identity auto-import,
+   explicit identity flags, or an intentional opt-out; commits made inside the
+   selected project use the expected author identity or fail loudly when no
+   identity was configured; SSH remotes work through `--ssh-agent`; and HTTPS
    GitHub remotes work through `--git-token-env` or `--git-token-file` without
    mounting host credential directories.
-   Verification: launch with either explicit `--git-user-name` /
-   `--git-user-email` or `--git-identity-from-host`; run `git config --global
-   --get user.name` and `git config --global --get user.email` inside the
-   container; make a local test commit and inspect its author; run a non-secret
-   `git ls-remote` or fetch/push test against the intended GitHub remote using
-   SSH agent forwarding or a token secret.
+   Verification: launch with the default Git identity behavior, with explicit
+   `--git-user-name` / `--git-user-email`, and with
+   `--no-git-identity-from-host`; run `git config --global --get user.name` and
+   `git config --global --get user.email` inside the container; make a local
+   test commit and inspect its author; run a non-secret `git ls-remote` or
+   fetch/push test against the intended GitHub remote using SSH agent forwarding
+   or a token secret.
    Reopen if: commits fall back to the container auto-generated identity,
    GitHub token values appear in Docker inspect output or persistent files, or
    remote credential prompts hang instead of succeeding or failing clearly.
-2. Keep any isolation relaxation explicit and documented.
+4. Keep any isolation relaxation explicit and documented.
+   Requirements: R-SCOPE-001, R-DOCKER-001.
    Done means: any change that broadens host exposure is represented by a clear
    launcher option/default, README text, and implementation note.
    Verification: review Docker/run arguments and docs together before closing

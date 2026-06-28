@@ -44,7 +44,7 @@ WORKDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
-cp "$WORKDIR/Dockerfile" "$WORKDIR/entrypoint.sh" "$WORKDIR/check-runtime-deps.sh" "$TMPDIR/"
+cp "$WORKDIR/Dockerfile" "$WORKDIR/entrypoint.sh" "$WORKDIR/bootstrap-project.sh" "$WORKDIR/check-runtime-deps.sh" "$TMPDIR/"
 mkdir -p "$TMPDIR/image-assets"
 cp "$WORKDIR/image-assets/vibe-coding-process.md" "$TMPDIR/image-assets/"
 mkdir -p "$TMPDIR/pycharm"

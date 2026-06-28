@@ -21,8 +21,10 @@ The launcher defaults to host Docker daemon passthrough. Use
 
 The launcher also defaults to a split IDE storage model:
 
-- Shared PyCharm configuration and IDE-local home:
+- Shared IDE-local home and default JetBrains config root:
   `~/.local/share/pycharm-docker/state`
+- Shared JetBrains config path by default:
+  `~/.local/share/pycharm-docker/state/config`
 - Shared plugins:
   `~/.local/share/pycharm-docker/plugins`
 - Per-project caches, logs, and volatile workspace state:
@@ -33,6 +35,9 @@ comfort across Python projects, but do not force unrelated projects to reuse
 the same `--project-state` or `--project-mount`. JetBrains IDEs remember
 project-window state by path; mounting every project as the same `/project`
 path can produce stale Project view or open-file state from a previous project.
+For two live PyCharm windows against different projects, use `--project-config`
+for the second session so JetBrains `idea.config.path` is not locked by the
+first running IDE.
 
 ## Two Parallel Tracks
 
@@ -63,9 +68,21 @@ template at:
 /usr/local/share/docker4ide/vibe-coding-process.md
 ```
 
-If an existing `pycharm-isolated:codex-debug-v003` tag was built before this
-change, use `pycharm-isolated:codex-debug-v004` or rebuild/retag a newer image
-before relying on that path.
+They also carry a small idempotent command:
+
+```bash
+docker4ide-bootstrap-project
+```
+
+Run it from the mounted project root to create missing `AGENTS.md`,
+`REQUIREMENTS.md`, a README handoff section, `implementation-notes/`,
+`implementation-notes/bugs/`, `implementation-notes/completed-tasks/`, and
+basic Python `.gitignore` entries. It preserves existing files and appends only
+missing defaults.
+
+If an existing `pycharm-isolated:codex-debug-v003` or
+`pycharm-isolated:codex-debug-v004` tag was built before this change, rebuild
+or retag a newer image before relying on the helper and package additions.
 
 For a new or existing Python project, ask the agent in that launched IDE
 environment:
@@ -73,8 +90,9 @@ environment:
 ```text
 Bootstrap the vibe-coding process documentation from
 /usr/local/share/docker4ide/vibe-coding-process.md into this project.
-Create or update AGENTS.md, README.md, and implementation-notes/ as appropriate.
-Preserve existing project docs and adapt the process to this repository.
+Create or update AGENTS.md, README.md, REQUIREMENTS.md, and
+implementation-notes/ as appropriate. Preserve existing project docs and adapt
+the process to this repository.
 ```
 
 The agent should create or update:
@@ -82,7 +100,9 @@ The agent should create or update:
 ```text
 AGENTS.md
 README.md
+REQUIREMENTS.md
 implementation-notes/
+implementation-notes/bugs/
 implementation-notes/completed-tasks/
 ```
 
@@ -96,7 +116,7 @@ Before starting work in this repository, read README.md.
 Pay special attention to the final current-state and next-step section.
 Then read any target-specific or handoff documents referenced there.
 After reading the required documents, acknowledge the project purpose,
-requirements, current state, and planned next step before proceeding.
+requirements register, current state, and planned next step before proceeding.
 When completing a stage, retiring a task, or ending a session, update the final
 section of README.md so the next session can resume cleanly.
 ```
@@ -117,11 +137,14 @@ Important decisions:
 When resuming, read these files in order:
 
 1. `README.md`
-2. `implementation-notes/...`
+2. `REQUIREMENTS.md`
+3. `implementation-notes/bugs/` for active bug records, if relevant
+4. `implementation-notes/...`
 
 Planned next items:
 
 1. ...
+   Requirements: R-...
    Done means: ...
    Verification: ...
    Reopen if: ...
@@ -137,10 +160,23 @@ Use `implementation-notes/` for:
 - Command transcripts or log signatures that are too detailed for the active
   README handoff.
 
+Use `implementation-notes/bugs/` for one file per active or recently
+investigated bug. Each bug file should capture affected requirements, symptom,
+environment, reproduction, evidence such as logs or stack traces, current
+hypothesis, verification target, fix notes, and close criteria. Keep secrets
+out of bug records.
+
 Use `implementation-notes/completed-tasks/` for one file per task that was
 completed, manually validated, retired, or no longer reproduced. Each file
-should capture original task, done criteria, verification, environment
-provenance, retrospective notes, and reopen conditions.
+should capture original task, affected requirements, done criteria,
+verification, environment provenance, retrospective notes, and reopen
+conditions.
+
+Use `REQUIREMENTS.md` as the requirements register. It should define stable
+requirement IDs, priority, status, implementation references, validation
+references, and related task or bug links. Active tasks and bug records should
+cite requirement IDs when they materially implement, validate, change, defer, or
+reinterpret requirements.
 
 Use decision notes under `implementation-notes/` for choices that may be
 revisited. Keep active tasks, completed tasks, and decisions separate: active

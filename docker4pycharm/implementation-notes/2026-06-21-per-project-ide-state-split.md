@@ -2,7 +2,7 @@
 
 Date: 2026-06-21
 
-Status: implemented, manually validated on 2026-06-22
+Status: implemented, manually validated on 2026-06-22; amended on 2026-06-24 for config lock handling
 
 ## Context
 
@@ -22,8 +22,15 @@ The likely trigger is a combination of two facts:
 
 Split the launcher storage model:
 
-- `--global-settings` maps to `/ide-global-settings` and backs
-  `idea.config.path` plus the isolated IDE home.
+- `--global-settings` maps to `/ide-global-settings` and backs the isolated
+  IDE home plus the default shared JetBrains config root.
+- `--shared-config` keeps `idea.config.path` at
+  `<global-settings>/config`, which preserves current settings continuity but
+  supports only one live PyCharm process at a time because JetBrains locks this
+  config directory.
+- `--project-config` maps `idea.config.path` to `<project-state>/config`, which
+  is intended for concurrent sessions against different projects.
+- `--ide-config DIR` maps `idea.config.path` to an explicit config directory.
 - `--plugins` remains shared at `/ide-plugins`.
 - `--project-state` maps to `/ide-project-state` and backs
   `idea.system.path`, logs, and XDG cache state.

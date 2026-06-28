@@ -8,6 +8,8 @@ PyCharm settings, per-project IDE state, and plugins persistent on the host.
 
 - `../README.md` for project-wide requirements, backlog, and the current state
   and next step recorded at the end of the file.
+- `../REQUIREMENTS.md` for accepted requirements, priority, status, and links
+  to implementation and validation evidence.
 - `../WORKFLOW.md` for the human/agent iteration process used by this project
   and reusable target projects.
 - `debugging.md` for the handoff from the debugging session that made the
@@ -30,7 +32,9 @@ After rebuilding with the current Dockerfile and launching through the default
 runtime path, the IDE-side agent gets the Docker CLI connected to the host
 Docker daemon through the host Docker socket. Docker commands run inside
 PyCharm/Codex operate on host Docker images, containers, networks, and volumes.
-The image also includes `shellcheck` for launcher-script linting.
+The image also includes `shellcheck` for launcher-script linting, `python` as a
+`python3` alias, `file`, and PostgreSQL `libpq` client development/runtime
+packages for Python projects that build Psycopg against system `libpq`.
 
 The image carries the reusable human/agent process bootstrap template at:
 
@@ -38,8 +42,17 @@ The image carries the reusable human/agent process bootstrap template at:
 /usr/local/share/docker4ide/vibe-coding-process.md
 ```
 
-Use it when opening an ordinary project that does not yet have local
-`AGENTS.md`, README handoff, or `implementation-notes/` process docs.
+It also carries an idempotent helper:
+
+```bash
+docker4ide-bootstrap-project
+```
+
+Run it inside an ordinary mounted project that does not yet have local
+`AGENTS.md`, `REQUIREMENTS.md`, README handoff, `implementation-notes/`,
+`implementation-notes/bugs/`, or basic Python `.gitignore` process defaults.
+Existing files are preserved; missing ignore entries and a missing README
+handoff section are appended.
 
 If the normal Docker build network cannot reach Ubuntu package repositories on
 the host, opt into host networking for the build:
@@ -53,10 +66,11 @@ DOCKER_BUILD_NETWORK=host ./build-image.sh --pycharm /path/to/pycharm-profession
 ## Run
 
 By default, Docker commands inside PyCharm/Codex connect to the host Docker
-daemon through `/run/host-docker.sock`:
+daemon through `/run/host-docker.sock`. The launcher also tries to import only
+the host global Git author strings, when available, into the isolated IDE home:
 
 ```bash
-./run-pycharm-container.sh --project /path/to/project --ssh-agent --git-identity-from-host
+./run-pycharm-container.sh --project /path/to/project --ssh-agent
 ```
 
 This default is convenient for local development, but it is not a strong
@@ -135,7 +149,8 @@ software-GL path.
 
 By default, persistent data lands in:
 
-- `~/.local/share/pycharm-docker/state` for shared IDE configuration and the isolated IDE home
+- `~/.local/share/pycharm-docker/state` for the shared isolated IDE home and default JetBrains config root
+- `~/.local/share/pycharm-docker/state/config` for shared JetBrains `idea.config.path`
 - `~/.local/share/pycharm-docker/project-state/<project-id>` for per-project caches, logs, and volatile workspace state
 - `~/.local/share/pycharm-docker/plugins` for shared user-installed plugins
 
@@ -157,6 +172,35 @@ Useful storage options:
 keymaps, plugin settings, AI login state, Git SSH known-hosts, and other
 IDE-local home files across projects. `--state` is kept as a legacy alias for
 `--global-settings`.
+
+JetBrains locks `idea.config.path` while an IDE process is running. The default
+shared config path gives the best continuity but supports only one live PyCharm
+process at a time. This is an IDEA-family limitation: the config directory is
+not only preferences, but also live lock-bearing runtime state. For concurrent
+sessions against different projects, launch the second IDE with per-project
+config:
+
+```bash
+./run-pycharm-container.sh \
+  --project /path/to/other-project \
+  --project-config
+```
+
+That maps JetBrains config to the selected project's state directory:
+
+```text
+~/.local/share/pycharm-docker/project-state/<project-id>/config
+```
+
+Use `--ide-config DIR` only when you need an explicit config directory. If a
+shared/custom config directory contains `.lock`, the launcher fails before
+starting Docker and suggests `--project-config`; use `--ignore-config-lock` only
+when recovering from a stale lock after a crashed IDE.
+
+A future revision may add a per-IDE settings profile or template mechanism so a
+global PyCharm/Python preference set can seed new per-project config
+directories without requiring those projects to share the same live
+`idea.config.path`.
 
 Use `--project-state` only when you want to override the automatically generated
 per-project state directory:
@@ -182,7 +226,17 @@ projects; doing so can make PyCharm restore stale project-window state.
 ## Git identity and credential options
 
 Git author identity is not copied from host `~/.gitconfig` by mounting that
-file. Pass it explicitly:
+file. By default, the launcher reads only the host global `user.name` and
+`user.email` strings when available and passes those values into the isolated
+IDE home. To disable that lookup for a session:
+
+```bash
+./run-pycharm-container.sh \
+  --project /path/to/project \
+  --no-git-identity-from-host
+```
+
+To set explicit values:
 
 ```bash
 ./run-pycharm-container.sh \
@@ -191,7 +245,7 @@ file. Pass it explicitly:
   --git-user-email you@example.com
 ```
 
-Or pass only the host global `user.name` and `user.email` values:
+To require host global `user.name` and `user.email` lookup explicitly:
 
 ```bash
 ./run-pycharm-container.sh \
@@ -227,6 +281,18 @@ Native debugging or aggressive strace use:
 ```bash
 ./run-pycharm-container.sh --project /path/to/project --debug-native
 ```
+
+Development sudo use:
+
+```bash
+./run-pycharm-container.sh --project /path/to/project --dev-sudo
+```
+
+The image includes `sudo`, but passwordless sudo is only enabled by
+`--dev-sudo` / `--sudo`. That mode is for container-local development tasks
+such as temporary package installation. It implies a writable root filesystem
+and keeps default Docker container capabilities instead of the stricter
+`--cap-drop ALL` / `no-new-privileges` profile.
 
 ## Runtime verification
 
