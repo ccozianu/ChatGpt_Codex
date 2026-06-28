@@ -314,9 +314,11 @@ RUNTIME_PARENT="${XDG_RUNTIME_DIR:-/tmp}"
 XAUTH_FILE="$(mktemp "$RUNTIME_PARENT/pycharm-docker-xauth.XXXXXX")"
 PASSWD_FILE="$(mktemp "$RUNTIME_PARENT/pycharm-docker-passwd.XXXXXX")"
 GROUP_FILE="$(mktemp "$RUNTIME_PARENT/pycharm-docker-group.XXXXXX")"
+SHADOW_FILE=""
 TOKEN_TMP=""
 cleanup() {
   rm -f "$XAUTH_FILE" "$PASSWD_FILE" "$GROUP_FILE"
+  [ -z "$SHADOW_FILE" ] || rm -f "$SHADOW_FILE"
   [ -z "$TOKEN_TMP" ] || rm -f "$TOKEN_TMP"
 }
 trap cleanup EXIT
@@ -343,6 +345,13 @@ if [ -n "$HOST_DOCKER_GID" ] && [ "$HOST_DOCKER_GID" != "$(id -g)" ]; then
 fi
 if [ "$ENABLE_SUDO" -eq 1 ]; then
   echo "ide-sudo:x:$IDE_SUDO_GID:$(id -un)" >> "$GROUP_FILE"
+  SHADOW_FILE="$(mktemp "$RUNTIME_PARENT/pycharm-docker-shadow.XXXXXX")"
+  SHADOW_LAST_CHANGE="$(($(date +%s) / 86400))"
+  cat > "$SHADOW_FILE" <<EOF_SHADOW
+root:*:$SHADOW_LAST_CHANGE:0:99999:7:::
+$(id -un):*:$SHADOW_LAST_CHANGE:0:99999:7:::
+EOF_SHADOW
+  chmod 600 "$SHADOW_FILE"
 fi
 chmod 644 "$PASSWD_FILE" "$GROUP_FILE"
 
@@ -404,6 +413,10 @@ DOCKER_ARGS=(
   --ipc private
   --pids-limit 4096
 )
+
+if [ "$ENABLE_SUDO" -eq 1 ]; then
+  DOCKER_ARGS+=(--mount "type=bind,src=$SHADOW_FILE,dst=/etc/shadow,ro")
+fi
 
 if [ -n "$GIT_USER_NAME" ]; then
   DOCKER_ARGS+=(--env GIT_USER_NAME="$GIT_USER_NAME")

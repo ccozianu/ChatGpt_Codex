@@ -152,7 +152,7 @@ basic dependencies. Tools that require local privilege escalation, such as
 profile rather than silently weakening the default launcher posture.
 
 Priority: MVP
-Status: repo-validated
+Status: manually validated
 
 Implementation:
 - `docker4pycharm/Dockerfile`
@@ -162,11 +162,14 @@ Implementation:
 Validation:
 - Repository-side syntax, lint, and runtime-helper checks recorded in
   `README.md`
+- The rebuilt image development baseline was manually accepted by the user on
+  2026-06-28, including the wrapper-only fix for `--dev-sudo` account
+  validation.
 
 Related:
 - `docker4pycharm/implementation-notes/2026-06-24-python-project-ux-defaults.md`
 - `docker4pycharm/implementation-notes/2026-06-24-development-sudo-profile.md`
-- `docker4pycharm/implementation-notes/bugs/2026-06-28-dev-sudo-account-validation.md`
+- `docker4pycharm/implementation-notes/completed-tasks/2026-06-28-dev-sudo-account-validation.md`
 
 ### R-GIT-001: Git Identity And Credentials Without Host Credential Mounts
 

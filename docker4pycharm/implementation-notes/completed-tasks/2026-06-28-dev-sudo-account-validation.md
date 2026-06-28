@@ -1,10 +1,10 @@
-# Bug: Development Sudo Account Validation Failure
+# Completed Task: Development Sudo Account Validation Failure
 
 Date: 2026-06-28
 
 Requirements: R-DEV-001
 
-Status: active, top next task
+Status: manually validated
 
 ## Symptom
 
@@ -48,6 +48,35 @@ user creation strategy is required.
 Do not weaken the default launcher profile while fixing this. Keep the behavior
 behind the explicit `--dev-sudo` mode.
 
+## Fix Attempt
+
+On 2026-06-28, `run-pycharm-container.sh` was updated so `--dev-sudo` also
+generates a temporary synthetic `/etc/shadow` file and mounts it read-only into
+the container. The shadow file contains root plus the mapped host launcher user
+from `id -un`; the launcher still maps the IDE process to the current host
+`id -u:id -g` and does not assume UID 1000.
+
+This is intentionally limited to `--dev-sudo`. Default launches still do not
+mount a synthetic shadow file, add the `ide-sudo` group, or relax the default
+sudo-preventing profile.
+
+Repository-side checks completed:
+
+```bash
+bash -n docker4pycharm/run-pycharm-container.sh
+shellcheck docker4pycharm/run-pycharm-container.sh
+```
+
+A fake-Docker launcher check confirmed that the `/etc/shadow` mount is present
+with `--dev-sudo --no-docker` and absent from the default `--no-docker` profile.
+
+Manual validation update:
+
+- The user confirmed `sudo -n ls` works in the launched container after the
+  wrapper fix.
+- A manual retest from a different non-default host user account is deferred
+  for later coverage and is not a current v0 blocker.
+
 ## Verification Target
 
 After the fix:
@@ -67,6 +96,12 @@ docker4ide-check-runtime-deps
 
 Then relaunch without `--dev-sudo` and confirm the default profile still does
 not provide passwordless sudo.
+
+Current validation result:
+
+- `sudo -n ls` works with `--dev-sudo` for the primary mapped host user.
+- Repository-side argument checks still show the default profile does not mount
+  the synthetic shadow file or add `ide-sudo`.
 
 ## Close Criteria
 

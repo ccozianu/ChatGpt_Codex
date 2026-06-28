@@ -2,7 +2,7 @@
 
 Date: 2026-06-24
 
-Status: implemented, pending fix for account-validation failure found during fresh image validation
+Status: implemented and manually validated for the current mapped-user path
 
 Requirements: R-DEV-001
 
@@ -78,8 +78,14 @@ sudo: account validation failure, is your account locked?
 sudo: a password is required
 ```
 
-The active bug record is:
-`bugs/2026-06-28-dev-sudo-account-validation.md`.
+- `run-pycharm-container.sh` was updated to generate and mount a synthetic
+  `/etc/shadow` only for `--dev-sudo`, matching the mapped host launcher user.
+- The user then confirmed `sudo -n ls` works in the launched container.
+- A manual retest from a different non-default host user account is deferred
+  for later coverage and is not a current v0 blocker.
+
+The retrospective record is:
+`completed-tasks/2026-06-28-dev-sudo-account-validation.md`.
 
 ## Reopen If
 

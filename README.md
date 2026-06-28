@@ -466,6 +466,11 @@ Suggested next work items:
     lock-bearing JetBrains config directory.
 11. Add a mechanism for passing additional trusted CA certificates or corporate proxy settings without mounting host-wide directories.
 12. Add clear documentation for Claude-related plugins in a later revision, after verifying the current recommended PyCharm integration path.
+13. Manually validate the host UID/GID mapping and `--dev-sudo` behavior from a
+    second non-default host user account. The launcher intentionally uses the
+    current host launcher user's actual `id -u:id -g` and does not assume UID
+    1000; this follow-up is useful coverage but is not a v0 stabilization
+    blocker after the primary mapped-user validation.
 
 The post-MVP refactoring direction is documented in `FUTURE_AGENT_REFACTORING_BRIEF.md`. Read it before planning work that generalizes this repository beyond the current `docker4pycharm` prototype.
 
@@ -580,10 +585,10 @@ Git author identity strings when available and adds
 `docker4pycharm/implementation-notes/2026-06-24-python-project-ux-defaults.md`.
 Repository-side validation passed for this change: Bash syntax checks,
 ShellCheck, `git diff --check`, launcher `--help`, and scratch-project
-idempotence checks for `docker4ide-bootstrap-project`. Still not validated:
-fresh image rebuild and a launched PyCharm container confirming `python`,
-`file`, `sudo`, `libpq` packages, default Git identity auto-import, opt-out
-behavior, and the baked-in bootstrap command.
+idempotence checks for `docker4ide-bootstrap-project`. Manual validation on
+2026-06-28 confirmed the latest development baseline is good in the rebuilt
+image. Git identity auto-import, opt-out behavior, and remote credential
+transport remain tracked under the separate R-GIT-001 validation item.
 
 Development sudo profile update: on 2026-06-24, the Dockerfile was updated to
 install `sudo`, and the launcher gained explicit `--dev-sudo` / `--sudo`
@@ -595,9 +600,11 @@ no-Docker profiles still keep sudo escalation disabled. Implementation note:
 `docker4pycharm/implementation-notes/2026-06-24-development-sudo-profile.md`.
 Repository-side validation passed for this change: Bash syntax checks,
 ShellCheck, `git diff --check`, launcher `--help`, and fake-Docker argument
-checks for default versus `--dev-sudo` profile flags. Still not validated:
-fresh image rebuild and a launched container confirming `sudo -n true` works
-with `--dev-sudo`.
+checks for default versus `--dev-sudo` profile flags. Manual validation on
+2026-06-28 initially found an account-validation failure; the wrapper now
+generates and mounts a synthetic `/etc/shadow` only for `--dev-sudo`, and the
+user confirmed `sudo -n ls` works in the launched container. Retrospective note:
+`docker4pycharm/implementation-notes/completed-tasks/2026-06-28-dev-sudo-account-validation.md`.
 
 Concurrent shared-config limitation update: on 2026-06-24, manual testing
 found that two different projects cannot run concurrently when they share the
@@ -763,39 +770,20 @@ sudo: a password is required
 ```
 
 Treat this as the top next task. Record:
-`docker4pycharm/implementation-notes/bugs/2026-06-28-dev-sudo-account-validation.md`.
+`docker4pycharm/implementation-notes/completed-tasks/2026-06-28-dev-sudo-account-validation.md`.
 
-Planned next stabilization items:
+Follow-up fix update for 2026-06-28: `run-pycharm-container.sh` now
+generates and mounts a synthetic `/etc/shadow` only for `--dev-sudo`, alongside
+the existing synthetic `/etc/passwd` and `/etc/group`. The mapped IDE user still
+uses the host launcher user's actual `id -u:id -g`; the launcher does not
+assume UID 1000. Syntax, ShellCheck, and fake-Docker argument checks passed.
+The user manually confirmed `sudo -n ls` works in the launched container. A
+manual retest from a different non-default host user account is deferred for
+later and is not a current v0 blocker.
 
-1. Fix `--dev-sudo` account validation inside the launched container.
-   Requirements: R-DEV-001.
-   Done means: launching a freshly rebuilt image with `--dev-sudo` gives the
-   mapped IDE user passwordless sudo, and `sudo -n true` succeeds inside the
-   container without weakening the default non-sudo profile.
-   Verification: rebuild the image, launch a PyCharm/Codex container with
-   `--dev-sudo`, run `id`, inspect the mapped account/group state as needed,
-   run `sudo -n true`, and run `docker4ide-check-runtime-deps`; relaunch without
-   `--dev-sudo` and confirm the default profile still does not permit sudo
-   escalation.
-   Reopen if: `sudo` reports account validation failure, asks for a password in
-   `--dev-sudo` mode, or the default profile unexpectedly allows sudo
-   escalation.
-2. Finish validating the next rebuilt image contains the latest development baseline.
-   Requirements: R-DEV-001.
-   Done means: a freshly rebuilt and launched image includes the expected
-   `python` alias, `file`, PostgreSQL `libpq` packages, `sudo`,
-   `docker4ide-bootstrap-project`, and the updated runtime dependency check;
-   `--dev-sudo` allows the mapped IDE user to run `sudo -n true`; the default
-   profile still does not permit sudo escalation.
-   Verification: rebuild the image, launch a PyCharm/Codex container, run
-   `python --version`, `file --version`, a simple `libpq`/`pg_config` presence
-   check if appropriate, `command -v docker4ide-bootstrap-project`, and
-   `docker4ide-check-runtime-deps`; relaunch with `--dev-sudo` and confirm
-   `sudo -n true` succeeds.
-   Reopen if: any expected tool is missing from the rebuilt image, the bootstrap
-   helper is absent, `--dev-sudo` does not provide passwordless sudo, or the
-   default profile unexpectedly allows sudo escalation.
-3. Manually validate Git identity and Git remote credentials in v0.
+Planned next stabilization item:
+
+1. Manually validate Git identity and Git remote credentials in v0.
    Requirements: R-GIT-001.
    Done means: a launched PyCharm/Codex container has the intended Git
    `user.name` and `user.email` through the default host-identity auto-import,
@@ -814,7 +802,10 @@ Planned next stabilization items:
    Reopen if: commits fall back to the container auto-generated identity,
    GitHub token values appear in Docker inspect output or persistent files, or
    remote credential prompts hang instead of succeeding or failing clearly.
-4. Keep any isolation relaxation explicit and documented.
+
+Standing stabilization rule:
+
+1. Keep any isolation relaxation explicit and documented.
    Requirements: R-SCOPE-001, R-DOCKER-001.
    Done means: any change that broadens host exposure is represented by a clear
    launcher option/default, README text, and implementation note.

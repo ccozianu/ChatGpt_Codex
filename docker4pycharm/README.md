@@ -294,6 +294,13 @@ such as temporary package installation. It implies a writable root filesystem
 and keeps default Docker container capabilities instead of the stricter
 `--cap-drop ALL` / `no-new-privileges` profile.
 
+The IDE process runs as the host launcher user's current UID/GID inside the
+container; the launcher does not assume UID 1000. This is intentional so files
+created or edited in the mounted project remain owned by the same host user.
+The current `--dev-sudo` path has been manually validated for the primary host
+launcher user. A later validation pass should test the same flow from a second
+host account with a different UID/GID.
+
 ## Runtime verification
 
 Inside a launched PyCharm container, run:
