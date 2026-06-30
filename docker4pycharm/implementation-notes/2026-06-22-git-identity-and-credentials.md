@@ -97,23 +97,36 @@ Completed askpass smoke test:
 - The helper returned only a blank line for a
   `https://x-access-token@gitlab.com` password prompt.
 
+Manual validation update on 2026-06-28:
+
+- The user confirmed default host global Git `user.name` and `user.email`
+  values are passed correctly from the host Git config into the launched
+  container.
+- The user confirmed explicit `--git-user-name` and `--git-user-email` command
+  arguments work as expected, with commits showing the intended author in
+  `git log`.
+- The user confirmed the default identity behavior with `git config --global
+  --get user.name`, `git config --global --get user.email`, and a local test
+  commit whose author is correct in `git log`.
+- The user deferred live GitHub SSH and HTTPS remote validation until after the
+  post-MVP refactoring. This is not a v0/MVP blocker because the user can push
+  from outside the isolated IDE environment. See
+  `completed-tasks/2026-06-28-git-remote-validation-deferred.md`.
+
 Pending manual validation:
 
-- Launch with the default Git identity behavior and confirm `git config
-  --global --get user.name` and `git config --global --get user.email` inside
-  the container match the host global values when the host has both values.
 - Launch with `--no-git-identity-from-host` and confirm host identity lookup is
   disabled.
 - Launch with `--git-identity-from-host` and confirm missing host values warn
   clearly.
-- Launch with explicit `--git-user-name` and `--git-user-email` and confirm
-  those override values are written inside the isolated IDE home.
-- Make a local test commit inside the selected project and confirm the author
-  identity is correct.
-- Validate GitHub SSH remotes with `--ssh-agent`.
-- Validate HTTPS GitHub remotes with `--git-token-env GITHUB_TOKEN` or
-  `--git-token-file`, without token persistence in the image or broad host
-  credential mounts.
+
+Deferred manual validation:
+
+- After the post-MVP refactoring, validate GitHub SSH remotes with
+  `--ssh-agent`.
+- After the post-MVP refactoring, validate HTTPS GitHub remotes with
+  `--git-token-env GITHUB_TOKEN` or `--git-token-file`, without token
+  persistence in the image or broad host credential mounts.
 
 ## Reopen If
 

@@ -186,11 +186,24 @@ Implementation:
 - `docker4pycharm/README.md`
 
 Validation:
-- Manual Git identity and credential validation remains a planned next
+- Manual local Git identity edge-case validation remains a planned next
   stabilization item in `README.md`.
+- On 2026-06-28, the user confirmed default host global Git `user.name` and
+  `user.email` values are passed correctly from the host Git config into the
+  launched container.
+- On 2026-06-28, the user confirmed explicit `--git-user-name` and
+  `--git-user-email` command arguments work as expected, with commits showing
+  the intended author in `git log`.
+- On 2026-06-28, the user confirmed the default identity behavior with
+  `git config --global --get user.name`, `git config --global --get
+  user.email`, and a local test commit whose author is correct in `git log`.
+- On 2026-06-28, the user deferred live GitHub SSH and HTTPS remote validation
+  until after the post-MVP refactoring. This is not a v0/MVP blocker because
+  the user can push from outside the isolated IDE environment.
 
 Related:
 - `docker4pycharm/implementation-notes/2026-06-22-git-identity-and-credentials.md`
+- `docker4pycharm/implementation-notes/completed-tasks/2026-06-28-git-remote-validation-deferred.md`
 
 ### R-DOCKER-001: Explicit Docker Capability Profiles
 

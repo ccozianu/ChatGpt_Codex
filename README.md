@@ -471,6 +471,10 @@ Suggested next work items:
     current host launcher user's actual `id -u:id -g` and does not assume UID
     1000; this follow-up is useful coverage but is not a v0 stabilization
     blocker after the primary mapped-user validation.
+14. After the post-MVP refactoring, manually validate GitHub SSH remotes with
+    `--ssh-agent` and HTTPS remotes with `--git-token-env` / `--git-token-file`.
+    This is useful but no longer a v0/MVP blocker because the user can push from
+    outside the isolated IDE environment.
 
 The post-MVP refactoring direction is documented in `FUTURE_AGENT_REFACTORING_BRIEF.md`. Read it before planning work that generalizes this repository beyond the current `docker4pycharm` prototype.
 
@@ -781,27 +785,36 @@ The user manually confirmed `sudo -n ls` works in the launched container. A
 manual retest from a different non-default host user account is deferred for
 later and is not a current v0 blocker.
 
+Git remote credential validation deferral for 2026-06-28: the user decided
+GitHub SSH remote validation with `--ssh-agent` and HTTPS remote validation with
+`--git-token-env` / `--git-token-file` should not block v0/MVP. For the current
+MVP, pushing from outside the isolated IDE environment is acceptable, though less
+than ideal. Revisit this after the post-MVP refactoring. Retrospective note:
+`docker4pycharm/implementation-notes/completed-tasks/2026-06-28-git-remote-validation-deferred.md`.
+
 Planned next stabilization item:
 
-1. Manually validate Git identity and Git remote credentials in v0.
+1. Finish local Git identity edge-case validation in v0.
    Requirements: R-GIT-001.
+   Current validation: on 2026-06-28, the user confirmed default host global
+   Git `user.name` and `user.email` values are passed correctly from the host
+   Git config into the launched container. The user also confirmed explicit
+   `--git-user-name` and `--git-user-email` command arguments work as expected,
+   with commits showing the intended author in `git log`. The user also
+   confirmed the default identity behavior with `git config --global --get
+   user.name`, `git config --global --get user.email`, and a local test commit
+   whose author is correct in `git log`.
    Done means: a launched PyCharm/Codex container has the intended Git
-   `user.name` and `user.email` through the default host-identity auto-import,
+   `user.name` and `user.email` through default host-identity auto-import,
    explicit identity flags, or an intentional opt-out; commits made inside the
    selected project use the expected author identity or fail loudly when no
-   identity was configured; SSH remotes work through `--ssh-agent`; and HTTPS
-   GitHub remotes work through `--git-token-env` or `--git-token-file` without
-   mounting host credential directories.
-   Verification: launch with the default Git identity behavior, with explicit
-   `--git-user-name` / `--git-user-email`, and with
-   `--no-git-identity-from-host`; run `git config --global --get user.name` and
-   `git config --global --get user.email` inside the container; make a local
-   test commit and inspect its author; run a non-secret `git ls-remote` or
-   fetch/push test against the intended GitHub remote using SSH agent forwarding
-   or a token secret.
+   identity was configured. GitHub SSH/HTTPS remote validation is deferred
+   until after the post-MVP refactoring.
+   Remaining verification: launch with `--no-git-identity-from-host`; confirm
+   explicit `--git-identity-from-host` warns clearly when host identity values
+   are missing.
    Reopen if: commits fall back to the container auto-generated identity,
-   GitHub token values appear in Docker inspect output or persistent files, or
-   remote credential prompts hang instead of succeeding or failing clearly.
+   opt-out still imports host identity, or missing identity fails unclearly.
 
 Standing stabilization rule:
 
