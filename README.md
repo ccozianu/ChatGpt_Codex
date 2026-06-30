@@ -520,9 +520,14 @@ These links were used to validate the current PyCharm/OpenAI/JetBrains assumptio
 
 This section is the project handoff point. Future agents should update it when completing a stage, changing the project state materially, or ending a session.
 
-Current stage: `docker4pycharm` v0/MVP user-experience stabilization.
+Current stage: `docker4pycharm` v0/MVP checkpoint complete; post-MVP
+`docker4ide` Python framework refactoring is next.
 
-Current status: PyCharm can run inside the Docker container, open the selected project, and the AI/Codex/ChatGPT plugin path has worked from inside that IDE environment.
+Current status: PyCharm can run inside the Docker container, open the selected
+project, and the AI/Codex/ChatGPT plugin path has worked from inside that IDE
+environment. The user accepted the current v0 state as MVP on 2026-06-30 after
+local Git identity edge-case validation was completed. Retrospective note:
+`docker4pycharm/implementation-notes/completed-tasks/2026-06-30-pycharm-v0-mvp-checkpoint.md`.
 
 Latest stabilization update: `docker4pycharm/run-pycharm-container.sh` now
 defaults to host Docker daemon passthrough for developer convenience. The
@@ -709,7 +714,10 @@ checks, and the repository-local runtime helper passed in the then-running
 container. The follow-up fresh PyCharm launch has now been manually accepted by
 the user for the current v0 stabilization pass.
 
-Post-MVP refactoring context: `FUTURE_AGENT_REFACTORING_BRIEF.md` has been restored. It describes the intended move from one-off PyCharm scripts toward a profile-driven `docker4ide` framework with shared runtime orchestration, IDE-family adapters, and product-specific profiles.
+Post-MVP refactoring context: `FUTURE_AGENT_REFACTORING_BRIEF.md` has been
+restored. It describes the intended move from one-off PyCharm scripts toward a
+profile-driven Python `docker4ide` framework with shared runtime orchestration,
+IDE-family adapters, and product-specific profiles.
 
 Product positioning update: `docs/working-backwards-press-release.md` now
 captures a working-backwards v1 product narrative for Docker4IDE as
@@ -744,7 +752,11 @@ When resuming the project, read these files in order:
    issue recurs, when doing retrospective work, or when comparing current
    behavior against a completed task.
 
-Immediate engineering priority: preserve the working MVP while making the setup reproducible and easier to use. Reconcile the debugging handoff with the checked-in Dockerfile, launcher, entrypoint, and docs before making larger design changes.
+Immediate engineering priority: preserve the working PyCharm MVP while
+extracting the reusable pieces into a shared Python `docker4ide` framework. The
+existing `docker4pycharm` shell scripts should remain usable as compatibility
+wrappers while shared runtime orchestration, profile loading, and IDE-family
+behavior move into Python.
 
 Active docs cleanup note: `/project` is no longer the default mounted project
 path for PyCharm v0. The current launcher intentionally mounts projects at
@@ -792,29 +804,34 @@ MVP, pushing from outside the isolated IDE environment is acceptable, though les
 than ideal. Revisit this after the post-MVP refactoring. Retrospective note:
 `docker4pycharm/implementation-notes/completed-tasks/2026-06-28-git-remote-validation-deferred.md`.
 
-Planned next stabilization item:
+Local Git identity validation closeout for 2026-06-30: R-GIT-001 local identity
+behavior is manually validated for the current v0 launcher. The user confirmed
+the default host global Git `user.name` and `user.email` import path, explicit
+`--git-user-name` / `--git-user-email` flags, intentional opt-out with
+`--no-git-identity-from-host`, and explicit missing-host-identity warning with
+`--git-identity-from-host`. Reopen only if commits fall back to the container
+auto-generated identity, opt-out still imports host identity, or missing
+identity fails unclearly. GitHub SSH/HTTPS remote validation remains deferred
+until after the post-MVP refactoring. Retrospective note:
+`docker4pycharm/implementation-notes/completed-tasks/2026-06-30-local-git-identity-edge-validation.md`.
 
-1. Finish local Git identity edge-case validation in v0.
-   Requirements: R-GIT-001.
-   Current validation: on 2026-06-28, the user confirmed default host global
-   Git `user.name` and `user.email` values are passed correctly from the host
-   Git config into the launched container. The user also confirmed explicit
-   `--git-user-name` and `--git-user-email` command arguments work as expected,
-   with commits showing the intended author in `git log`. The user also
-   confirmed the default identity behavior with `git config --global --get
-   user.name`, `git config --global --get user.email`, and a local test commit
-   whose author is correct in `git log`.
-   Done means: a launched PyCharm/Codex container has the intended Git
-   `user.name` and `user.email` through default host-identity auto-import,
-   explicit identity flags, or an intentional opt-out; commits made inside the
-   selected project use the expected author identity or fail loudly when no
-   identity was configured. GitHub SSH/HTTPS remote validation is deferred
-   until after the post-MVP refactoring.
-   Remaining verification: launch with `--no-git-identity-from-host`; confirm
-   explicit `--git-identity-from-host` warns clearly when host identity values
-   are missing.
-   Reopen if: commits fall back to the container auto-generated identity,
-   opt-out still imports host identity, or missing identity fails unclearly.
+Planned next work item:
+
+1. Start the post-MVP Python `docker4ide` framework refactor.
+   Requirements: R-FRAMEWORK-001.
+   Context: read `FUTURE_AGENT_REFACTORING_BRIEF.md` first, then preserve the
+   current `docker4pycharm` MVP behavior while extracting shared launcher
+   responsibilities into a Python package.
+   Done means: an initial Python project skeleton exists for shared
+   orchestration, PyCharm remains runnable through its existing wrapper path,
+   and the first extracted slice has repository-side checks that compare the
+   generated Docker/run behavior against the current launcher expectations.
+   Verification: run the relevant Python tests or smoke checks, keep
+   `docker4pycharm/run-pycharm-container.sh --help` working, and review
+   generated Docker arguments against the documented mount/security posture.
+   Reopen if: the PyCharm MVP launch path regresses, the wrapper and Python CLI
+   diverge silently, or the refactor broadens host exposure without explicit
+   documentation.
 
 Standing stabilization rule:
 

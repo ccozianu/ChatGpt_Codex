@@ -178,7 +178,7 @@ host `~/.gitconfig`, host `~/.ssh`, or host credential directories into the
 container.
 
 Priority: current stabilization
-Status: implemented
+Status: manually validated
 
 Implementation:
 - `docker4pycharm/run-pycharm-container.sh`
@@ -186,8 +186,6 @@ Implementation:
 - `docker4pycharm/README.md`
 
 Validation:
-- Manual local Git identity edge-case validation remains a planned next
-  stabilization item in `README.md`.
 - On 2026-06-28, the user confirmed default host global Git `user.name` and
   `user.email` values are passed correctly from the host Git config into the
   launched container.
@@ -200,10 +198,15 @@ Validation:
 - On 2026-06-28, the user deferred live GitHub SSH and HTTPS remote validation
   until after the post-MVP refactoring. This is not a v0/MVP blocker because
   the user can push from outside the isolated IDE environment.
+- On 2026-06-30, the user confirmed the remaining local identity edge cases:
+  `--no-git-identity-from-host` disables host identity import, and explicit
+  `--git-identity-from-host` warns clearly when host identity values are
+  missing.
 
 Related:
 - `docker4pycharm/implementation-notes/2026-06-22-git-identity-and-credentials.md`
 - `docker4pycharm/implementation-notes/completed-tasks/2026-06-28-git-remote-validation-deferred.md`
+- `docker4pycharm/implementation-notes/completed-tasks/2026-06-30-local-git-identity-edge-validation.md`
 
 ### R-DOCKER-001: Explicit Docker Capability Profiles
 
@@ -296,3 +299,25 @@ Validation:
 
 Related:
 - Current process update on 2026-06-24
+
+### R-FRAMEWORK-001: Shared Python Docker4IDE Orchestration
+
+Statement: The post-MVP implementation should refactor one-off IDE launcher
+logic into a shared Python `docker4ide` framework with reusable runtime
+orchestration, profile loading, IDE-family adapters, and thin compatibility
+wrappers for existing target-specific commands.
+
+Priority: later
+Status: accepted
+
+Implementation:
+- Not implemented.
+
+Validation:
+- Future validation should confirm the Python CLI and the
+  `docker4pycharm/run-pycharm-container.sh` compatibility wrapper produce
+  equivalent behavior for the supported PyCharm MVP launch profiles.
+
+Related:
+- `FUTURE_AGENT_REFACTORING_BRIEF.md`
+- Planned next work item in `README.md`

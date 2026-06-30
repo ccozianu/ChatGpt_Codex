@@ -2,7 +2,7 @@
 
 Date: 2026-06-22
 
-Status: implemented, updated 2026-06-24, pending manual validation in a launched v0 image
+Status: implemented; local identity behavior manually validated for v0; remote validation deferred
 
 ## Context
 
@@ -113,12 +113,14 @@ Manual validation update on 2026-06-28:
   from outside the isolated IDE environment. See
   `completed-tasks/2026-06-28-git-remote-validation-deferred.md`.
 
-Pending manual validation:
+Manual validation closeout on 2026-06-30:
 
-- Launch with `--no-git-identity-from-host` and confirm host identity lookup is
-  disabled.
-- Launch with `--git-identity-from-host` and confirm missing host values warn
-  clearly.
+- The user confirmed launching with `--no-git-identity-from-host` disables host
+  identity lookup.
+- The user confirmed launching with `--git-identity-from-host` warns clearly
+  when host identity values are missing.
+- Local Git identity edge-case validation is complete for v0. See
+  `completed-tasks/2026-06-30-local-git-identity-edge-validation.md`.
 
 Deferred manual validation:
 
