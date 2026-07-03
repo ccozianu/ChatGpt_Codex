@@ -300,6 +300,29 @@ Validation:
 Related:
 - Current process update on 2026-06-24
 
+### R-DOCS-001: Generated Documentation Index
+
+Statement: The repository should eventually generate `index.md` from structured
+markdown frontmatter so the documentation map stays consistent as files are
+added, deleted, renamed, moved, or recategorized.
+
+Priority: later
+Status: accepted
+
+Implementation:
+- Current manual index: `index.md`
+- Current maintenance instruction: `AGENTS.md`
+- Future implementation should add frontmatter conventions and a repository
+  script or test that regenerates and verifies `index.md`.
+
+Validation:
+- Future validation should confirm every `.md` file has the required
+  frontmatter fields and that generated `index.md` matches the committed file.
+
+Related:
+- Future development backlog in `README.md`
+- `R-PROC-001`
+
 ### R-FRAMEWORK-001: Shared Python Docker4IDE Orchestration
 
 Statement: The post-MVP implementation should refactor one-off IDE launcher

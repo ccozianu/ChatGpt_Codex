@@ -15,3 +15,13 @@ If the brief defines a planned next step, state that next step to the user befor
 If the brief does not define a planned next step, remind the user through the agent or IDE plugin to help choose the next step to work on.
 
 At an appropriate moment, such as when completing a stage, changing the project state materially, or ending a session, do your best to update the final section of `README.md` so the next agent/model pair can resume from the then-current state.
+
+The repository-level documentation index lives at:
+
+```text
+index.md
+```
+
+Whenever you add a new `.md` file, delete an existing `.md` file, or rename or
+move a `.md` file, update `index.md` in the same change so it continues to list
+all markdown documentation using relative links grouped by category.

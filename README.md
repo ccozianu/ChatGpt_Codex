@@ -475,6 +475,13 @@ Suggested next work items:
     `--ssh-agent` and HTTPS remotes with `--git-token-env` / `--git-token-file`.
     This is useful but no longer a v0/MVP blocker because the user can push from
     outside the isolated IDE environment.
+15. Refine `index.md` into a generated documentation index backed by
+    frontmatter metadata in each markdown file. The intended direction is that
+    each `.md` file declares stable tags, category, status, and/or audience in
+    frontmatter, then a repository-side script regenerates `index.md` and checks
+    that the manual documentation map has not drifted. This remains a later
+    documentation-tooling task; until then, agents must update `index.md`
+    manually when markdown files are added, deleted, renamed, or moved.
 
 The post-MVP refactoring direction is documented in `FUTURE_AGENT_REFACTORING_BRIEF.md`. Read it before planning work that generalizes this repository beyond the current `docker4pycharm` prototype.
 
@@ -578,6 +585,10 @@ reports with reproduction steps, evidence, hypotheses, verification targets,
 close criteria, and affected requirements. Closed or retired tasks now move to
 `docker4pycharm/implementation-notes/completed-tasks/`, while active tasks keep
 explicit requirement IDs, done criteria, verification, and reopen conditions.
+Documentation index update: `index.md` now lists all repository markdown
+documentation using relative links grouped by category. `AGENTS.md` now
+requires future agents to update `index.md` whenever a `.md` file is added,
+deleted, renamed, or moved.
 
 Python-project UX update: on 2026-06-24, feedback from using the image in a
 separate test Python project was folded into the checked-in image and launcher.
@@ -726,29 +737,35 @@ rehydration. `docs/index.html` is a self-contained GitHub Pages-friendly
 version of the same story, and `docs/linkedin-announcement.md` contains draft
 LinkedIn announcement copy with a placeholder GitHub Pages URL.
 
+0.2 positioning draft update: `docs/draft-pitch.md` captures the early
+post-MVP pitch direction around batteries-included developer workspaces,
+explicit host-access boundaries, AI-agent readiness, the tailor-with-torn-pants
+motif, and naming concerns around `mycodespace.ai` versus GitHub Codespaces.
+
 When resuming the project, read these files in order:
 
 1. `README.md` for project-wide requirements, architecture, and backlog.
-2. `REQUIREMENTS.md` for accepted requirements, priority, status, and
+2. `index.md` for the grouped index of all markdown documentation.
+3. `REQUIREMENTS.md` for accepted requirements, priority, status, and
    traceability to implementation and validation.
-3. `WORKFLOW.md` for the human/agent iteration process, requirements hygiene,
+4. `WORKFLOW.md` for the human/agent iteration process, requirements hygiene,
    and task-list hygiene.
-4. `docker4pycharm/README.md` for the current PyCharm container build/run workflow.
-5. `docker4pycharm/debugging.md` for the handoff from the debugging session that made the current image work.
-6. `user.md` for the human-facing PyCharm AI plugin and ChatGPT subscription setup notes.
-7. `FUTURE_AGENT_REFACTORING_BRIEF.md` before planning post-MVP refactoring beyond the current PyCharm target.
-8. `docs/working-backwards-press-release.md` before changing v1 product
+5. `docker4pycharm/README.md` for the current PyCharm container build/run workflow.
+6. `docker4pycharm/debugging.md` for the handoff from the debugging session that made the current image work.
+7. `user.md` for the human-facing PyCharm AI plugin and ChatGPT subscription setup notes.
+8. `FUTURE_AGENT_REFACTORING_BRIEF.md` before planning post-MVP refactoring beyond the current PyCharm target.
+9. `docs/working-backwards-press-release.md` before changing v1 product
    positioning, onboarding goals, or open-source launch messaging.
-9. `docker4pycharm/implementation-notes/using-v0-for-real-python-projects.md` before applying this workflow to a normal Python project with the current v0 image.
-10. `docker4pycharm/implementation-notes/bugs/` for active bug records,
+10. `docker4pycharm/implementation-notes/using-v0-for-real-python-projects.md` before applying this workflow to a normal Python project with the current v0 image.
+11. `docker4pycharm/implementation-notes/bugs/` for active bug records,
    especially before changing launcher state or runtime behavior.
-11. `docker4pycharm/implementation-notes/2026-06-21-per-project-ide-state-split.md`
+12. `docker4pycharm/implementation-notes/2026-06-21-per-project-ide-state-split.md`
    before changing PyCharm state, settings, or project mount behavior.
-12. `docker4pycharm/implementation-notes/2026-06-22-git-identity-and-credentials.md`
+13. `docker4pycharm/implementation-notes/2026-06-22-git-identity-and-credentials.md`
    before changing Git identity, SSH-agent, or HTTPS token credential behavior.
-13. `docker4pycharm/implementation-notes/2026-06-22-mesa-software-gl-default.md`
+14. `docker4pycharm/implementation-notes/2026-06-22-mesa-software-gl-default.md`
    before changing Mesa/OpenGL, Skiko, Markdown preview, or GPU passthrough behavior.
-14. `docker4pycharm/implementation-notes/completed-tasks/` only when a retired
+15. `docker4pycharm/implementation-notes/completed-tasks/` only when a retired
    issue recurs, when doing retrospective work, or when comparing current
    behavior against a completed task.
 
