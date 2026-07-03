@@ -4,6 +4,11 @@ This file is intended for the next ChatGPT/Codex development agent working insid
 
 It summarizes the intended direction after the initial `docker4pycharm` prototype and lays out the strategy for extending the project to IntelliJ IDEA, VS Code, and VSCodium without duplicating implementation logic.
 
+Naming update: on 2026-07-03, the user chose `docker4ides` as the Python
+package and CLI name. Older sketches in this document may still say
+`docker4ide` when describing the conceptual framework, image names, or
+pre-existing helper commands.
+
 ---
 
 ## Project Context

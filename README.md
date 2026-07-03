@@ -770,7 +770,7 @@ When resuming the project, read these files in order:
    behavior against a completed task.
 
 Immediate engineering priority: preserve the working PyCharm MVP while
-extracting the reusable pieces into a shared Python `docker4ide` framework. The
+extracting the reusable pieces into a shared Python `docker4ides` framework. The
 existing `docker4pycharm` shell scripts should remain usable as compatibility
 wrappers while shared runtime orchestration, profile loading, and IDE-family
 behavior move into Python.
@@ -832,19 +832,41 @@ identity fails unclearly. GitHub SSH/HTTPS remote validation remains deferred
 until after the post-MVP refactoring. Retrospective note:
 `docker4pycharm/implementation-notes/completed-tasks/2026-06-30-local-git-identity-edge-validation.md`.
 
+Initial Python refactor slice for 2026-07-03: the user chose the pluralized
+package/CLI name `docker4ides`. A new Python project now lives under
+`docker4ides/` with `pyproject.toml`, pip/pip-compile dependency files,
+`python -m docker4ides`, the `docker4ides` console script, and a first
+compatibility command tree. Current commands delegate to the existing
+validated shell scripts:
+
+```text
+docker4ides run pycharm ...
+docker4ides build pycharm ...
+docker4ides check runtime pycharm ...
+docker4ides bootstrap project ...
+```
+
+This is intentionally a compatibility facade, not yet a runtime rewrite.
+Repository-side verification passed in a temporary venv with
+`python -m pytest docker4ides`, top-level CLI help, and PyCharm run/build
+leaf-help delegation smoke checks.
+
 Planned next work item:
 
-1. Start the post-MVP Python `docker4ide` framework refactor.
+1. Extract the first PyCharm launcher planning slice into `docker4ides`.
    Requirements: R-FRAMEWORK-001.
-   Context: read `FUTURE_AGENT_REFACTORING_BRIEF.md` first, then preserve the
-   current `docker4pycharm` MVP behavior while extracting shared launcher
-   responsibilities into a Python package.
-   Done means: an initial Python project skeleton exists for shared
-   orchestration, PyCharm remains runnable through its existing wrapper path,
-   and the first extracted slice has repository-side checks that compare the
-   generated Docker/run behavior against the current launcher expectations.
+   Context: the `docker4ides` package skeleton and compatibility CLI already
+   exist. Preserve the current `docker4pycharm` MVP behavior while moving a
+   narrow, testable part of launcher planning into Python. Good first
+   candidates are project namespace calculation, reserved project-mount
+   validation, or normalized Docker mode parsing.
+   Done means: one behavior slice from `run-pycharm-container.sh` is represented
+   in Python with tests against current launcher expectations, the Python CLI
+   still delegates safely for behavior not yet extracted, and PyCharm remains
+   runnable through the existing shell wrapper path.
    Verification: run the relevant Python tests or smoke checks, keep
-   `docker4pycharm/run-pycharm-container.sh --help` working, and review
+   `python -m docker4ides run pycharm --help` and
+   `docker4pycharm/run-pycharm-container.sh --help` working, and review any
    generated Docker arguments against the documented mount/security posture.
    Reopen if: the PyCharm MVP launch path regresses, the wrapper and Python CLI
    diverge silently, or the refactor broadens host exposure without explicit

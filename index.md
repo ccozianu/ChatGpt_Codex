@@ -30,6 +30,10 @@ same change.
 - [Debugging notes](docker4pycharm/debugging.md)
 - [Vibe-coding process bootstrap template](docker4pycharm/image-assets/vibe-coding-process.md)
 
+## Docker4IDEs Python Framework
+
+- [Docker4IDEs Python CLI](docker4ides/README.md)
+
 ## Implementation Notes And Decisions
 
 - [Per-project IDE state split](docker4pycharm/implementation-notes/2026-06-21-per-project-ide-state-split.md)

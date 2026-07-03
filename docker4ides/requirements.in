@@ -1,0 +1,6 @@
+# Runtime dependencies.
+#
+# Keep this file intentionally small. Add dependencies here, then regenerate
+# requirements.txt with:
+#
+#   python -m piptools compile requirements.in

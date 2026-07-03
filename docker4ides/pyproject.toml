@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "docker4ides"
+version = "0.1.0"
+description = "Profile-driven Docker launch tooling for isolated IDE development environments."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "DockerForIDEIsolation contributors" }
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Software Development",
+  "Topic :: System :: Systems Administration",
+]
+dependencies = []
+
+[project.scripts]
+docker4ides = "docker4ides.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["docker4ides*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

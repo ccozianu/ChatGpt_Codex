@@ -326,7 +326,7 @@ Related:
 ### R-FRAMEWORK-001: Shared Python Docker4IDE Orchestration
 
 Statement: The post-MVP implementation should refactor one-off IDE launcher
-logic into a shared Python `docker4ide` framework with reusable runtime
+logic into a shared Python `docker4ides` framework with reusable runtime
 orchestration, profile loading, IDE-family adapters, and thin compatibility
 wrappers for existing target-specific commands.
 
@@ -334,12 +334,26 @@ Priority: later
 Status: accepted
 
 Implementation:
-- Not implemented.
+- Initial Python project skeleton and compatibility command tree:
+  `docker4ides/pyproject.toml`, `docker4ides/docker4ides/cli.py`,
+  `docker4ides/docker4ides/__main__.py`
+- Initial pip/pip-compile dependency files:
+  `docker4ides/requirements.in`, `docker4ides/requirements.txt`,
+  `docker4ides/dev-requirements.in`, `docker4ides/dev-requirements.txt`
+- Initial command delegation tests: `docker4ides/tests/test_cli.py`
+- Shared runtime orchestration, profile loading, and IDE-family adapters are
+  not yet extracted from the current PyCharm shell scripts.
 
 Validation:
-- Future validation should confirm the Python CLI and the
+- On 2026-07-03, a temporary venv installed
+  `docker4ides/dev-requirements.txt` and `docker4ides` editable, then passed
+  `python -m pytest docker4ides`.
+- On 2026-07-03, `python -m docker4ides --help`,
+  `docker4ides run --help`, `python -m docker4ides run pycharm --help`, and
+  `docker4ides build pycharm --help` were smoke checked.
+- Future validation should confirm the Python CLI and the current
   `docker4pycharm/run-pycharm-container.sh` compatibility wrapper produce
-  equivalent behavior for the supported PyCharm MVP launch profiles.
+  equivalent generated Docker behavior as runtime planning moves into Python.
 
 Related:
 - `FUTURE_AGENT_REFACTORING_BRIEF.md`
