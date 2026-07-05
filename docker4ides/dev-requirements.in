@@ -1,4 +1,4 @@
 -r requirements.in
 
 pip-tools
-pytest
+pytest>=7.4

@@ -1,0 +1,784 @@
+"""Translated PyCharm launcher for Docker4IDEs."""
+
+from __future__ import annotations
+
+import grp
+import os
+import pwd
+import shutil
+import stat
+import subprocess
+import sys
+import tempfile
+import time
+from dataclasses import dataclass, field
+from enum import Enum
+from pathlib import Path
+from typing import Mapping
+
+from docker4ides.project import ProjectMountError, plan_project
+
+
+class PycharmRunError(Exception):
+    """User-facing PyCharm launcher error."""
+
+
+class DockerMode(str, Enum):
+    host = "host"
+    dind = "dind"
+    none = "none"
+
+
+class IdeConfigMode(str, Enum):
+    shared = "shared"
+    project = "project"
+    custom = "custom"
+
+
+@dataclass(frozen=True)
+class HostUser:
+    uid: int
+    gid: int
+    name: str
+    group_name: str
+
+
+@dataclass
+class TempRuntimeFiles:
+    xauth_file: Path
+    passwd_file: Path
+    group_file: Path
+    shadow_file: Path | None = None
+    token_file: Path | None = None
+
+
+@dataclass
+class PycharmRunOptions:
+    project: Path
+    image: str | None = None
+    name: str | None = None
+    global_settings: Path | None = None
+    project_state: Path | None = None
+    config_mode: IdeConfigMode | None = None
+    ide_config: Path | None = None
+    project_mount: str | None = None
+    plugins: Path | None = None
+    use_ssh_agent: bool = False
+    git_user_name: str | None = None
+    git_user_email: str | None = None
+    git_identity_from_host: str | None = None
+    git_token_file: Path | None = None
+    git_token_env: str | None = None
+    git_token_username: str | None = None
+    git_token_hosts: str | None = None
+    docker_mode: DockerMode | None = None
+    host_docker_socket: Path | None = None
+    debug_native: bool = False
+    writable_root: bool = False
+    enable_sudo: bool = False
+    ide_sudo_gid: str | None = None
+    ignore_config_lock: bool = False
+    extra_docker_args: list[str] = field(default_factory=list)
+
+
+@dataclass
+class PycharmRunConfig:
+    image: str
+    name: str
+    project: Path
+    global_settings: Path
+    project_state: Path
+    ide_config: Path
+    ide_config_mode: str
+    plugins: Path
+    project_mount: str
+    docker_mode: str
+    host_docker_socket: Path
+    host_docker_gid: int | None
+    use_ssh_agent: bool
+    git_user_name: str
+    git_user_email: str
+    git_token_file: Path | None
+    git_token_env: str
+    git_token_username: str
+    git_token_hosts: str
+    debug_native: bool
+    writable_root: bool
+    enable_sudo: bool
+    ide_sudo_gid: int
+    ignore_config_lock: bool
+    extra_docker_args: list[str] = field(default_factory=list)
+    libgl_always_software: str = "1"
+    mesa_loader_driver_override: str = "llvmpipe"
+    libgl_dri3_disable: str = "1"
+
+
+def run_pycharm(options: PycharmRunOptions, env: Mapping[str, str] | None = None) -> int:
+    """Run PyCharm through the translated Python launcher."""
+
+    runtime_env = dict(os.environ if env is None else env)
+    config = build_run_config(options, runtime_env)
+    files = prepare_temp_runtime_files(config, runtime_env)
+    try:
+        docker_args = build_docker_args(config, files, runtime_env)
+        print_storage_summary(config)
+        completed = subprocess.run(
+            ["docker", "run", *docker_args, config.image, "/opt/pycharm/bin/pycharm.sh", config.project_mount],
+            check=False,
+        )
+        return completed.returncode
+    finally:
+        cleanup_temp_runtime_files(files)
+
+
+def build_run_config(options: PycharmRunOptions, env: Mapping[str, str]) -> PycharmRunConfig:
+    base_data_dir = Path(
+        env.get("XDG_DATA_HOME") or str(Path(env.get("HOME", "~")).expanduser() / ".local/share")
+    ) / "pycharm-docker"
+    host_user = current_host_user()
+
+    docker_mode = initial_docker_mode(env)
+    if options.docker_mode is not None:
+        docker_mode = options.docker_mode.value
+
+    git_identity_from_host = env.get("PYCHARM_GIT_IDENTITY_FROM_HOST", "auto")
+    if options.git_identity_from_host is not None:
+        git_identity_from_host = options.git_identity_from_host
+    git_identity_from_host = normalize_git_identity_mode(git_identity_from_host)
+
+    ide_config_mode = resolve_ide_config_mode(options, env)
+
+    ignore_config_lock = parse_bool_env(
+        env.get("PYCHARM_IGNORE_CONFIG_LOCK", "0"),
+        "PYCHARM_IGNORE_CONFIG_LOCK",
+    )
+    if options.ignore_config_lock:
+        ignore_config_lock = True
+
+    enable_sudo = parse_bool_env(env.get("PYCHARM_ENABLE_SUDO", "0"), "PYCHARM_ENABLE_SUDO")
+    if options.enable_sudo:
+        enable_sudo = True
+
+    ide_sudo_gid_text = options.ide_sudo_gid or env.get("PYCHARM_IDE_SUDO_GID", "44000")
+    if not ide_sudo_gid_text.isdigit():
+        raise PycharmRunError("PYCHARM_IDE_SUDO_GID must be a numeric group ID.")
+    ide_sudo_gid = int(ide_sudo_gid_text)
+
+    writable_root = options.writable_root
+    if enable_sudo:
+        writable_root = True
+
+    if not env.get("DISPLAY"):
+        raise PycharmRunError("DISPLAY is not set; this X11 launcher needs an active X session.")
+
+    try:
+        project_plan = plan_project(options.project, options.project_mount or env.get("PYCHARM_PROJECT_MOUNT"))
+    except ProjectMountError as exc:
+        raise PycharmRunError(str(exc)) from exc
+
+    project = project_plan.project_path
+    if not project.is_dir():
+        raise PycharmRunError(f"Project directory does not exist: {project}")
+
+    global_settings = resolve_existing_or_create(
+        options.global_settings or env.get("PYCHARM_GLOBAL_SETTINGS_DIR") or base_data_dir / "state"
+    )
+    project_state = resolve_existing_or_create(
+        options.project_state
+        or env.get("PYCHARM_PROJECT_STATE_DIR")
+        or base_data_dir / "project-state" / project_plan.project_id
+    )
+
+    ide_config_arg = options.ide_config if options.ide_config is not None else env.get("PYCHARM_IDE_CONFIG_DIR", "")
+    if ide_config_mode == "shared":
+        ide_config = resolve_existing_or_create(global_settings / "config")
+    elif ide_config_mode == "project":
+        ide_config = resolve_existing_or_create(project_state / "config")
+    else:
+        if not ide_config_arg:
+            raise PycharmRunError(
+                "--ide-config or PYCHARM_IDE_CONFIG_DIR is required when PYCHARM_IDE_CONFIG_MODE=custom."
+            )
+        ide_config = resolve_existing_or_create(ide_config_arg)
+
+    plugins = resolve_existing_or_create(
+        options.plugins or env.get("PYCHARM_PLUGIN_DIR") or base_data_dir / "plugins"
+    )
+
+    if not ignore_config_lock and ide_config_mode != "project" and (ide_config / ".lock").exists():
+        raise PycharmRunError(config_lock_message(ide_config, project, project_state))
+
+    host_docker_socket = Path(options.host_docker_socket or env.get("HOST_DOCKER_SOCKET", "/var/run/docker.sock"))
+    host_docker_gid: int | None = None
+    if docker_mode == "host":
+        if not is_socket(host_docker_socket):
+            raise PycharmRunError(
+                f"Host Docker socket is not available: {host_docker_socket}\n"
+                "Start Docker on the host, set HOST_DOCKER_SOCKET, or launch with --docker-in-docker / --no-docker."
+            )
+        host_docker_socket = host_docker_socket.resolve()
+        host_docker_gid = host_docker_socket.stat().st_gid
+
+    if enable_sudo:
+        while ide_sudo_gid in {0, host_user.gid, host_docker_gid}:
+            ide_sudo_gid += 1
+
+    git_user_name = options.git_user_name or env.get("PYCHARM_GIT_USER_NAME", "")
+    git_user_email = options.git_user_email or env.get("PYCHARM_GIT_USER_EMAIL", "")
+    if git_identity_from_host in {"1", "auto"}:
+        git_user_name, git_user_email = apply_host_git_identity(
+            git_identity_from_host,
+            git_user_name,
+            git_user_email,
+        )
+
+    git_token_file = options.git_token_file or env.get("PYCHARM_GIT_TOKEN_FILE") or env.get("GITHUB_TOKEN_FILE")
+
+    return PycharmRunConfig(
+        image=options.image or env.get("IMAGE", "pycharm-isolated:latest"),
+        name=options.name or f"pycharm-isolated-{host_user.name}-{int(time.time())}",
+        project=project,
+        global_settings=global_settings,
+        project_state=project_state,
+        ide_config=ide_config,
+        ide_config_mode=ide_config_mode,
+        plugins=plugins,
+        project_mount=project_plan.project_mount,
+        docker_mode=docker_mode,
+        host_docker_socket=host_docker_socket,
+        host_docker_gid=host_docker_gid,
+        use_ssh_agent=options.use_ssh_agent,
+        git_user_name=git_user_name,
+        git_user_email=git_user_email,
+        git_token_file=Path(git_token_file).expanduser().resolve() if git_token_file else None,
+        git_token_env=options.git_token_env or env.get("PYCHARM_GIT_TOKEN_ENV") or env.get("GITHUB_TOKEN_ENV", ""),
+        git_token_username=options.git_token_username
+        or env.get("PYCHARM_GIT_TOKEN_USERNAME")
+        or env.get("GITHUB_USER", "x-access-token"),
+        git_token_hosts=options.git_token_hosts or env.get("PYCHARM_GIT_TOKEN_HOSTS", "github.com"),
+        debug_native=options.debug_native,
+        writable_root=writable_root,
+        enable_sudo=enable_sudo,
+        ide_sudo_gid=ide_sudo_gid,
+        ignore_config_lock=ignore_config_lock,
+        extra_docker_args=list(options.extra_docker_args),
+        libgl_always_software=env.get("PYCHARM_LIBGL_ALWAYS_SOFTWARE", env.get("LIBGL_ALWAYS_SOFTWARE", "1")),
+        mesa_loader_driver_override=env.get(
+            "PYCHARM_MESA_LOADER_DRIVER_OVERRIDE",
+            env.get("MESA_LOADER_DRIVER_OVERRIDE", "llvmpipe"),
+        ),
+        libgl_dri3_disable=env.get("PYCHARM_LIBGL_DRI3_DISABLE", env.get("LIBGL_DRI3_DISABLE", "1")),
+    )
+
+
+def build_docker_args(
+    config: PycharmRunConfig,
+    files: TempRuntimeFiles,
+    env: Mapping[str, str],
+) -> list[str]:
+    host_user = current_host_user()
+    args = [
+        "--rm",
+        "-i",
+        "--name",
+        config.name,
+        "--network=host",
+        "--workdir",
+        config.project_mount,
+        "--env",
+        "DISPLAY",
+        "--env",
+        "XAUTHORITY=/tmp/.docker.xauth",
+        "--env",
+        f"PROJECT_PATH={config.project_mount}",
+        "--env",
+        "HOME=/ide-global-settings/home",
+        "--env",
+        "CODEX_HOME=/ide-global-settings/home/.codex",
+        "--env",
+        "XDG_CONFIG_HOME=/ide-global-settings/home/.config",
+        "--env",
+        "XDG_CACHE_HOME=/ide-project-state/home/.cache",
+        "--env",
+        "XDG_DATA_HOME=/ide-global-settings/home/.local/share",
+        "--env",
+        "IDE_GLOBAL_SETTINGS_PATH=/ide-global-settings",
+        "--env",
+        "IDE_CONFIG_PATH=/ide-config",
+        "--env",
+        "IDE_PROJECT_STATE_PATH=/ide-project-state",
+        "--env",
+        f"IDE_UID={host_user.uid}",
+        "--env",
+        f"IDE_GID={host_user.gid}",
+        "--env",
+        f"IDE_USER={host_user.name}",
+        "--env",
+        "QT_X11_NO_MITSHM=1",
+        "--env",
+        "_JAVA_AWT_WM_NONREPARENTING=1",
+        "--env",
+        f"LIBGL_ALWAYS_SOFTWARE={config.libgl_always_software}",
+        "--env",
+        f"MESA_LOADER_DRIVER_OVERRIDE={config.mesa_loader_driver_override}",
+        "--env",
+        f"LIBGL_DRI3_DISABLE={config.libgl_dri3_disable}",
+        "--mount",
+        f"type=bind,src={config.project},dst={config.project_mount}",
+        "--mount",
+        f"type=bind,src={config.global_settings},dst=/ide-global-settings",
+        "--mount",
+        f"type=bind,src={config.ide_config},dst=/ide-config",
+        "--mount",
+        f"type=bind,src={config.project_state},dst=/ide-project-state",
+        "--mount",
+        f"type=bind,src={config.plugins},dst=/ide-plugins",
+        "--mount",
+        "type=bind,src=/tmp/.X11-unix,dst=/tmp/.X11-unix,ro",
+        "--mount",
+        f"type=bind,src={files.xauth_file},dst=/tmp/.docker.xauth,ro",
+        "--mount",
+        f"type=bind,src={files.passwd_file},dst=/etc/passwd,ro",
+        "--mount",
+        f"type=bind,src={files.group_file},dst=/etc/group,ro",
+        "--tmpfs",
+        "/tmp:rw,exec,nosuid,nodev,size=2g",
+        "--tmpfs",
+        "/run:rw,nosuid,nodev,size=128m",
+        "--tmpfs",
+        "/var/tmp:rw,exec,nosuid,nodev,size=1g",
+        "--ipc",
+        "private",
+        "--pids-limit",
+        "4096",
+    ]
+
+    if config.enable_sudo and files.shadow_file:
+        args.extend(["--mount", f"type=bind,src={files.shadow_file},dst=/etc/shadow,ro"])
+    if config.git_user_name:
+        args.extend(["--env", f"GIT_USER_NAME={config.git_user_name}"])
+    if config.git_user_email:
+        args.extend(["--env", f"GIT_USER_EMAIL={config.git_user_email}"])
+
+    append_docker_mode_args(args, config, host_user)
+
+    if not config.writable_root and config.docker_mode != "dind":
+        args.append("--read-only")
+    if config.debug_native and config.docker_mode != "dind":
+        args.extend(["--cap-add", "SYS_PTRACE", "--security-opt", "seccomp=unconfined"])
+
+    if config.use_ssh_agent:
+        ssh_auth_sock = env.get("SSH_AUTH_SOCK", "")
+        if not ssh_auth_sock or not is_socket(Path(ssh_auth_sock)):
+            raise PycharmRunError("--ssh-agent was requested, but SSH_AUTH_SOCK is not a socket.")
+        args.extend(
+            [
+                "--mount",
+                f"type=bind,src={ssh_auth_sock},dst=/run/host-ssh-agent.sock",
+                "--env",
+                "SSH_AUTH_SOCK=/run/host-ssh-agent.sock",
+            ]
+        )
+
+    git_token_file = resolve_git_token_file(config, files, env)
+    if git_token_file:
+        args.extend(
+            [
+                "--mount",
+                f"type=bind,src={git_token_file},dst=/run/secrets/git-token,ro",
+                "--env",
+                "GIT_TOKEN_FILE=/run/secrets/git-token",
+                "--env",
+                f"GIT_TOKEN_USERNAME={config.git_token_username}",
+                "--env",
+                f"GIT_TOKEN_HOSTS={config.git_token_hosts}",
+            ]
+        )
+
+    args.extend(config.extra_docker_args)
+    return args
+
+
+def append_docker_mode_args(args: list[str], config: PycharmRunConfig, host_user: HostUser) -> None:
+    if config.docker_mode == "host":
+        print_host_docker_warning(config)
+        args.extend(
+            [
+                "--user",
+                f"{host_user.uid}:{host_user.gid}",
+                "--group-add",
+                str(config.host_docker_gid),
+                "--env",
+                "ENABLE_DIND=0",
+                "--env",
+                f"ENABLE_SUDO={int(config.enable_sudo)}",
+                "--env",
+                f"IDE_SUDO_GID={config.ide_sudo_gid}",
+                "--env",
+                "DOCKER_HOST=unix:///run/host-docker.sock",
+                "--mount",
+                f"type=bind,src={config.host_docker_socket},dst=/run/host-docker.sock",
+            ]
+        )
+        append_sudo_or_restrictions(args, config)
+    elif config.docker_mode == "dind":
+        print_dind_warning(config)
+        args.extend(
+            [
+                "--privileged",
+                "--env",
+                "ENABLE_DIND=1",
+                "--env",
+                f"ENABLE_SUDO={int(config.enable_sudo)}",
+                "--env",
+                f"IDE_SUDO_GID={config.ide_sudo_gid}",
+                "--mount",
+                "type=volume,dst=/var/lib/docker",
+            ]
+        )
+        if config.enable_sudo:
+            args.extend(["--group-add", str(config.ide_sudo_gid)])
+    else:
+        args.extend(
+            [
+                "--user",
+                f"{host_user.uid}:{host_user.gid}",
+                "--env",
+                "ENABLE_DIND=0",
+                "--env",
+                f"ENABLE_SUDO={int(config.enable_sudo)}",
+                "--env",
+                f"IDE_SUDO_GID={config.ide_sudo_gid}",
+            ]
+        )
+        append_sudo_or_restrictions(args, config)
+
+
+def append_sudo_or_restrictions(args: list[str], config: PycharmRunConfig) -> None:
+    if config.enable_sudo:
+        args.extend(["--group-add", str(config.ide_sudo_gid)])
+    else:
+        args.extend(["--cap-drop", "ALL", "--security-opt", "no-new-privileges"])
+
+
+def prepare_temp_runtime_files(config: PycharmRunConfig, env: Mapping[str, str]) -> TempRuntimeFiles:
+    runtime_parent = Path(env.get("XDG_RUNTIME_DIR", "/tmp"))
+    runtime_parent.mkdir(parents=True, exist_ok=True)
+    files = TempRuntimeFiles(
+        xauth_file=make_temp(runtime_parent, "pycharm-docker-xauth."),
+        passwd_file=make_temp(runtime_parent, "pycharm-docker-passwd."),
+        group_file=make_temp(runtime_parent, "pycharm-docker-group."),
+    )
+    write_xauthority(files.xauth_file, env)
+    write_user_files(config, files)
+    if config.enable_sudo:
+        print_sudo_warning()
+    return files
+
+
+def make_temp(parent: Path, prefix: str) -> Path:
+    fd, name = tempfile.mkstemp(prefix=prefix, dir=parent)
+    os.close(fd)
+    return Path(name)
+
+
+def write_xauthority(xauth_file: Path, env: Mapping[str, str]) -> None:
+    if shutil.which("xauth"):
+        nlist = subprocess.run(
+            ["xauth", "nlist", env.get("DISPLAY", "")],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+        if nlist.stdout:
+            family_wild = "".join(f"ffff{line[4:]}" for line in nlist.stdout.splitlines(keepends=True))
+            subprocess.run(
+                ["xauth", "-f", str(xauth_file), "nmerge", "-"],
+                input=family_wild,
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                text=True,
+            )
+    xauth_file.chmod(0o600)
+    if xauth_file.stat().st_size == 0:
+        print(
+            f"Warning: no Xauthority cookie was copied. If PyCharm cannot open, run: xhost +SI:localuser:{current_host_user().name}",
+            file=sys.stderr,
+        )
+
+
+def write_user_files(config: PycharmRunConfig, files: TempRuntimeFiles) -> None:
+    host_user = current_host_user()
+    files.passwd_file.write_text(
+        "\n".join(
+            [
+                "root:x:0:0:root:/root:/bin/bash",
+                f"{host_user.name}:x:{host_user.uid}:{host_user.gid}:PyCharm Docker User:/ide-global-settings/home:/bin/bash",
+                "",
+            ]
+        )
+    )
+    group_lines = [
+        "root:x:0:",
+        f"{host_user.group_name}:x:{host_user.gid}:",
+    ]
+    if config.host_docker_gid is not None and config.host_docker_gid != host_user.gid:
+        group_lines.append(f"host-docker:x:{config.host_docker_gid}:")
+    if config.enable_sudo:
+        group_lines.append(f"ide-sudo:x:{config.ide_sudo_gid}:{host_user.name}")
+        files.shadow_file = make_temp(files.group_file.parent, "pycharm-docker-shadow.")
+        shadow_last_change = int(time.time()) // 86400
+        files.shadow_file.write_text(
+            "\n".join(
+                [
+                    f"root:*:{shadow_last_change}:0:99999:7:::",
+                    f"{host_user.name}:*:{shadow_last_change}:0:99999:7:::",
+                    "",
+                ]
+            )
+        )
+        files.shadow_file.chmod(0o600)
+    files.group_file.write_text("\n".join([*group_lines, ""]))
+    files.passwd_file.chmod(0o644)
+    files.group_file.chmod(0o644)
+
+
+def resolve_git_token_file(
+    config: PycharmRunConfig,
+    files: TempRuntimeFiles,
+    env: Mapping[str, str],
+) -> Path | None:
+    git_token_file = config.git_token_file
+    if config.git_token_env:
+        token = env.get(config.git_token_env, "")
+        if not token:
+            raise PycharmRunError(
+                f"--git-token-env {config.git_token_env} was requested, but that variable is empty or unset."
+            )
+        token_file = make_temp(Path(env.get("XDG_RUNTIME_DIR", "/tmp")), "pycharm-docker-git-token.")
+        token_file.write_text(token)
+        token_file.chmod(0o600)
+        files.token_file = token_file
+        git_token_file = token_file
+
+    if git_token_file:
+        git_token_file = git_token_file.expanduser().resolve()
+        if not os.access(git_token_file, os.R_OK):
+            raise PycharmRunError(f"Git token file is not readable: {git_token_file}")
+    return git_token_file
+
+
+def cleanup_temp_runtime_files(files: TempRuntimeFiles) -> None:
+    for path in [files.xauth_file, files.passwd_file, files.group_file, files.shadow_file, files.token_file]:
+        if path:
+            path.unlink(missing_ok=True)
+
+
+def initial_docker_mode(env: Mapping[str, str]) -> str:
+    if env.get("DOCKER_MODE"):
+        return normalize_docker_mode(env["DOCKER_MODE"])
+    if env.get("DOCKER_IN_DOCKER"):
+        dind = env["DOCKER_IN_DOCKER"]
+        if dind in {"1", "true", "TRUE", "yes", "YES", "on", "ON"}:
+            return "dind"
+        if dind in {"0", "false", "FALSE", "no", "NO", "off", "OFF"}:
+            return "none"
+        raise PycharmRunError("DOCKER_IN_DOCKER must be 1/0, true/false, yes/no, or on/off.")
+    return "host"
+
+
+def resolve_ide_config_mode(options: PycharmRunOptions, env: Mapping[str, str]) -> str:
+    if options.config_mode is not None:
+        return options.config_mode.value
+    if options.ide_config is not None:
+        return "custom"
+    if env.get("PYCHARM_IDE_CONFIG_MODE"):
+        return normalize_ide_config_mode(env["PYCHARM_IDE_CONFIG_MODE"])
+    if env.get("PYCHARM_IDE_CONFIG_DIR"):
+        return "custom"
+    return "shared"
+
+
+def normalize_docker_mode(value: str) -> str:
+    if value in {"host", "HOST", "docker", "DOCKER", "socket", "SOCKET"}:
+        return "host"
+    if value in {"dind", "DIND", "docker-in-docker", "DOCKER-IN-DOCKER"}:
+        return "dind"
+    if value in {"none", "NONE", "off", "OFF", "no", "NO", "false", "FALSE", "0"}:
+        return "none"
+    raise PycharmRunError("DOCKER_MODE must be host, dind, or none.")
+
+
+def normalize_git_identity_mode(value: str) -> str:
+    if value in {"auto", "AUTO", "default", "DEFAULT"}:
+        return "auto"
+    if value in {"1", "true", "TRUE", "yes", "YES", "on", "ON"}:
+        return "1"
+    if value in {"0", "false", "FALSE", "no", "NO", "off", "OFF", ""}:
+        return "0"
+    raise PycharmRunError("PYCHARM_GIT_IDENTITY_FROM_HOST must be auto, 1/0, true/false, yes/no, or on/off.")
+
+
+def normalize_ide_config_mode(value: str) -> str:
+    if value in {"shared", "SHARED"}:
+        return "shared"
+    if value in {"project", "PROJECT", "per-project", "PER-PROJECT"}:
+        return "project"
+    if value in {"custom", "CUSTOM", "explicit", "EXPLICIT"}:
+        return "custom"
+    raise PycharmRunError("PYCHARM_IDE_CONFIG_MODE must be shared, project, or custom.")
+
+
+def parse_bool_env(value: str, name: str) -> bool:
+    if value in {"1", "true", "TRUE", "yes", "YES", "on", "ON"}:
+        return True
+    if value in {"0", "false", "FALSE", "no", "NO", "off", "OFF", ""}:
+        return False
+    raise PycharmRunError(f"{name} must be 1/0, true/false, yes/no, or on/off.")
+
+
+def apply_host_git_identity(mode: str, name: str, email: str) -> tuple[str, str]:
+    if shutil.which("git") is None:
+        if mode == "1":
+            raise PycharmRunError("--git-identity-from-host was requested, but git is not installed on the host.")
+    else:
+        if not name:
+            name = git_config_value("user.name")
+        if not email:
+            email = git_config_value("user.email")
+    if not name or not email:
+        if mode == "1":
+            print("Warning: --git-identity-from-host did not find both host user.name and user.email.", file=sys.stderr)
+        else:
+            print("Warning: no complete Git author identity was provided or found in host global Git config.", file=sys.stderr)
+        print(
+            "Pass --git-user-name and --git-user-email, or launch with --no-git-identity-from-host to suppress host identity lookup.",
+            file=sys.stderr,
+        )
+    return name, email
+
+
+def git_config_value(key: str) -> str:
+    completed = subprocess.run(
+        ["git", "config", "--global", "--get", key],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    return completed.stdout.strip()
+
+
+def resolve_existing_or_create(path: str | Path) -> Path:
+    resolved = Path(path).expanduser()
+    resolved.mkdir(parents=True, exist_ok=True)
+    return resolved.resolve()
+
+
+def is_socket(path: Path) -> bool:
+    try:
+        mode = path.stat().st_mode
+    except FileNotFoundError:
+        return False
+    return stat.S_ISSOCK(mode)
+
+
+def current_host_user() -> HostUser:
+    uid = os.getuid()
+    gid = os.getgid()
+    return HostUser(
+        uid=uid,
+        gid=gid,
+        name=pwd.getpwuid(uid).pw_name,
+        group_name=grp.getgrgid(gid).gr_name,
+    )
+
+
+def config_lock_message(ide_config: Path, project: Path, project_state: Path) -> str:
+    return f"""PyCharm config directory appears to be locked:
+  {ide_config / ".lock"}
+
+The default shared config directory can only be used by one live PyCharm
+process at a time. For concurrent sessions against different projects, launch
+the second IDE with:
+  docker4ides run pycharm --project "{project}" --project-config
+
+That stores JetBrains idea.config.path under the per-project state directory:
+  {project_state / "config"}
+
+If you are sure this is a stale lock from a crashed IDE, remove the lock file
+or rerun with --ignore-config-lock to let PyCharm decide."""
+
+
+def print_storage_summary(config: PycharmRunConfig) -> None:
+    print(
+        f"""PyCharm storage:
+  Shared global settings: {config.global_settings}
+  PyCharm config:         {config.ide_config} ({config.ide_config_mode})
+  Shared plugins:         {config.plugins}
+  Per-project state:      {config.project_state}
+  Container project path: {config.project_mount}""",
+        file=sys.stderr,
+    )
+
+
+def print_host_docker_warning(config: PycharmRunConfig) -> None:
+    print(
+        f"""========================================================================
+HOST DOCKER DAEMON IS CONNECTED TO THIS PYCHARM CONTAINER.
+
+The launcher is mounting the host Docker socket:
+  {config.host_docker_socket}
+
+Docker commands inside PyCharm/Codex operate on the host daemon. This is the
+default local-development convenience mode, but it gives tools inside the IDE
+broad control over host Docker images, containers, networks, and bind mounts.
+
+For an isolated inner daemon, run:
+  docker4ides run pycharm --project "{config.project}" --docker-in-docker
+
+For a higher-isolation session with no Docker access, run:
+  docker4ides run pycharm --project "{config.project}" --no-docker
+========================================================================""",
+        file=sys.stderr,
+    )
+
+
+def print_dind_warning(config: PycharmRunConfig) -> None:
+    print(
+        f"""========================================================================
+DOCKER-IN-DOCKER IS ENABLED FOR THIS PYCHARM CONTAINER.
+
+The launcher is starting this IDE container with --privileged, a writable
+root filesystem, and an inner Docker daemon. Use this when you want separate
+Docker images, containers, and volumes inside the PyCharm environment.
+The inner daemon does not manage bridge/iptables networking; use --network host
+for inner builds that need network access.
+
+To use the default host Docker daemon instead, run:
+  docker4ides run pycharm --project "{config.project}" --docker
+
+To turn Docker off for a higher-isolation session, run:
+  docker4ides run pycharm --project "{config.project}" --no-docker
+========================================================================""",
+        file=sys.stderr,
+    )
+
+
+def print_sudo_warning() -> None:
+    print(
+        """========================================================================
+DEVELOPMENT SUDO IS ENABLED FOR THIS PYCHARM CONTAINER.
+
+The mapped IDE user can run passwordless sudo inside the container. The
+launcher is also using a writable root filesystem and preserving the default
+Docker container capabilities so package installs and similar development
+commands can work.
+
+This is a development convenience profile. Use the default launcher profile
+when you do not need sudo.
+========================================================================""",
+        file=sys.stderr,
+    )

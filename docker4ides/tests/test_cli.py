@@ -11,19 +11,78 @@ def test_top_level_help_returns_success(capsys) -> None:
     result = cli.main(["--help"])
 
     assert result == 0
-    assert "run pycharm" in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "run" in output
+    assert "build" in output
 
 
-def test_run_pycharm_delegates_to_current_script() -> None:
-    with patch.object(cli.subprocess, "run") as run:
+def test_run_pycharm_uses_translated_python_launcher(tmp_path: Path) -> None:
+    project = tmp_path / "example"
+    project.mkdir()
+    data_home = tmp_path / "data"
+
+    with (
+        patch("docker4ides.pycharm.shutil.which", return_value=None),
+        patch("docker4ides.pycharm.subprocess.run") as run,
+        patch.dict(
+            os.environ,
+            {
+                "DISPLAY": ":1",
+                "XDG_DATA_HOME": str(data_home),
+                "PYCHARM_GIT_IDENTITY_FROM_HOST": "0",
+            },
+            clear=False,
+        ),
+    ):
         run.return_value.returncode = 0
 
-        result = cli.main(["run", "pycharm", "--project", "/tmp/example"])
+        result = cli.main(["run", "pycharm", "--project", str(project), "--no-docker"])
 
     assert result == 0
     command = run.call_args.args[0]
-    assert command[0].endswith("docker4pycharm/run-pycharm-container.sh")
-    assert command[1:] == ["--project", "/tmp/example"]
+    assert command[:2] == ["docker", "run"]
+    assert "docker4pycharm/run-pycharm-container.sh" not in command[0]
+    assert any(arg.startswith(f"type=bind,src={project.resolve()},dst=") for arg in command)
+    assert "--cap-drop" in command
+    assert "--read-only" in command
+
+
+def test_run_pycharm_rejects_conflicting_config_mode_options(tmp_path: Path) -> None:
+    project = tmp_path / "example"
+    project.mkdir()
+
+    result = cli.main(
+        [
+            "run",
+            "pycharm",
+            "--project",
+            str(project),
+            "--config-mode",
+            "shared",
+            "--ide-config",
+            str(tmp_path / "custom-config"),
+        ]
+    )
+
+    assert result == 2
+
+
+def test_run_pycharm_rejects_multiple_config_shorthands(tmp_path: Path) -> None:
+    project = tmp_path / "example"
+    project.mkdir()
+
+    result = cli.main(
+        [
+            "run",
+            "pycharm",
+            "--project",
+            str(project),
+            "--project-config",
+            "--shared-config",
+        ]
+    )
+
+    assert result == 2
 
 
 def test_build_pycharm_delegates_to_current_script() -> None:

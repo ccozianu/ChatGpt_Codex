@@ -452,7 +452,7 @@ Do not add such relaxations silently. Treat them as explicit, auditable options.
 Suggested next work items:
 
 1. Move the current generated files into `docker4pycharm/` and keep this root README as the project-level context.
-2. Add a top-level wrapper, for example `./run-ide pycharm --project ...`, that delegates to `docker4pycharm/run-pycharm-container.sh`.
+2. Add a top-level wrapper, for example `./run-ide pycharm --project ...`, that calls the shared `docker4ides` Python CLI.
 3. Add automated shell linting and smoke tests for the launcher scripts.
 4. Add a minimal X11 smoke test command such as `xeyes` or `xclock` in a diagnostic mode, if an appropriate package is installed.
 5. Add a `--project-readonly` mode for code review or browsing use cases.
@@ -835,9 +835,8 @@ until after the post-MVP refactoring. Retrospective note:
 Initial Python refactor slice for 2026-07-03: the user chose the pluralized
 package/CLI name `docker4ides`. A new Python project now lives under
 `docker4ides/` with `pyproject.toml`, pip/pip-compile dependency files,
-`python -m docker4ides`, the `docker4ides` console script, and a first
-compatibility command tree. Current commands delegate to the existing
-validated shell scripts:
+`python -m docker4ides`, the `docker4ides` console script, and a first command
+tree:
 
 ```text
 docker4ides run pycharm ...
@@ -846,31 +845,61 @@ docker4ides check runtime pycharm ...
 docker4ides bootstrap project ...
 ```
 
-This is intentionally a compatibility facade, not yet a runtime rewrite.
+The build, check, and bootstrap commands still use compatibility delegation
+until they are translated. The run path should not be treated as a permanent
+argument-forwarding facade; the refactoring goal is to translate the launcher
+behavior from Bash into maintainable Python runtime planning and execution.
 Repository-side verification passed in a temporary venv with
 `python -m pytest docker4ides`, top-level CLI help, and PyCharm run/build
 leaf-help delegation smoke checks.
 
+PyCharm run translation update for 2026-07-05: `docker4ides run pycharm` now
+uses translated Python launcher code instead of forwarding its arguments to
+`docker4pycharm/run-pycharm-container.sh`. The new
+`docker4ides/docker4ides/project.py` module mirrors the current shell behavior
+for basename sanitization, SHA-256-based project namespace calculation, default
+`/workspace/<project-id>` mount generation, and reserved in-container
+project-mount rejection. The new `docker4ides/docker4ides/pycharm.py` module
+parses the PyCharm run options, plans project/global/config/plugin state paths,
+handles Docker mode selection, creates temporary Xauthority/passwd/group/shadow
+and token files, generates Docker run arguments, and invokes `docker run`
+directly. The old shell launcher remains available as a manually callable
+compatibility script while parity is validated. Verification passed from
+`docker4ides/` with `.venv/bin/python -m pytest` and
+`.venv/bin/python -m docker4ides run pycharm --help`; the root shell wrapper
+help also passed with `docker4pycharm/run-pycharm-container.sh --help`.
+
+Typer CLI refactor update for 2026-07-05: the Python CLI no longer uses a
+hand-rolled dispatcher in `docker4ides/docker4ides/cli.py`, and the translated
+PyCharm run path no longer has a second internal `argparse` parser. The public
+command tree is now implemented with Typer/Click subcommands, with build,
+runtime-check, and bootstrap compatibility commands still forwarding unknown
+arguments to their existing scripts. PyCharm config selection is now explicit:
+use `--config-mode shared|project|custom`; `--project-config` and
+`--shared-config` remain compatibility shorthands, but conflicting combinations
+such as `--config-mode shared --ide-config ...` are rejected instead of being
+resolved by Bash-style option order.
+
 Planned next work item:
 
-1. Extract the first PyCharm launcher planning slice into `docker4ides`.
+1. Validate and tighten parity between the translated Python PyCharm launcher
+   and `docker4pycharm/run-pycharm-container.sh`.
    Requirements: R-FRAMEWORK-001.
-   Context: the `docker4ides` package skeleton and compatibility CLI already
-   exist. Preserve the current `docker4pycharm` MVP behavior while moving a
-   narrow, testable part of launcher planning into Python. Good first
-   candidates are project namespace calculation, reserved project-mount
-   validation, or normalized Docker mode parsing.
-   Done means: one behavior slice from `run-pycharm-container.sh` is represented
-   in Python with tests against current launcher expectations, the Python CLI
-   still delegates safely for behavior not yet extracted, and PyCharm remains
-   runnable through the existing shell wrapper path.
-   Verification: run the relevant Python tests or smoke checks, keep
-   `python -m docker4ides run pycharm --help` and
-   `docker4pycharm/run-pycharm-container.sh --help` working, and review any
+   Context: `docker4ides run pycharm` now executes translated Python code, but
+   the shell launcher is still the known-good MVP reference. Preserve the
+   current PyCharm behavior while expanding parity tests around default
+   host-Docker mode, no-Docker mode, Docker-in-Docker mode, `--project-config`,
+   `--dev-sudo`, Git identity options, SSH-agent forwarding, and token mounts.
+   Done means: the translated Python run path has fake-Docker or dry-run style
+   tests for the important Docker argument profiles, the shell wrapper remains
+   manually callable, and any intentional divergence is documented.
+   Verification: run the Python test suite, keep
+   `python -m docker4ides run pycharm --help` from `docker4ides/` and
+   `docker4pycharm/run-pycharm-container.sh --help` working, and compare
    generated Docker arguments against the documented mount/security posture.
-   Reopen if: the PyCharm MVP launch path regresses, the wrapper and Python CLI
-   diverge silently, or the refactor broadens host exposure without explicit
-   documentation.
+   Reopen if: the PyCharm MVP launch path regresses, the shell reference and
+   Python launcher diverge silently, or the refactor broadens host exposure
+   without explicit documentation.
 
 Standing stabilization rule:
 

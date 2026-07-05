@@ -337,12 +337,19 @@ Implementation:
 - Initial Python project skeleton and compatibility command tree:
   `docker4ides/pyproject.toml`, `docker4ides/docker4ides/cli.py`,
   `docker4ides/docker4ides/__main__.py`
+- Translated PyCharm run launcher:
+  `docker4ides/docker4ides/pycharm.py`
 - Initial pip/pip-compile dependency files:
   `docker4ides/requirements.in`, `docker4ides/requirements.txt`,
   `docker4ides/dev-requirements.in`, `docker4ides/dev-requirements.txt`
-- Initial command delegation tests: `docker4ides/tests/test_cli.py`
+- Typer/Click CLI command tree and option parsing:
+  `docker4ides/docker4ides/cli.py`, `docker4ides/pyproject.toml`,
+  `docker4ides/requirements.in`
+- Initial command and translated run-path tests: `docker4ides/tests/test_cli.py`
+- First launcher planning helper slice:
+  `docker4ides/docker4ides/project.py`, `docker4ides/tests/test_project.py`
 - Shared runtime orchestration, profile loading, and IDE-family adapters are
-  not yet extracted from the current PyCharm shell scripts.
+  not yet fully extracted from the current PyCharm shell scripts.
 
 Validation:
 - On 2026-07-03, a temporary venv installed
@@ -354,6 +361,19 @@ Validation:
 - Future validation should confirm the Python CLI and the current
   `docker4pycharm/run-pycharm-container.sh` compatibility wrapper produce
   equivalent generated Docker behavior as runtime planning moves into Python.
+- On 2026-07-05, project namespace calculation, default project mount
+  generation, and reserved project-mount validation were represented in Python
+  and covered by tests matching the current shell launcher expectations.
+- On 2026-07-05, the `docker4ides run pycharm` path was corrected from a Bash
+  argument-forwarding facade into a translated Python launcher that parses the
+  PyCharm run options, plans state/config/plugin/project mounts, creates the
+  temporary runtime files, generates Docker run arguments, and invokes
+  `docker run` directly.
+- On 2026-07-05, the hand-rolled CLI dispatcher and internal PyCharm
+  `argparse` parser were replaced with a Typer/Click command tree. PyCharm
+  config selection now uses explicit `--config-mode shared|project|custom`
+  semantics and rejects conflicting config options instead of preserving
+  Bash-style order-sensitive overrides.
 
 Related:
 - `FUTURE_AGENT_REFACTORING_BRIEF.md`
