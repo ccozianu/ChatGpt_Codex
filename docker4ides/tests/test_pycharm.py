@@ -61,3 +61,57 @@ def test_env_ide_config_dir_implies_custom_when_mode_is_unset(tmp_path: Path) ->
 
     assert config.ide_config_mode == "custom"
     assert config.ide_config == (tmp_path / "env-config").resolve()
+
+
+def test_profile_sets_global_settings_and_plugins_defaults(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    env = base_env(tmp_path)
+    env["XDG_CONFIG_HOME"] = str(tmp_path / "config")
+
+    config = build_run_config(
+        PycharmRunOptions(
+            project=project,
+            profile="codex",
+            docker_mode=DockerMode.none,
+        ),
+        env,
+    )
+
+    profile_root = tmp_path / "config" / "docker-pycharm-codex"
+    assert config.global_settings == (profile_root / "state").resolve()
+    assert config.plugins == (profile_root / "plugins").resolve()
+
+
+def test_project_state_root_mirrors_project_path_under_root_parent(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    project = workspace / "myProjects" / "example"
+    project.mkdir(parents=True)
+
+    config = build_run_config(
+        PycharmRunOptions(
+            project=project,
+            project_state_root=workspace / ".state",
+            docker_mode=DockerMode.none,
+        ),
+        base_env(tmp_path),
+    )
+
+    assert config.project_state == (workspace / ".state" / "myProjects" / "example").resolve()
+
+
+def test_explicit_project_state_overrides_project_state_root(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+
+    config = build_run_config(
+        PycharmRunOptions(
+            project=project,
+            project_state=tmp_path / "explicit-state",
+            project_state_root=tmp_path / ".state",
+            docker_mode=DockerMode.none,
+        ),
+        base_env(tmp_path),
+    )
+
+    assert config.project_state == (tmp_path / "explicit-state").resolve()

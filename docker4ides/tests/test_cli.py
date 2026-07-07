@@ -47,6 +47,33 @@ def test_run_pycharm_uses_translated_python_launcher(tmp_path: Path) -> None:
     assert "--read-only" in command
 
 
+def test_run_pycharm_defaults_project_to_current_directory(tmp_path: Path, monkeypatch) -> None:
+    project = tmp_path / "current-project"
+    project.mkdir()
+    monkeypatch.chdir(project)
+
+    with (
+        patch("docker4ides.pycharm.shutil.which", return_value=None),
+        patch("docker4ides.pycharm.subprocess.run") as run,
+        patch.dict(
+            os.environ,
+            {
+                "DISPLAY": ":1",
+                "XDG_DATA_HOME": str(tmp_path / "data"),
+                "PYCHARM_GIT_IDENTITY_FROM_HOST": "0",
+            },
+            clear=False,
+        ),
+    ):
+        run.return_value.returncode = 0
+
+        result = cli.main(["run", "pycharm", "--no-docker"])
+
+    assert result == 0
+    command = run.call_args.args[0]
+    assert any(arg.startswith(f"type=bind,src={project.resolve()},dst=") for arg in command)
+
+
 def test_run_pycharm_rejects_conflicting_config_mode_options(tmp_path: Path) -> None:
     project = tmp_path / "example"
     project.mkdir()

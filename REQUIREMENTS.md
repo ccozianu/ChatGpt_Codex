@@ -323,15 +323,82 @@ Related:
 - Future development backlog in `README.md`
 - `R-PROC-001`
 
+### R-PYTHON-MVP-001: Source Checkout Install And Run
+
+Statement: A developer on a vanilla Linux workstation with Docker, X11, and
+Python 3.12+ must be able to check out the repository, create a local Python
+environment, install `docker4ides` from source with an editable package-native
+install, and invoke `python -m docker4ides` to launch PyCharm with the same
+core behavior currently available through `docker4pycharm/run-pycharm-container.sh`.
+
+Priority: current stabilization
+Status: repo-validated
+
+Implementation:
+- Package metadata and dependency declarations: `docker4ides/pyproject.toml`
+- Pinned runtime and contributor lock artifacts:
+  `docker4ides/requirements.txt`, `docker4ides/dev-requirements.txt`
+- Python CLI command tree and PyCharm launcher:
+  `docker4ides/docker4ides/cli.py`, `docker4ides/docker4ides/pycharm.py`
+- Source-checkout setup documentation: `docker4ides/README.md`
+
+Validation:
+- Future validation should confirm the documented source-checkout flow on a
+  host workstation outside the current Ubuntu 24.04 IDE container.
+- Repository-side validation should use a fresh virtual environment and run
+  `python -m pip install -e ./docker4ides`, `python -m docker4ides --help`,
+  `python -m pip install -e "./docker4ides[dev]"`, and
+  `python -m pytest docker4ides`.
+- On 2026-07-07, repository-side validation passed in a fresh temporary venv
+  with `python -m pip install -e ./docker4ides`, `python -m docker4ides
+  --help`, `python -m pip install -e "./docker4ides[dev]"`, and
+  `python -m pytest docker4ides`.
+
+Related:
+- `R-FRAMEWORK-001`
+
+### R-PYTHON-MVP-002: Single-File Python CLI Artifact
+
+Statement: Python MVP should provide an end-user distribution path that does
+not require users to create a virtual environment or understand editable
+installs. A release build should produce a single executable Python archive,
+for example a PEX file, that runs on supported Linux hosts with Python 3.12+
+and exposes the same `docker4ides` CLI entry point.
+
+Priority: current stabilization
+Status: accepted
+
+Implementation:
+- Not implemented.
+- Preferred initial direction: build a `dist/docker4ides.pex` artifact from
+  the package metadata and pinned dependency set. Keep the artifact builder in
+  contributor/build tooling, not runtime dependencies.
+
+Validation:
+- Future validation should build the archive from a clean checkout and run
+  `python3.12 dist/docker4ides.pex --help`.
+- Future validation should confirm the archive can run
+  `python3.12 dist/docker4ides.pex run pycharm --help` without a project-local
+  virtual environment.
+- Future host validation should confirm the artifact works on the user's
+  Ubuntu 22.04 workstation with Python 3.12.
+
+Related:
+- `R-PYTHON-MVP-001`
+- `R-FRAMEWORK-001`
+
 ### R-FRAMEWORK-001: Shared Python Docker4IDE Orchestration
 
 Statement: The post-MVP implementation should refactor one-off IDE launcher
 logic into a shared Python `docker4ides` framework with reusable runtime
 orchestration, profile loading, IDE-family adapters, and thin compatibility
-wrappers for existing target-specific commands.
+wrappers for existing target-specific commands. Existing target-specific
+scripts under `docker4pycharm/` should remain accessible as the stable
+compatibility/reference surface, while `python -m docker4ides` becomes the
+ergonomic CLI for day-to-day invocation and framework development.
 
-Priority: later
-Status: accepted
+Priority: current stabilization
+Status: implemented
 
 Implementation:
 - Initial Python project skeleton and compatibility command tree:
@@ -339,12 +406,12 @@ Implementation:
   `docker4ides/docker4ides/__main__.py`
 - Translated PyCharm run launcher:
   `docker4ides/docker4ides/pycharm.py`
-- Initial pip/pip-compile dependency files:
-  `docker4ides/requirements.in`, `docker4ides/requirements.txt`,
-  `docker4ides/dev-requirements.in`, `docker4ides/dev-requirements.txt`
+- Package metadata and pinned pip/pip-compile lock artifacts:
+  `docker4ides/pyproject.toml`, `docker4ides/requirements.txt`,
+  `docker4ides/dev-requirements.txt`
 - Typer/Click CLI command tree and option parsing:
   `docker4ides/docker4ides/cli.py`, `docker4ides/pyproject.toml`,
-  `docker4ides/requirements.in`
+  `docker4ides/requirements.txt`
 - Initial command and translated run-path tests: `docker4ides/tests/test_cli.py`
 - First launcher planning helper slice:
   `docker4ides/docker4ides/project.py`, `docker4ides/tests/test_project.py`
@@ -374,6 +441,16 @@ Validation:
   config selection now uses explicit `--config-mode shared|project|custom`
   semantics and rejects conflicting config options instead of preserving
   Bash-style order-sensitive overrides.
+- On 2026-07-07, `docker4ides run pycharm` gained an ergonomics slice: the
+  project defaults to the current directory, `--profile NAME` groups shared
+  PyCharm settings/plugins under `~/.config/docker-pycharm-NAME/`, and
+  `--project-state-root DIR` mirrors per-project state under a separate state
+  tree while preserving explicit `--project-state` override behavior.
+- On 2026-07-07, the Python packaging contract was moved to `pyproject.toml`:
+  Python 3.12+ is required, runtime dependencies are package metadata,
+  contributor dependencies are available through the `dev` extra, and the
+  pinned lock files are regenerated from `pyproject.toml` instead of duplicated
+  `.in` files.
 
 Related:
 - `FUTURE_AGENT_REFACTORING_BRIEF.md`

@@ -1,4 +1,0 @@
--r requirements.in
-
-pip-tools
-pytest>=7.4

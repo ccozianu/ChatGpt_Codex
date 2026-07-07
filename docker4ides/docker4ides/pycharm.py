@@ -55,10 +55,12 @@ class TempRuntimeFiles:
 @dataclass
 class PycharmRunOptions:
     project: Path
+    profile: str | None = None
     image: str | None = None
     name: str | None = None
     global_settings: Path | None = None
     project_state: Path | None = None
+    project_state_root: Path | None = None
     config_mode: IdeConfigMode | None = None
     ide_config: Path | None = None
     project_mount: str | None = None
@@ -135,6 +137,8 @@ def build_run_config(options: PycharmRunOptions, env: Mapping[str, str]) -> Pych
     base_data_dir = Path(
         env.get("XDG_DATA_HOME") or str(Path(env.get("HOME", "~")).expanduser() / ".local/share")
     ) / "pycharm-docker"
+    profile = options.profile or env.get("DOCKER4IDES_PYCHARM_PROFILE", "")
+    profile_root = resolve_profile_root(profile, env) if profile else None
     host_user = current_host_user()
 
     docker_mode = initial_docker_mode(env)
@@ -180,12 +184,16 @@ def build_run_config(options: PycharmRunOptions, env: Mapping[str, str]) -> Pych
     if not project.is_dir():
         raise PycharmRunError(f"Project directory does not exist: {project}")
 
+    global_settings_default = profile_root / "state" if profile_root else base_data_dir / "state"
+    plugins_default = profile_root / "plugins" if profile_root else base_data_dir / "plugins"
+
     global_settings = resolve_existing_or_create(
-        options.global_settings or env.get("PYCHARM_GLOBAL_SETTINGS_DIR") or base_data_dir / "state"
+        options.global_settings or env.get("PYCHARM_GLOBAL_SETTINGS_DIR") or global_settings_default
     )
     project_state = resolve_existing_or_create(
         options.project_state
         or env.get("PYCHARM_PROJECT_STATE_DIR")
+        or project_state_from_root(options.project_state_root or env.get("PYCHARM_PROJECT_STATE_ROOT", ""), project)
         or base_data_dir / "project-state" / project_plan.project_id
     )
 
@@ -201,9 +209,7 @@ def build_run_config(options: PycharmRunOptions, env: Mapping[str, str]) -> Pych
             )
         ide_config = resolve_existing_or_create(ide_config_arg)
 
-    plugins = resolve_existing_or_create(
-        options.plugins or env.get("PYCHARM_PLUGIN_DIR") or base_data_dir / "plugins"
-    )
+    plugins = resolve_existing_or_create(options.plugins or env.get("PYCHARM_PLUGIN_DIR") or plugins_default)
 
     if not ignore_config_lock and ide_config_mode != "project" and (ide_config / ".lock").exists():
         raise PycharmRunError(config_lock_message(ide_config, project, project_state))
@@ -675,6 +681,31 @@ def resolve_existing_or_create(path: str | Path) -> Path:
     resolved = Path(path).expanduser()
     resolved.mkdir(parents=True, exist_ok=True)
     return resolved.resolve()
+
+
+def resolve_profile_root(profile: str, env: Mapping[str, str]) -> Path:
+    if any(separator in profile for separator in ("/", "\\")) or profile in {".", ".."}:
+        raise PycharmRunError("--profile must be a simple profile name, not a path.")
+
+    explicit_root = env.get("DOCKER4IDES_PYCHARM_PROFILE_ROOT", "")
+    if explicit_root:
+        return Path(explicit_root).expanduser()
+
+    config_home = Path(env.get("XDG_CONFIG_HOME") or Path(env.get("HOME", "~")).expanduser() / ".config")
+    return config_home / f"docker-pycharm-{profile}"
+
+
+def project_state_from_root(root: str | Path | None, project: Path) -> Path | None:
+    if not root:
+        return None
+
+    state_root = Path(root).expanduser().resolve(strict=False)
+    project = project.resolve(strict=False)
+    try:
+        relative_project = project.relative_to(state_root.parent)
+    except ValueError:
+        relative_project = Path(project.name)
+    return state_root / relative_project
 
 
 def is_socket(path: Path) -> bool:

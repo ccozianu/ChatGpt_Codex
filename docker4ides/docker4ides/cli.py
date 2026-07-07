@@ -68,7 +68,17 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 @run_app.command("pycharm")
 def run_pycharm_command(
-    project: Annotated[Path, typer.Option("--project", help="Host project directory to open.")],
+    project: Annotated[
+        Path,
+        typer.Option("--project", "-p", help="Host project directory to open. Defaults to the current directory."),
+    ] = Path("."),
+    profile: Annotated[
+        str | None,
+        typer.Option(
+            "--profile",
+            help="Named PyCharm state profile under ~/.config/docker-pycharm-NAME.",
+        ),
+    ] = None,
     image: Annotated[str | None, typer.Option("--image", help="Docker image to run.")] = None,
     name: Annotated[str | None, typer.Option("--name", help="Container name.")] = None,
     global_settings: Annotated[
@@ -78,6 +88,13 @@ def run_pycharm_command(
     project_state: Annotated[
         Path | None,
         typer.Option("--project-state", help="Per-project IDE cache/log/workspace root."),
+    ] = None,
+    project_state_root: Annotated[
+        Path | None,
+        typer.Option(
+            "--project-state-root",
+            help="Root for mirrored per-project state paths. Example: /work/.state mirrors /work/project to /work/.state/project.",
+        ),
     ] = None,
     config_mode: Annotated[
         IdeConfigMode | None,
@@ -169,10 +186,12 @@ def run_pycharm_command(
 
     options = PycharmRunOptions(
         project=project,
+        profile=profile,
         image=image,
         name=name,
         global_settings=global_settings,
         project_state=project_state,
+        project_state_root=project_state_root,
         config_mode=resolve_config_mode(config_mode, ide_config, project_config, shared_config),
         ide_config=ide_config,
         project_mount=project_mount,

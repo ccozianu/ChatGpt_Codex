@@ -527,8 +527,8 @@ These links were used to validate the current PyCharm/OpenAI/JetBrains assumptio
 
 This section is the project handoff point. Future agents should update it when completing a stage, changing the project state materially, or ending a session.
 
-Current stage: `docker4pycharm` v0/MVP checkpoint complete; post-MVP
-`docker4ide` Python framework refactoring is next.
+Current stage: `docker4pycharm` v0/MVP checkpoint complete; `docker4ides`
+Python MVP is the active post-MVP refactoring stage.
 
 Current status: PyCharm can run inside the Docker container, open the selected
 project, and the AI/Codex/ChatGPT plugin path has worked from inside that IDE
@@ -880,26 +880,57 @@ use `--config-mode shared|project|custom`; `--project-config` and
 such as `--config-mode shared --ide-config ...` are rejected instead of being
 resolved by Bash-style option order.
 
+Dependency polish update for 2026-07-07: `docker4ides/pyproject.toml` is now
+the source of truth for Python runtime and contributor dependencies. Python
+3.12+ is required, `python -m pip install -e ./docker4ides` is the source
+checkout install path, and `python -m pip install -e "./docker4ides[dev]"`
+installs contributor tooling. The pinned `requirements.txt` and
+`dev-requirements.txt` files are regenerated from `pyproject.toml` and no
+longer depend on duplicate `.in` inputs.
+
+Python CLI ergonomics update for 2026-07-07: the current refactor stage is now
+framed as preserving `docker4pycharm/` scripts as the stable compatibility and
+reference surface while making `python -m docker4ides` easier for day-to-day
+use and contributor testing. `docker4ides run pycharm` now defaults `--project`
+to the current directory, accepts `--profile NAME` for repeated shared settings
+and plugin roots under `~/.config/docker-pycharm-NAME/`, and accepts
+`--project-state-root DIR` for mirrored per-project state trees. Verification
+passed from `docker4ides/` with `.venv/bin/python -m pytest` and
+`.venv/bin/python -m docker4ides run pycharm --help`.
+
+Python MVP distribution goal update for 2026-07-07: Python MVP should include
+an end-user path that does not require creating a virtual environment or
+understanding editable installs. The accepted initial direction is a
+single-file Python executable archive, likely `dist/docker4ides.pex`, built
+from package metadata and the pinned dependency set, while keeping the builder
+tooling out of runtime dependencies. Requirement: R-PYTHON-MVP-002.
+
 Planned next work item:
 
-1. Validate and tighten parity between the translated Python PyCharm launcher
-   and `docker4pycharm/run-pycharm-container.sh`.
-   Requirements: R-FRAMEWORK-001.
-   Context: `docker4ides run pycharm` now executes translated Python code, but
-   the shell launcher is still the known-good MVP reference. Preserve the
-   current PyCharm behavior while expanding parity tests around default
-   host-Docker mode, no-Docker mode, Docker-in-Docker mode, `--project-config`,
-   `--dev-sudo`, Git identity options, SSH-agent forwarding, and token mounts.
-   Done means: the translated Python run path has fake-Docker or dry-run style
-   tests for the important Docker argument profiles, the shell wrapper remains
-   manually callable, and any intentional divergence is documented.
-   Verification: run the Python test suite, keep
-   `python -m docker4ides run pycharm --help` from `docker4ides/` and
-   `docker4pycharm/run-pycharm-container.sh --help` working, and compare
-   generated Docker arguments against the documented mount/security posture.
-   Reopen if: the PyCharm MVP launch path regresses, the shell reference and
-   Python launcher diverge silently, or the refactor broadens host exposure
-   without explicit documentation.
+1. Validate the Python MVP editable source install path for contributors.
+   Requirements: R-PYTHON-MVP-001, R-FRAMEWORK-001.
+   Context: repository-side validation passed inside the current Ubuntu 24.04
+   IDE container, but the user also needs the same contributor workflow to work
+   from a normal host checkout, especially on the user's Ubuntu 22.04
+   workstation with a local Python 3.12 environment. The single-file end-user
+   artifact remains an accepted Python MVP goal under R-PYTHON-MVP-002, but it
+   is not the immediate next task.
+   Done means: from a fresh host checkout and fresh local virtual environment,
+   `python -m pip install -r docker4ides/dev-requirements.txt`,
+   `python -m pip install -e ./docker4ides --no-deps`, and
+   `python -m docker4ides run pycharm ...` work with ergonomics comparable to
+   the current `docker4pycharm/run-pycharm-container.sh` invocation; the direct
+   non-locked `python -m pip install -e ./docker4ides` path also remains
+   documented for quick use.
+   Verification: on the host, run the locked contributor install path,
+   `python -m docker4ides --help`, `python -m docker4ides run pycharm --help`,
+   `python -m pytest docker4ides`, and then manually launch a PyCharm container
+   using the Python CLI profile/project-state-root options that replace the
+   long shell-script command.
+   Reopen if: editable install misses runtime dependencies, the locked
+   contributor path requires undocumented steps, the Python launcher cannot
+   reproduce the known shell launch shape, or the shell compatibility scripts
+   regress.
 
 Standing stabilization rule:
 
