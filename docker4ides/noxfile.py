@@ -37,7 +37,8 @@ def run_tests(session: nox.Session) -> None:
 
 def run_smoke(session: nox.Session) -> None:
     session.run("python", "-m", "docker4ides", "--help")
-    session.run("python", "-m", "docker4ides", "run", "pycharm", "--help")
+    session.run("python", "-m", "docker4ides", "pycharm", "run", "--help")
+    session.run("python", "-m", "docker4ides", "vscode_with_claude", "--help")
     session.run(str(REPO_ROOT / "docker4pycharm" / "run-pycharm-container.sh"), "--help", external=True)
 
 
@@ -51,7 +52,8 @@ def build_pex(session: nox.Session) -> None:
 
 def smoke_pex(session: nox.Session) -> None:
     session.run("python", str(PEX_PATH), "--help")
-    session.run("python", str(PEX_PATH), "run", "pycharm", "--help")
+    session.run("python", str(PEX_PATH), "pycharm", "run", "--help")
+    session.run("python", str(PEX_PATH), "vscode_with_claude", "--help")
 
 
 @nox.session(python="3.12")

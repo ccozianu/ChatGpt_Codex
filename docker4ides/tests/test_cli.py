@@ -5,7 +5,8 @@ import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
-from docker4ides import cli
+from docker4ides import cli, compat
+from docker4ides.configurations.vscode_with_claude import describe_configuration
 
 
 def test_top_level_help_returns_success(capsys) -> None:
@@ -13,8 +14,8 @@ def test_top_level_help_returns_success(capsys) -> None:
 
     assert result == 0
     output = capsys.readouterr().out
-    assert "run" in output
-    assert "build" in output
+    assert "pycharm" in output
+    assert "vscode_with_claude" in output
 
 
 def test_run_pycharm_uses_translated_python_launcher(tmp_path: Path) -> None:
@@ -37,7 +38,7 @@ def test_run_pycharm_uses_translated_python_launcher(tmp_path: Path) -> None:
     ):
         run.return_value.returncode = 0
 
-        result = cli.main(["run", "pycharm", "--project", str(project), "--no-docker"])
+        result = cli.main(["pycharm", "run", "--project", str(project), "--no-docker"])
 
     assert result == 0
     command = run.call_args.args[0]
@@ -68,7 +69,7 @@ def test_run_pycharm_defaults_project_to_current_directory(tmp_path: Path, monke
     ):
         run.return_value.returncode = 0
 
-        result = cli.main(["run", "pycharm", "--no-docker"])
+        result = cli.main(["pycharm", "run", "--no-docker"])
 
     assert result == 0
     command = run.call_args.args[0]
@@ -81,8 +82,8 @@ def test_run_pycharm_rejects_conflicting_config_mode_options(tmp_path: Path) -> 
 
     result = cli.main(
         [
-            "run",
             "pycharm",
+            "run",
             "--project",
             str(project),
             "--config-mode",
@@ -101,8 +102,8 @@ def test_run_pycharm_rejects_multiple_config_shorthands(tmp_path: Path) -> None:
 
     result = cli.main(
         [
-            "run",
             "pycharm",
+            "run",
             "--project",
             str(project),
             "--project-config",
@@ -113,8 +114,46 @@ def test_run_pycharm_rejects_multiple_config_shorthands(tmp_path: Path) -> None:
     assert result == 2
 
 
+def test_legacy_run_pycharm_still_uses_configuration_module(tmp_path: Path) -> None:
+    project = tmp_path / "example"
+    project.mkdir()
+
+    with (
+        patch("docker4ides.pycharm.shutil.which", return_value=None),
+        patch("docker4ides.pycharm.subprocess.run") as run,
+        patch.dict(
+            os.environ,
+            {
+                "DISPLAY": ":1",
+                "XDG_DATA_HOME": str(tmp_path / "data"),
+                "PYCHARM_GIT_IDENTITY_FROM_HOST": "0",
+            },
+            clear=False,
+        ),
+    ):
+        run.return_value.returncode = 0
+
+        result = cli.main(["run", "pycharm", "--project", str(project), "--no-docker"])
+
+    assert result == 0
+    command = run.call_args.args[0]
+    assert command[:2] == ["docker", "run"]
+
+
 def test_build_pycharm_delegates_to_current_script() -> None:
-    with patch.object(cli.subprocess, "run") as run:
+    with patch.object(compat.subprocess, "run") as run:
+        run.return_value.returncode = 0
+
+        result = cli.main(["pycharm", "build", "--pycharm", "/tmp/pycharm.tar.gz"])
+
+    assert result == 0
+    command = run.call_args.args[0]
+    assert command[0].endswith("docker4pycharm/build-image.sh")
+    assert command[1:] == ["--pycharm", "/tmp/pycharm.tar.gz"]
+
+
+def test_legacy_build_pycharm_delegates_to_current_script() -> None:
+    with patch.object(compat.subprocess, "run") as run:
         run.return_value.returncode = 0
 
         result = cli.main(["build", "pycharm", "--pycharm", "/tmp/pycharm.tar.gz"])
@@ -126,7 +165,19 @@ def test_build_pycharm_delegates_to_current_script() -> None:
 
 
 def test_runtime_check_pycharm_delegates_to_current_script() -> None:
-    with patch.object(cli.subprocess, "run") as run:
+    with patch.object(compat.subprocess, "run") as run:
+        run.return_value.returncode = 0
+
+        result = cli.main(["pycharm", "check-runtime"])
+
+    assert result == 0
+    command = run.call_args.args[0]
+    assert command[0].endswith("docker4pycharm/check-runtime-deps.sh")
+    assert command[1:] == []
+
+
+def test_legacy_runtime_check_pycharm_delegates_to_current_script() -> None:
+    with patch.object(compat.subprocess, "run") as run:
         run.return_value.returncode = 0
 
         result = cli.main(["check", "runtime", "pycharm"])
@@ -138,7 +189,7 @@ def test_runtime_check_pycharm_delegates_to_current_script() -> None:
 
 
 def test_bootstrap_project_delegates_to_current_script() -> None:
-    with patch.object(cli.subprocess, "run") as run:
+    with patch.object(compat.subprocess, "run") as run:
         run.return_value.returncode = 0
 
         result = cli.main(["bootstrap", "project", "--project", "/tmp/example"])
@@ -152,6 +203,40 @@ def test_bootstrap_project_delegates_to_current_script() -> None:
 def test_repo_root_can_be_overridden(tmp_path: Path) -> None:
     with patch.dict(os.environ, {"DOCKER4IDES_REPO_ROOT": str(tmp_path)}):
         assert cli.repo_root() == tmp_path.resolve()
+
+
+def test_top_level_commands_are_discovered() -> None:
+    commands = cli.cli.list_commands(None)
+
+    assert "pycharm" in commands
+    assert "vscode_with_claude" in commands
+    assert "run" not in commands
+    assert "build" not in commands
+
+
+def test_vscode_with_claude_configuration_is_registered(capsys) -> None:
+    result = cli.main(["vscode_with_claude", "--help"])
+
+    assert result == 0
+    output = capsys.readouterr().out
+    assert "run" in output
+    assert "build" in output
+
+
+def test_vscode_with_claude_configuration_identity() -> None:
+    config = describe_configuration()
+
+    assert config.alias == "vscode_with_claude"
+    assert config.ide == "vscode"
+    assert config.agent == "claude"
+    assert not config.implemented
+
+
+def test_vscode_with_claude_run_fails_explicitly(capsys) -> None:
+    result = cli.main(["vscode_with_claude", "run"])
+
+    assert result == 1
+    assert "not implemented yet" in capsys.readouterr().err
 
 
 def test_build_pex_script_is_available() -> None:

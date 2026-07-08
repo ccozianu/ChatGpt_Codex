@@ -36,6 +36,7 @@ same change.
 
 ## Implementation Notes And Decisions
 
+- [Click-based CLI parsing brief](docs/implementation-notes/click_based_cli_parsing_brief.md)
 - [Per-project IDE state split](docker4pycharm/implementation-notes/2026-06-21-per-project-ide-state-split.md)
 - [Git identity and remote credential transport](docker4pycharm/implementation-notes/2026-06-22-git-identity-and-credentials.md)
 - [Default JetBrains GL to Mesa software rendering](docker4pycharm/implementation-notes/2026-06-22-mesa-software-gl-default.md)

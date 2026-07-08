@@ -530,6 +530,19 @@ This section is the project handoff point. Future agents should update it when c
 Current stage: `docker4pycharm` v0/MVP checkpoint complete; `docker4ides`
 Python MVP is the active post-MVP refactoring stage.
 
+Current stage goal / exit criteria: finish the V1 / `python_mvp` surface by
+preserving the working PyCharm MVP, completing Python `docker4ides pycharm run`
+parity without depending on `docker4pycharm` bootstrap crutches for the
+implemented Python run path, providing usable PEX/source-install paths, adding
+acceptable user documentation for exposed V1 functionality, making the
+`docker4ides` Python project itself embody a good-enough current engineering
+process, and building plus testing at least one additional IDE-plus-agent
+combination: VS Code plus Claude. The VS Code plus Claude proof point should
+show that the framework works beyond PyCharm and provide a concrete model for
+future users to create their own configuration. The engineering-process
+criterion should remain lightweight, but V1 should close obvious gaps such as
+not reporting or gating on test coverage.
+
 Current status: PyCharm can run inside the Docker container, open the selected
 project, and the AI/Codex/ChatGPT plugin path has worked from inside that IDE
 environment. The user accepted the current v0 state as MVP on 2026-06-30 after
@@ -931,34 +944,94 @@ later PEX launch diverges materially from the known shell launch behavior.
 Python MVP V1 scope update for 2026-07-08: R-PYTHON-MVP-003 now records the
 accepted V1 (`python_mvp`) feature boundary, explicit deferrals, done criteria,
 and likely implementation order. V1 should finish PyCharm Python launcher
-parity, packaging, docs, and focused non-GUI regression coverage; broader
-multi-IDE profile loading, IDE-family adapters, extension workflows, formal
-release automation, alternate GUI transports, GPU/device profiles, and
-previously deferred GitHub remote push validation remain post-V1 work.
+parity, packaging, acceptable user docs, focused non-GUI regression coverage,
+lightweight engineering-process hygiene for `docker4ides` itself, and at least
+one additional IDE-plus-agent proof point: VS Code plus Claude. Broader
+multi-IDE profile loading, IDE-family adapters beyond the V1 proof point,
+extension workflows, formal release automation, alternate GUI transports,
+GPU/device profiles, and previously deferred GitHub remote push validation
+remain post-V1 work.
+
+Click-based CLI cleanup update for 2026-07-08: the user added
+`docs/implementation-notes/click_based_cli_parsing_brief.md` as the target
+direction for human-readable CLI parsing. `docker4ides` now uses class-backed
+Click commands discovered from `docker4ides/docker4ides/commands/` instead of a
+central Typer command registry. The public command tree is preserved, including
+`docker4ides run pycharm`, shell-backed compatibility commands, and the hidden
+`bootstrap-project` alias. Optional external plugin entry points from the brief
+are intentionally deferred until after V1. Since Typer is no longer imported,
+it was removed from runtime dependencies and the lock files were regenerated.
+Validation passed from `docker4ides/` with `.venv/bin/python -m pytest`,
+`.venv/bin/python -m docker4ides --help`,
+`.venv/bin/python -m docker4ides run pycharm --help`, compatibility help
+forwarding checks, and `.venv/bin/python -m nox -s build`.
+
+Configuration-first CLI update for 2026-07-08: the accepted primary command
+shape is now the configuration alias first, then the action, for example:
+
+```text
+docker4ides pycharm run ...
+docker4ides pycharm build ...
+docker4ides pycharm check-runtime
+```
+
+The same shape applies to the PEX artifact, for example:
+
+```text
+python3.12 docker4ides/dist/docker4ides.pex pycharm run --help
+```
+
+This is not only a cosmetic command-order change. Top-level configuration
+groups now live under `docker4ides/docker4ides/commands/<configuration>/`, and
+per-configuration support functions live under
+`docker4ides/docker4ides/configurations/`. The PyCharm configuration owns the
+Click option embedding used by both `pycharm run` and the legacy
+`run pycharm` compatibility path, plus the build/runtime-check compatibility
+drivers. A tested `vscode_with_claude` configuration module is registered as
+the next proof-point alias with explicit not-yet-implemented `run` and `build`
+commands. The old noun-first `run`, `build`, and `check` groups remain callable
+as hidden compatibility paths. Verification passed from `docker4ides/` with
+`.venv/bin/python -m pytest` and `.venv/bin/python -m nox -s build`.
 
 Current and next work:
 
 Current task:
 
-1. Audit Python `docker4ides run pycharm` parity against the shell launcher and
-   add focused tests for any missing run-planning or Docker-argument behavior.
+1. Continue the Python V1 hardening on the new configuration-first command
+   surface: audit `docker4ides pycharm run` parity against the shell launcher
+   and add focused tests for any missing run-planning or Docker-argument
+   behavior, verify the Python implementation no longer depends on
+   `docker4pycharm` bootstrap crutches for supported run behavior, plus minor
+   cleanup after the latest Python CLI code changes.
    Requirements: R-PYTHON-MVP-003, R-FRAMEWORK-001, R-SCOPE-001.
    Context: the V1 feature boundary is now settled. The next useful work is to
    make sure the translated Python run path covers the accepted PyCharm V1
-   surface without silently changing host exposure.
+   surface without silently changing host exposure, and to get the recent code
+   into a clean enough shape for the human quality owner to decide, with agent
+   consultation, that the project can move forward. This cleanup should also
+   identify and address lightweight process gaps in the `docker4ides` Python
+   project itself, including the current lack of test coverage reporting or
+   gating.
    Done means: the audit records any parity gaps, missing tests are added for
-   option conflicts/path planning/security modes/Docker arguments, and any
-   small parity fixes stay within the documented V1 scope.
+   option conflicts/path planning/security modes/Docker arguments, minor
+   cleanup from the latest code changes is complete, supported PyCharm run
+   behavior is implemented in the Python codebase rather than delegated to
+   `docker4pycharm` bootstrap scripts or other compatibility crutches, any
+   obvious V1 engineering-process gaps such as coverage reporting/gating are
+   closed or explicitly documented as deferred, small parity fixes stay within
+   the documented V1 scope, and the human has accepted the code as shapely
+   enough to proceed.
    Verification: run `cd docker4ides && python -m nox -s build`; review
    generated Docker arguments and docs together for any changed mount,
    credential, device, or Docker access behavior.
-   Reopen if: Python `run pycharm` diverges from the shell reference for a
+   Reopen if: Python `pycharm run` diverges from the shell reference for a
    supported V1 option, or a host exposure change lands without matching docs.
 
 Next task:
 
-1. Tighten end-user PEX/source-install documentation around the accepted V1
-   command path and validation expectations.
+1. Tighten end-user PEX/source-install documentation around
+   `docker4ides pycharm run`, validation expectations, and the VS Code plus
+   Claude configuration model.
 
 Standing stabilization rule:
 

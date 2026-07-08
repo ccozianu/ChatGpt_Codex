@@ -1,7 +1,9 @@
 # Docker4IDEs Python CLI
 
 `docker4ides` is the Python command layer for the post-MVP refactor. It uses
-Typer/Click for the public command tree and option parsing. The `run pycharm`
+Click for the public command tree and option parsing, with class-backed built-in
+commands discovered from `docker4ides.commands`. The primary command shape is
+configuration-first, for example `docker4ides pycharm run`. The PyCharm run
 path is being translated from the validated
 `docker4pycharm/run-pycharm-container.sh` Bash launcher into maintainable Python
 runtime planning and Docker invocation code. Compatibility wrappers remain for
@@ -81,7 +83,7 @@ Run the artifact with Python 3.12+:
 
 ```bash
 python3.12 docker4ides/dist/docker4ides.pex --help
-python3.12 docker4ides/dist/docker4ides.pex run pycharm --help
+python3.12 docker4ides/dist/docker4ides.pex pycharm run --help
 ```
 
 The archive contains the Python CLI and runtime dependencies. Compatibility
@@ -92,16 +94,20 @@ a source checkout.
 
 ```bash
 python -m docker4ides --help
-docker4ides run pycharm --project /path/to/project
-docker4ides run pycharm
-docker4ides run pycharm --project /path/to/project --config-mode project
-docker4ides run pycharm --profile codex --project-state-root /path/to/workspace/.state
-docker4ides build pycharm --pycharm /path/to/pycharm.tar.gz
-docker4ides check runtime pycharm
+docker4ides pycharm run --project /path/to/project
+docker4ides pycharm run
+docker4ides pycharm run --project /path/to/project --config-mode project
+docker4ides pycharm run --profile codex --project-state-root /path/to/workspace/.state
+docker4ides pycharm build --pycharm /path/to/pycharm.tar.gz
+docker4ides pycharm check-runtime
+docker4ides vscode_with_claude --help
 docker4ides bootstrap project --project /path/to/project
 ```
 
-`run pycharm` defaults `--project` to the current directory. Use `--profile
+The older noun-first compatibility paths such as `docker4ides run pycharm`
+still work, but are no longer the documented primary command order.
+
+`pycharm run` defaults `--project` to the current directory. Use `--profile
 NAME` to group shared PyCharm settings and plugins under
 `~/.config/docker-pycharm-NAME/`, and `--project-state-root DIR` to mirror
 per-project state under a separate state tree.

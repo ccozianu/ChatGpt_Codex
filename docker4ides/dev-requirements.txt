@@ -4,8 +4,6 @@
 #
 #    pip-compile --extra=dev --output-file=dev-requirements.txt --strip-extras pyproject.toml
 #
-annotated-doc==0.0.4
-    # via typer
 argcomplete==3.7.0
     # via nox
 attrs==26.1.0
@@ -30,10 +28,6 @@ humanize==4.16.0
     # via nox
 iniconfig==2.3.0
     # via pytest
-markdown-it-py==4.2.0
-    # via rich
-mdurl==0.1.2
-    # via markdown-it-py
 nox==2026.4.10
     # via docker4ides (pyproject.toml)
 packaging==26.2
@@ -54,9 +48,7 @@ platformdirs==4.10.0
 pluggy==1.6.0
     # via pytest
 pygments==2.20.0
-    # via
-    #   pytest
-    #   rich
+    # via pytest
 pyproject-hooks==1.2.0
     # via
     #   build
@@ -65,12 +57,6 @@ pytest==9.1.1
     # via docker4ides (pyproject.toml)
 python-discovery==1.4.3
     # via virtualenv
-rich==15.0.0
-    # via typer
-shellingham==1.5.4
-    # via typer
-typer==0.26.8
-    # via docker4ides (pyproject.toml)
 virtualenv==21.6.0
     # via nox
 wheel==0.47.0

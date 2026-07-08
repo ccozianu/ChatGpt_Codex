@@ -401,12 +401,12 @@ Related:
 
 ### R-PYTHON-MVP-003: Python MVP Feature Scope
 
-Statement: Before expanding implementation beyond the current PyCharm run
-path, the project should refine and settle the feature list for V1
+Statement: The project should refine and settle the feature list for V1
 (`python_mvp`). The scope should distinguish must-have Python MVP behavior from
 deferred post-MVP framework work, especially around CLI ergonomics, profile
-files, host validation, PEX distribution, compatibility wrappers, and future
-multi-IDE or multi-language test infrastructure.
+files, host validation, PEX distribution, compatibility wrappers, acceptable
+user documentation, and one additional IDE-plus-agent proof point that shows
+the framework makes sense beyond PyCharm.
 
 Priority: current stabilization
 Status: accepted
@@ -423,8 +423,24 @@ Implementation:
     SSH-agent forwarding, Git identity import/override, HTTPS Git token
     transport, dev sudo, native-debug mode, writable-root behavior, config lock
     preflight, and advanced raw Docker arguments.
+  - Ensure supported PyCharm run behavior in the Python codebase no longer
+    depends on `docker4pycharm` bootstrap scripts or other compatibility
+    crutches. The old shell implementation may remain as a user-facing
+    compatibility wrapper and reference surface, but not as the implementation
+    path for Python `run pycharm`.
   - Provide both contributor and end-user invocation paths: editable source
     install, pinned contributor setup, Nox build gate, and local PEX artifact.
+  - Build and test at least one additional IDE-plus-agent combination:
+    VS Code plus Claude. This should demonstrate that the framework works
+    beyond the original PyCharm prototype and provide a concrete model for how
+    future users can create their own IDE/agent configuration.
+  - Provide acceptable user documentation for the functionality exposed in
+    V1 / `python_mvp`, including the supported command path, setup path,
+    validation expectations, and the VS Code plus Claude configuration model.
+  - Make the `docker4ides` Python project itself embody a lightweight
+    good-enough engineering process by current project standards. V1 should not
+    add heavyweight release machinery, but should close obvious quality-gate
+    gaps such as the current lack of test coverage reporting or gating.
   - Preserve the current explicit-host-exposure rule: any new mount, credential
     path, device, Docker mode, or isolation relaxation must be represented by a
     clear option/default, README text, and requirement or implementation note.
@@ -433,8 +449,10 @@ Implementation:
     temporary runtime-file behavior, packaging/build commands, and CLI smoke
     checks. GUI launch remains manually validated on the host when needed.
 - Explicit V1 deferrals:
-  - General YAML/JSON profile loading and product-profile validation.
-  - IntelliJ, VS Code, VSCodium, and broader IDE-family adapters.
+  - General YAML/JSON profile loading and product-profile validation beyond
+    the model needed for the V1 VS Code plus Claude proof point.
+  - IntelliJ, VSCodium, and broader IDE-family adapters beyond the V1 VS Code
+    plus Claude proof point.
   - Extension/plugin installation workflows beyond persistent plugin state.
   - Translating `build pycharm`, `check runtime pycharm`, and
     `bootstrap project` away from compatibility delegation.
@@ -449,10 +467,15 @@ Implementation:
      parity.
   2. Tighten end-user PEX/source-install documentation around the accepted V1
      command path and validation expectations.
-  3. Close any small PyCharm parity gaps found by that audit without broadening
+  3. Build and test the V1 VS Code plus Claude proof point, keeping the result
+     small enough to act as a model for future user-defined configurations.
+  4. Close any small PyCharm parity gaps found by that audit without broadening
      host exposure.
-  4. Re-run `nox -s build` and a host PEX PyCharm launch smoke before calling
-     V1 complete.
+  5. Add or tighten lightweight quality gates for the `docker4ides` Python
+     project itself, including coverage reporting/gating unless explicitly
+     deferred with rationale.
+  6. Re-run `nox -s build`, host PEX PyCharm launch smoke, and the documented
+     VS Code plus Claude validation path before calling V1 complete.
 
 Validation:
 - The accepted V1 feature list, explicit deferrals, done criteria, and likely
@@ -488,8 +511,9 @@ Implementation:
   `docker4ides/pyproject.toml`, `docker4ides/requirements.txt`,
   `docker4ides/dev-requirements.txt`
 - Build orchestration: `docker4ides/noxfile.py`
-- Typer/Click CLI command tree and option parsing:
-  `docker4ides/docker4ides/cli.py`, `docker4ides/pyproject.toml`,
+- Class-backed Click CLI command tree and option parsing:
+  `docker4ides/docker4ides/cli.py`,
+  `docker4ides/docker4ides/commands/`, `docker4ides/pyproject.toml`,
   `docker4ides/requirements.txt`
 - Initial command and translated run-path tests: `docker4ides/tests/test_cli.py`
 - First launcher planning helper slice:
@@ -534,6 +558,11 @@ Validation:
   `nox -s build` is the local `docker4ides` project build gate while `pyproject.toml`
   remains package metadata and `dev-requirements.txt` remains the pinned
   contributor dependency lock.
+- On 2026-07-08, the central Typer command registry was replaced with
+  class-backed Click commands discovered from `docker4ides.commands`; optional
+  external plugin entry points were intentionally deferred. Validation passed
+  with `.venv/bin/python -m pytest`, CLI/help smoke checks, compatibility help
+  forwarding checks, and `.venv/bin/python -m nox -s build`.
 
 Related:
 - `FUTURE_AGENT_REFACTORING_BRIEF.md`
