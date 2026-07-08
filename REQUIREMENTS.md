@@ -259,7 +259,7 @@ startup with a clear diagnostic and provide a documented per-project config
 workaround.
 
 Priority: current stabilization
-Status: host-smoke-validated
+Status: manually validated
 
 Implementation:
 - `docker4pycharm/run-pycharm-container.sh`
@@ -371,7 +371,7 @@ for example a PEX file, that runs on supported Linux hosts with Python 3.12+
 and exposes the same `docker4ides` CLI entry point.
 
 Priority: current stabilization
-Status: repo-validated
+Status: manually validated
 
 Implementation:
 - PEX build script: `docker4ides/scripts/build-pex.sh`
@@ -409,16 +409,56 @@ files, host validation, PEX distribution, compatibility wrappers, and future
 multi-IDE or multi-language test infrastructure.
 
 Priority: current stabilization
-Status: proposed
+Status: accepted
 
 Implementation:
-- Not implemented.
+- Accepted V1 (`python_mvp`) scope:
+  - Keep `docker4pycharm/` shell scripts as the stable compatibility and
+    reference surface for the current PyCharm MVP.
+  - Keep `docker4ides run pycharm` as the Python-native day-to-day launcher
+    for PyCharm, with parity for the current documented launch surface:
+    project path/default project selection, project mount planning, shared /
+    project / custom config modes, named profiles, project-state roots,
+    plugins/global settings paths, host Docker, no-Docker, Docker-in-Docker,
+    SSH-agent forwarding, Git identity import/override, HTTPS Git token
+    transport, dev sudo, native-debug mode, writable-root behavior, config lock
+    preflight, and advanced raw Docker arguments.
+  - Provide both contributor and end-user invocation paths: editable source
+    install, pinned contributor setup, Nox build gate, and local PEX artifact.
+  - Preserve the current explicit-host-exposure rule: any new mount, credential
+    path, device, Docker mode, or isolation relaxation must be represented by a
+    clear option/default, README text, and requirement or implementation note.
+  - Keep tests focused on behavior that can regress without a GUI: option
+    conflict handling, path/state planning, generated Docker arguments,
+    temporary runtime-file behavior, packaging/build commands, and CLI smoke
+    checks. GUI launch remains manually validated on the host when needed.
+- Explicit V1 deferrals:
+  - General YAML/JSON profile loading and product-profile validation.
+  - IntelliJ, VS Code, VSCodium, and broader IDE-family adapters.
+  - Extension/plugin installation workflows beyond persistent plugin state.
+  - Translating `build pycharm`, `check runtime pycharm`, and
+    `bootstrap project` away from compatibility delegation.
+  - Formal release automation, artifact signing, checksums, or publishing.
+  - Alternative GUI transports such as Wayland, xpra, VNC, or nested X servers.
+  - GPU/device profiles, including NVIDIA/CUDA-oriented passthrough.
+  - GitHub SSH/HTTPS remote push validation that was explicitly deferred from
+    the PyCharm v0 stabilization pass.
+- Likely implementation order:
+  1. Audit Python `run pycharm` against the shell launcher and current docs,
+     then add focused tests for any missing run-planning or Docker-argument
+     parity.
+  2. Tighten end-user PEX/source-install documentation around the accepted V1
+     command path and validation expectations.
+  3. Close any small PyCharm parity gaps found by that audit without broadening
+     host exposure.
+  4. Re-run `nox -s build` and a host PEX PyCharm launch smoke before calling
+     V1 complete.
 
 Validation:
-- Future validation should produce an accepted Python MVP feature list in the
-  requirements register or a linked planning document.
-- Future validation should update the README handoff so agents can select the
-  next implementation task from the settled feature list.
+- The accepted V1 feature list, explicit deferrals, done criteria, and likely
+  implementation order are recorded in this requirement.
+- The README handoff should identify the next implementation task from this
+  accepted V1 scope.
 
 Related:
 - `R-PYTHON-MVP-001`

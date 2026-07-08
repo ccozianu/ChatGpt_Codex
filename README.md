@@ -924,33 +924,40 @@ artifact, and smoke-tests the PEX CLI. Repository-side validation passed with
 
 Python MVP PEX host smoke update for 2026-07-08: the user confirmed the
 PyCharm run path works through `docker4ides/dist/docker4ides.pex` on the
-Ubuntu 22.04 host. Treat R-PYTHON-MVP-002 as host-smoke-validated unless a
+Ubuntu 22.04 host. Treat R-PYTHON-MVP-002 as manually validated unless a
 later PEX launch diverges materially from the known shell launch behavior.
+
+Python MVP V1 scope update for 2026-07-08: R-PYTHON-MVP-003 now records the
+accepted V1 (`python_mvp`) feature boundary, explicit deferrals, done criteria,
+and likely implementation order. V1 should finish PyCharm Python launcher
+parity, packaging, docs, and focused non-GUI regression coverage; broader
+multi-IDE profile loading, IDE-family adapters, extension workflows, formal
+release automation, alternate GUI transports, GPU/device profiles, and
+previously deferred GitHub remote push validation remain post-V1 work.
 
 Current and next work:
 
 Current task:
 
-1. Refine and settle the V1 (`python_mvp`) feature list.
-   Requirements: R-PYTHON-MVP-003, R-FRAMEWORK-001.
-   Context: the Python MVP now has source-install, build-gate, and PEX
-   artifact scaffolding. Before expanding implementation, decide which
-   features belong in V1 versus later framework work.
-   Done means: the requirements register or a linked planning document records
-   the accepted Python MVP feature set, explicit deferrals, done criteria, and
-   likely implementation order.
-   Verification: review the feature list against the current PyCharm MVP
-   behavior, PEX distribution goal, contributor workflow, profile ergonomics,
-   compatibility-wrapper policy, and future multi-IDE/multi-language testing
-   needs.
-   Reopen if: implementation resumes without a settled V1 feature boundary or
-   new feature work broadens host exposure without updating requirements and
-   docs.
+1. Audit Python `docker4ides run pycharm` parity against the shell launcher and
+   add focused tests for any missing run-planning or Docker-argument behavior.
+   Requirements: R-PYTHON-MVP-003, R-FRAMEWORK-001, R-SCOPE-001.
+   Context: the V1 feature boundary is now settled. The next useful work is to
+   make sure the translated Python run path covers the accepted PyCharm V1
+   surface without silently changing host exposure.
+   Done means: the audit records any parity gaps, missing tests are added for
+   option conflicts/path planning/security modes/Docker arguments, and any
+   small parity fixes stay within the documented V1 scope.
+   Verification: run `cd docker4ides && python -m nox -s build`; review
+   generated Docker arguments and docs together for any changed mount,
+   credential, device, or Docker access behavior.
+   Reopen if: Python `run pycharm` diverges from the shell reference for a
+   supported V1 option, or a host exposure change lands without matching docs.
 
 Next task:
 
-1. Select the first implementation or documentation task from the accepted V1
-   (`python_mvp`) feature list after that list is settled.
+1. Tighten end-user PEX/source-install documentation around the accepted V1
+   command path and validation expectations.
 
 Standing stabilization rule:
 
