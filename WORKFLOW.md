@@ -185,9 +185,10 @@ retrospective, debugging, and future comparison.
 
 ## Human And Agent Responsibilities
 
-The human owns product direction, risk tolerance, manual validation in the GUI,
-and external operations the container cannot perform, such as pushing without
-Git credentials.
+The human owns product direction, risk tolerance, code-quality judgment,
+overall project-quality acceptance, manual validation in the GUI, and external
+operations the container cannot perform, such as pushing without Git
+credentials.
 
 The agent owns repository inspection, implementation, documentation updates,
 status hygiene, tests or static checks that can run in the current environment,

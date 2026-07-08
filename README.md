@@ -499,7 +499,7 @@ When continuing this project inside the bootstrapped IDE:
   prioritization.
 - Treat the repository files as the project knowledge base. Persist important requirements, decisions, current state, and handoff notes in versioned files rather than relying on conversation memory.
 - Keep context focused. Prefer narrow, explicit work targets and update the handoff when the active target changes.
-- Preserve the human role as project director: ask for decisions where product judgment, risk tolerance, or prioritization is genuinely needed, but do not push routine implementation bookkeeping back to the user.
+- Preserve the human role as project director and quality owner: ask for decisions where product judgment, code-quality judgment, risk tolerance, overall project-quality acceptance, or prioritization is genuinely needed, but do not push routine implementation bookkeeping back to the user.
 - Preserve the core isolation principle: do not mount host directories beyond the explicitly selected project, IDE state, IDE plugins, and narrowly scoped runtime/credential resources.
 - Prefer explicit launcher options over broad default access, except for the
   revised MVP requirement that Docker capability should be available by default
@@ -570,7 +570,8 @@ preserved in
 in case it returns.
 
 Process documentation update: the current human/agent iteration loop is now
-captured in `WORKFLOW.md`, and accepted requirements now live in
+captured in `WORKFLOW.md`, including the human role in code-quality judgment
+and overall project-quality acceptance. Accepted requirements now live in
 `REQUIREMENTS.md` with stable IDs, priority, status, implementation references,
 validation references, and related task or bug links. Active tasks and bug
 records should cite requirement IDs when they materially implement, validate,
