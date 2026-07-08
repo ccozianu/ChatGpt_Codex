@@ -259,7 +259,7 @@ startup with a clear diagnostic and provide a documented per-project config
 workaround.
 
 Priority: current stabilization
-Status: repo-validated
+Status: host-smoke-validated
 
 Implementation:
 - `docker4pycharm/run-pycharm-container.sh`
@@ -340,6 +340,7 @@ Implementation:
   `docker4ides/requirements.txt`, `docker4ides/dev-requirements.txt`
 - Python CLI command tree and PyCharm launcher:
   `docker4ides/docker4ides/cli.py`, `docker4ides/docker4ides/pycharm.py`
+- Python build gate: `docker4ides/noxfile.py`
 - Source-checkout setup documentation: `docker4ides/README.md`
 
 Validation:
@@ -353,6 +354,10 @@ Validation:
   with `python -m pip install -e ./docker4ides`, `python -m docker4ides
   --help`, `python -m pip install -e "./docker4ides[dev]"`, and
   `python -m pytest docker4ides`.
+- On 2026-07-08, `nox -s build` became the `docker4ides` project Python build gate,
+  covering locked dependency install, editable install with `--no-deps`,
+  Python compilation, shell syntax checks, pytest, CLI smoke tests, PEX build,
+  and PEX smoke tests.
 
 Related:
 - `R-FRAMEWORK-001`
@@ -366,25 +371,58 @@ for example a PEX file, that runs on supported Linux hosts with Python 3.12+
 and exposes the same `docker4ides` CLI entry point.
 
 Priority: current stabilization
-Status: accepted
+Status: repo-validated
 
 Implementation:
-- Not implemented.
-- Preferred initial direction: build a `dist/docker4ides.pex` artifact from
-  the package metadata and pinned dependency set. Keep the artifact builder in
-  contributor/build tooling, not runtime dependencies.
+- PEX build script: `docker4ides/scripts/build-pex.sh`
+- PEX build dependency in contributor tooling: `docker4ides/pyproject.toml`,
+  `docker4ides/dev-requirements.txt`
+- Python build gate: `docker4ides/noxfile.py`
+- End-user artifact documentation: `docker4ides/README.md`
+- The generated artifact is intentionally ignored under `docker4ides/dist/`.
 
 Validation:
-- Future validation should build the archive from a clean checkout and run
-  `python3.12 dist/docker4ides.pex --help`.
-- Future validation should confirm the archive can run
-  `python3.12 dist/docker4ides.pex run pycharm --help` without a project-local
-  virtual environment.
-- Future host validation should confirm the artifact works on the user's
-  Ubuntu 22.04 workstation with Python 3.12.
+- On 2026-07-07, repository-side validation passed in a fresh temporary venv
+  using the locked contributor setup. It installed
+  `docker4ides/dev-requirements.txt`, installed `docker4ides` editable with
+  `--no-deps`, built `docker4ides/dist/docker4ides.pex` with
+  `PYTHON=<tmp-venv>/bin/python docker4ides/scripts/build-pex.sh`, ran
+  `python3.12 docker4ides/dist/docker4ides.pex --help`, ran
+  `python3.12 docker4ides/dist/docker4ides.pex run pycharm --help`, and passed
+  `python -m pytest docker4ides`.
+- On 2026-07-08, `nox -s build` passed `docker4ides` project validation and included
+  the PEX build plus PEX smoke checks as part of the build gate.
+- On 2026-07-08, the user confirmed host smoke validation passed for the
+  PyCharm run path through the PEX artifact on the Ubuntu 22.04 workstation.
 
 Related:
 - `R-PYTHON-MVP-001`
+- `R-FRAMEWORK-001`
+
+### R-PYTHON-MVP-003: Python MVP Feature Scope
+
+Statement: Before expanding implementation beyond the current PyCharm run
+path, the project should refine and settle the feature list for V1
+(`python_mvp`). The scope should distinguish must-have Python MVP behavior from
+deferred post-MVP framework work, especially around CLI ergonomics, profile
+files, host validation, PEX distribution, compatibility wrappers, and future
+multi-IDE or multi-language test infrastructure.
+
+Priority: current stabilization
+Status: proposed
+
+Implementation:
+- Not implemented.
+
+Validation:
+- Future validation should produce an accepted Python MVP feature list in the
+  requirements register or a linked planning document.
+- Future validation should update the README handoff so agents can select the
+  next implementation task from the settled feature list.
+
+Related:
+- `R-PYTHON-MVP-001`
+- `R-PYTHON-MVP-002`
 - `R-FRAMEWORK-001`
 
 ### R-FRAMEWORK-001: Shared Python Docker4IDE Orchestration
@@ -409,6 +447,7 @@ Implementation:
 - Package metadata and pinned pip/pip-compile lock artifacts:
   `docker4ides/pyproject.toml`, `docker4ides/requirements.txt`,
   `docker4ides/dev-requirements.txt`
+- Build orchestration: `docker4ides/noxfile.py`
 - Typer/Click CLI command tree and option parsing:
   `docker4ides/docker4ides/cli.py`, `docker4ides/pyproject.toml`,
   `docker4ides/requirements.txt`
@@ -451,6 +490,10 @@ Validation:
   contributor dependencies are available through the `dev` extra, and the
   pinned lock files are regenerated from `pyproject.toml` instead of duplicated
   `.in` files.
+- On 2026-07-08, Nox was added as the Python-native build orchestration layer.
+  `nox -s build` is the local `docker4ides` project build gate while `pyproject.toml`
+  remains package metadata and `dev-requirements.txt` remains the pinned
+  contributor dependency lock.
 
 Related:
 - `FUTURE_AGENT_REFACTORING_BRIEF.md`

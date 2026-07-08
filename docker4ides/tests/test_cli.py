@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -151,3 +152,21 @@ def test_bootstrap_project_delegates_to_current_script() -> None:
 def test_repo_root_can_be_overridden(tmp_path: Path) -> None:
     with patch.dict(os.environ, {"DOCKER4IDES_REPO_ROOT": str(tmp_path)}):
         assert cli.repo_root() == tmp_path.resolve()
+
+
+def test_build_pex_script_is_available() -> None:
+    script = Path(__file__).resolve().parents[1] / "scripts" / "build-pex.sh"
+
+    assert script.exists()
+    assert os.access(script, os.X_OK)
+
+    completed = subprocess.run(
+        [str(script), "--help"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+    assert completed.returncode == 0
+    assert "dist/docker4ides.pex" in completed.stdout

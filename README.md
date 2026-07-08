@@ -905,32 +905,52 @@ single-file Python executable archive, likely `dist/docker4ides.pex`, built
 from package metadata and the pinned dependency set, while keeping the builder
 tooling out of runtime dependencies. Requirement: R-PYTHON-MVP-002.
 
-Planned next work item:
+Python MVP PEX artifact update for 2026-07-07: `docker4ides/scripts/build-pex.sh`
+now builds `docker4ides/dist/docker4ides.pex` from the local package and pinned
+runtime lock file. `pex` is part of contributor/build dependencies, not runtime
+dependencies, and `docker4ides/dist/` remains ignored. Repository-side
+validation passed from a fresh temporary venv using the locked contributor
+setup, then `PYTHON=<tmp-venv>/bin/python docker4ides/scripts/build-pex.sh`,
+`python3.12 docker4ides/dist/docker4ides.pex --help`, and
+`python3.12 docker4ides/dist/docker4ides.pex run pycharm --help`.
 
-1. Validate the Python MVP editable source install path for contributors.
-   Requirements: R-PYTHON-MVP-001, R-FRAMEWORK-001.
-   Context: repository-side validation passed inside the current Ubuntu 24.04
-   IDE container, but the user also needs the same contributor workflow to work
-   from a normal host checkout, especially on the user's Ubuntu 22.04
-   workstation with a local Python 3.12 environment. The single-file end-user
-   artifact remains an accepted Python MVP goal under R-PYTHON-MVP-002, but it
-   is not the immediate next task.
-   Done means: from a fresh host checkout and fresh local virtual environment,
-   `python -m pip install -r docker4ides/dev-requirements.txt`,
-   `python -m pip install -e ./docker4ides --no-deps`, and
-   `python -m docker4ides run pycharm ...` work with ergonomics comparable to
-   the current `docker4pycharm/run-pycharm-container.sh` invocation; the direct
-   non-locked `python -m pip install -e ./docker4ides` path also remains
-   documented for quick use.
-   Verification: on the host, run the locked contributor install path,
-   `python -m docker4ides --help`, `python -m docker4ides run pycharm --help`,
-   `python -m pytest docker4ides`, and then manually launch a PyCharm container
-   using the Python CLI profile/project-state-root options that replace the
-   long shell-script command.
-   Reopen if: editable install misses runtime dependencies, the locked
-   contributor path requires undocumented steps, the Python launcher cannot
-   reproduce the known shell launch shape, or the shell compatibility scripts
-   regress.
+Python MVP build gate update for 2026-07-08: `docker4ides/noxfile.py` now
+defines the Python-native project build gate. From `docker4ides/`, `nox -s
+build` installs the locked contributor dependencies, installs `docker4ides`
+editable with `--no-deps`, compiles Python sources, checks shell script syntax,
+runs pytest, smoke-tests the Python CLI and shell wrapper help, builds the PEX
+artifact, and smoke-tests the PEX CLI. Repository-side validation passed with
+`cd docker4ides && .venv/bin/python -m nox -s build`.
+
+Python MVP PEX host smoke update for 2026-07-08: the user confirmed the
+PyCharm run path works through `docker4ides/dist/docker4ides.pex` on the
+Ubuntu 22.04 host. Treat R-PYTHON-MVP-002 as host-smoke-validated unless a
+later PEX launch diverges materially from the known shell launch behavior.
+
+Current and next work:
+
+Current task:
+
+1. Refine and settle the V1 (`python_mvp`) feature list.
+   Requirements: R-PYTHON-MVP-003, R-FRAMEWORK-001.
+   Context: the Python MVP now has source-install, build-gate, and PEX
+   artifact scaffolding. Before expanding implementation, decide which
+   features belong in V1 versus later framework work.
+   Done means: the requirements register or a linked planning document records
+   the accepted Python MVP feature set, explicit deferrals, done criteria, and
+   likely implementation order.
+   Verification: review the feature list against the current PyCharm MVP
+   behavior, PEX distribution goal, contributor workflow, profile ergonomics,
+   compatibility-wrapper policy, and future multi-IDE/multi-language testing
+   needs.
+   Reopen if: implementation resumes without a settled V1 feature boundary or
+   new feature work broadens host exposure without updating requirements and
+   docs.
+
+Next task:
+
+1. Select the first implementation or documentation task from the accepted V1
+   (`python_mvp`) feature list after that list is settled.
 
 Standing stabilization rule:
 

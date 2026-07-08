@@ -1,6 +1,7 @@
 .venv/
 .venv-rh22/
 .venv-rh24/
+.nox/
 venv/
 __pycache__/
 *.py[cod]

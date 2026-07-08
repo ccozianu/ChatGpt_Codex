@@ -16,7 +16,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Mapping
 
-from docker4ides.project import ProjectMountError, plan_project
+from .project import ProjectMountError, plan_project
 
 
 class PycharmRunError(Exception):
