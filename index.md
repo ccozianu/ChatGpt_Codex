@@ -12,11 +12,12 @@ same change.
 - [Agent instructions](AGENTS.md)
 - [Requirements register](REQUIREMENTS.md)
 - [Human / agent workflow](WORKFLOW.md)
-- [Post-MVP refactoring strategy](FUTURE_AGENT_REFACTORING_BRIEF.md)
 
-## User Setup
+## Active Docker4IDEs Development
 
-- [PyCharm AI plugin and ChatGPT subscription setup](user.md)
+- [Docker4IDEs Python CLI](docker4ides/README.md)
+- [Docker4IDEs implementation requirements](docker4ides/REQUIREMENTS.md)
+- [Click-based CLI parsing brief](docker4ides/implementation-notes/click_based_cli_parsing_brief.md)
 
 ## Product And Positioning
 
@@ -24,19 +25,17 @@ same change.
 - [LinkedIn announcement draft](docs/linkedin-announcement.md)
 - [Working backwards press release](docs/working-backwards-press-release.md)
 
-## Docker4PyCharm Operations
+## Docker4PyCharm Historical Reference
 
 - [Docker PyCharm isolation README](docker4pycharm/README.md)
+- [Historical root project brief](docker4pycharm/historical-root-README.md)
+- [Post-MVP refactoring strategy](docker4pycharm/FUTURE_AGENT_REFACTORING_BRIEF.md)
+- [PyCharm AI plugin and ChatGPT subscription setup](docker4pycharm/user.md)
 - [Debugging notes](docker4pycharm/debugging.md)
 - [Vibe-coding process bootstrap template](docker4pycharm/image-assets/vibe-coding-process.md)
 
-## Docker4IDEs Python Framework
-
-- [Docker4IDEs Python CLI](docker4ides/README.md)
-
 ## Implementation Notes And Decisions
 
-- [Click-based CLI parsing brief](docs/implementation-notes/click_based_cli_parsing_brief.md)
 - [Per-project IDE state split](docker4pycharm/implementation-notes/2026-06-21-per-project-ide-state-split.md)
 - [Git identity and remote credential transport](docker4pycharm/implementation-notes/2026-06-22-git-identity-and-credentials.md)
 - [Default JetBrains GL to Mesa software rendering](docker4pycharm/implementation-notes/2026-06-22-mesa-software-gl-default.md)

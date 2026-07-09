@@ -9,6 +9,13 @@ package and CLI name. Older sketches in this document may still say
 `docker4ide` when describing the conceptual framework, image names, or
 pre-existing helper commands.
 
+Status update: as of 2026-07-09, active implementation work is in
+`docker4ides/`. The original `docker4pycharm/` shell implementation is kept as
+the historical PyCharm reference baseline. This brief remains useful for
+strategy and rationale, but the current task list and exact command shape live
+in the final handoff section of `README.md` and the active user documentation
+in `docker4ides/README.md`.
+
 ---
 
 ## Project Context

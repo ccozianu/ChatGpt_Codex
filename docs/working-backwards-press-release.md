@@ -95,8 +95,8 @@ to help.
 
 A project using Docker4IDE should be able to offer:
 
-```bash
-docker4ide open .
+```text
+open this project in its declared Dockerized IDE environment
 ```
 
 That command should launch the declared IDE or agent surface, attach it to the
@@ -118,17 +118,14 @@ the current project memory.
 
 ## What Exists Today
 
-The current v0 target is `docker4pycharm`:
+The first proof point demonstrates the pattern with a full desktop IDE:
 
-- Dockerized PyCharm under X11.
-- Persistent IDE state and plugins.
-- Per-project caches, logs, and workspace state.
-- Default host Docker socket passthrough for productive local development.
-- Explicit Docker-in-Docker and no-Docker modes.
-- SSH-agent forwarding and temporary HTTPS Git token support.
-- Git identity import without mounting host Git config.
-- Mesa software rendering defaults for stable JetBrains UI behavior.
-- Repo-local requirements, workflow, bug, decision, and handoff documents.
+- persistent IDE state, plugins, caches, logs, and project workspace state;
+- documented host-resource exposure for productive local development;
+- explicit profiles for broader or narrower container capability;
+- credential transport without mounting broad host credential directories;
+- rendering and GUI choices documented as part of the environment contract;
+- repo-local requirements, workflow, bug, decision, and handoff documents.
 
 ## What v1 Should Add
 
@@ -142,8 +139,8 @@ Docker4IDE v1 should generalize the v0 pattern into a profile-driven framework:
 - Consistent state layout for IDE settings, extensions, agent memory, caches,
   logs, and per-project runtime data.
 - A reusable project-memory bootstrap for new repositories.
-- Compatibility wrappers for existing `docker4pycharm` usage while the generic
-  framework matures.
+- A migration path from the first proof point to the generic framework without
+  losing validated behavior.
 
 ## FAQ
 

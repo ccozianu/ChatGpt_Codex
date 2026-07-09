@@ -16,7 +16,9 @@ PyCharm settings, per-project IDE state, and plugins persistent on the host.
   current image work.
 - `implementation-notes/using-v0-for-real-python-projects.md` for applying the
   current image to an ordinary Python project.
-- `../user.md` for the human-facing PyCharm AI plugin setup guide.
+- `user.md` for the human-facing PyCharm AI plugin setup guide.
+- `historical-root-README.md` for the original root project brief and
+  historical handoff context.
 
 ## Build
 

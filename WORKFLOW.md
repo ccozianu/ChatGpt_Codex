@@ -25,9 +25,11 @@ Use markdown files with distinct responsibilities:
 
 - `README.md`: project brief, requirements, current state, and the active next
   task list. The final section is the handoff point.
-- `REQUIREMENTS.md`: the canonical requirements register. It gives stable IDs
-  to requirements and records priority, status, implementation references,
-  validation references, and related tasks or bugs.
+- `REQUIREMENTS.md`: implementation-agnostic project requirements for product
+  purpose, documentation shape, and reusable human/agent workflow.
+- Subproject requirements files, such as `docker4ides/REQUIREMENTS.md`:
+  implementation-specific requirement IDs, traceability, validation evidence,
+  and current subproject scope.
 - `AGENTS.md`: instructions every future agent should read before touching the
   repository.
 - `implementation-notes/`: decisions, retired issues, validation details,
@@ -41,15 +43,36 @@ Use markdown files with distinct responsibilities:
   archive.
 - Target-specific docs such as `docker4pycharm/README.md`: operational usage
   for one subproject or runtime target.
-- Larger future-direction docs such as `FUTURE_AGENT_REFACTORING_BRIEF.md`:
-  strategy that is important but not part of the immediate active task list.
+- Subproject implementation notes: strategy, decisions, retired issues,
+  validation details, debugging history, and tradeoffs specific to one
+  implementation path.
+
+## Subproject Roles
+
+Top-level documentation must keep the repository split clear:
+
+- `docker4ides/` is the active Python CLI/framework subproject. New framework
+  behavior, configuration protocol work, packaging, and tests should normally
+  be implemented there.
+- `docker4pycharm/` is the historical/reference PyCharm shell subproject. It
+  remains useful as an operational baseline and comparison target, but current
+  docs should not present it as the active development path unless the work is
+  explicitly about preserving or validating the reference implementation.
+
+When editing user-facing docs, avoid mixing these roles. Historical notes may
+describe old commands, but current instructions should point users to
+`docker4ides/` and the configuration-first CLI when describing active
+development.
 
 ## Requirements Register
 
-Use `REQUIREMENTS.md` to manage high-level and intermediate requirements. The
-active task list says what to do next; the requirements register says why the
-task exists, how important it is, and how implementation and validation map
-back to project intent.
+Use root `REQUIREMENTS.md` for project-level requirements that should remain
+true across implementations. Use subproject requirements files for
+implementation-specific behavior, validation scope, and traceability.
+
+The active task list says what to do next; the relevant requirements register
+says why the task exists, how important it is, and how implementation and
+validation map back to project intent.
 
 Each requirement should have:
 
@@ -68,9 +91,9 @@ changes, defers, rejects, or reinterprets a requirement, add a `Requirements:`
 line with the relevant IDs. If no requirement exists yet, either add a proposed
 requirement first or explicitly note that the work is exploratory.
 
-Do not turn `REQUIREMENTS.md` into a second active backlog. Requirements should
-remain stable enough to help future sessions understand intent. The active
-tasks in `README.md` remain the source of truth for immediate next work.
+Do not turn requirements files into a second active backlog. Requirements
+should remain stable enough to help future sessions understand intent. The
+active tasks in `README.md` remain the source of truth for immediate next work.
 
 ## User-Level Documentation Protocol
 
@@ -307,11 +330,12 @@ Before editing or committing:
 
 ## Applying This To Other Projects
 
-When using the Dockerized PyCharm environment on a normal Python repository, the
-same process should live inside that repository, not only inside this
-DockerForIDEIsolation repo.
+When using a Dockerized IDE environment created by this project on another
+repository, the same process should live inside that repository, not only
+inside this DockerForIDEIsolation repo.
 
-The PyCharm image should include a reusable bootstrap template at:
+An environment may include a reusable bootstrap template at a documented path,
+for example:
 
 ```text
 /usr/local/share/docker4ide/vibe-coding-process.md
