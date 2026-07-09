@@ -323,6 +323,74 @@ Related:
 - Future development backlog in `README.md`
 - `R-PROC-001`
 
+### R-DOCS-002: User-Level Documentation Coevolves With User-Visible Behavior
+
+Statement: Any change to user-visible behavior must update the relevant
+user-level documentation in the same change. User-visible behavior includes CLI
+command names/order, options, defaults, setup paths, generated artifacts,
+configuration aliases, validation expectations, and any change to host
+exposure, credential flow, Docker access, devices, persistent state, or
+runtime isolation.
+
+Priority: current stabilization
+Status: implemented
+
+Implementation:
+- User-level documentation protocol in `WORKFLOW.md`
+- Current Docker4IDEs user documentation in `docker4ides/README.md`
+- Project handoff and current-state notes in `README.md`
+
+Validation:
+- Future behavior changes should review `REQUIREMENTS.md`, the relevant
+  user-level README, and the root README handoff together before closing.
+- The build gate validates examples only where they are represented as CLI
+  smoke tests; broader user-doc accuracy still requires review.
+
+Related:
+- `R-PROC-001`
+- `R-PYTHON-MVP-003`
+
+### R-IDE-CONFIG-001: Configuration-First End-User CLI Model
+
+Statement: End users should interact with Docker4IDEs through a
+configuration-first command model:
+
+```text
+docker4ides CONFIGURATION ACTION [options]
+```
+
+The configuration alias names an IDE-plus-agent environment, such as
+`pycharm` or `vscode_with_claude`. Each configuration should expose only the
+actions it supports. The common expected actions are `run` to launch the
+environment and `build` to build or update its image. A configuration may
+expose additional actions, such as PyCharm's current `check-runtime`, when
+the action is meaningful for that configuration. Noun-first compatibility
+paths such as `docker4ides run pycharm` are intentionally unsupported in the
+Python CLI.
+
+Priority: current stabilization
+Status: implemented
+
+Implementation:
+- Configuration-first command examples in `docker4ides/README.md`
+- Command adapters under `docker4ides/docker4ides/commands/`
+- Configuration interfaces under `docker4ides/docker4ides/configurations/`
+
+Validation:
+- `docker4ides/tests/test_cli.py` covers top-level command discovery,
+  `pycharm run`, `pycharm build`, `pycharm check-runtime`, rejection of
+  noun-first PyCharm command order, and rejection of the removed
+  `bootstrap-project` alias.
+- `nox -s build` smoke-tests `python -m docker4ides --help`,
+  `python -m docker4ides pycharm run --help`, PEX `--help`, and PEX
+  `pycharm run --help`.
+
+Related:
+- `R-PYTHON-MVP-001`
+- `R-PYTHON-MVP-002`
+- `R-PYTHON-MVP-003`
+- `R-FRAMEWORK-001`
+
 ### R-PYTHON-MVP-001: Source Checkout Install And Run
 
 Statement: A developer on a vanilla Linux workstation with Docker, X11, and
@@ -415,7 +483,7 @@ Implementation:
 - Accepted V1 (`python_mvp`) scope:
   - Keep `docker4pycharm/` shell scripts as the stable compatibility and
     reference surface for the current PyCharm MVP.
-  - Keep `docker4ides run pycharm` as the Python-native day-to-day launcher
+  - Keep `docker4ides pycharm run` as the Python-native day-to-day launcher
     for PyCharm, with parity for the current documented launch surface:
     project path/default project selection, project mount planning, shared /
     project / custom config modes, named profiles, project-state roots,
@@ -427,7 +495,7 @@ Implementation:
     depends on `docker4pycharm` bootstrap scripts or other compatibility
     crutches. The old shell implementation may remain as a user-facing
     compatibility wrapper and reference surface, but not as the implementation
-    path for Python `run pycharm`.
+    path for Python `pycharm run`.
   - Provide both contributor and end-user invocation paths: editable source
     install, pinned contributor setup, Nox build gate, and local PEX artifact.
   - Build and test at least one additional IDE-plus-agent combination:
@@ -454,15 +522,15 @@ Implementation:
   - IntelliJ, VSCodium, and broader IDE-family adapters beyond the V1 VS Code
     plus Claude proof point.
   - Extension/plugin installation workflows beyond persistent plugin state.
-  - Translating `build pycharm`, `check runtime pycharm`, and
-    `bootstrap project` away from compatibility delegation.
+  - Translating `pycharm build`, `pycharm check-runtime`, and
+    `bootstrap project` away from shell-script delegation.
   - Formal release automation, artifact signing, checksums, or publishing.
   - Alternative GUI transports such as Wayland, xpra, VNC, or nested X servers.
   - GPU/device profiles, including NVIDIA/CUDA-oriented passthrough.
   - GitHub SSH/HTTPS remote push validation that was explicitly deferred from
     the PyCharm v0 stabilization pass.
 - Likely implementation order:
-  1. Audit Python `run pycharm` against the shell launcher and current docs,
+  1. Audit Python `pycharm run` against the shell launcher and current docs,
      then add focused tests for any missing run-planning or Docker-argument
      parity.
   2. Tighten end-user PEX/source-install documentation around the accepted V1
@@ -502,11 +570,11 @@ Priority: current stabilization
 Status: implemented
 
 Implementation:
-- Initial Python project skeleton and compatibility command tree:
+- Initial Python project skeleton and command tree:
   `docker4ides/pyproject.toml`, `docker4ides/docker4ides/cli.py`,
   `docker4ides/docker4ides/__main__.py`
 - Translated PyCharm run launcher:
-  `docker4ides/docker4ides/pycharm.py`
+  `docker4ides/docker4ides/configurations/pycharm/`
 - Package metadata and pinned pip/pip-compile lock artifacts:
   `docker4ides/pyproject.toml`, `docker4ides/requirements.txt`,
   `docker4ides/dev-requirements.txt`

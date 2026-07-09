@@ -93,6 +93,25 @@ checkout.
 
 ## Commands
 
+Docker4IDEs uses a configuration-first command model:
+
+```text
+docker4ides CONFIGURATION ACTION [options]
+```
+
+`CONFIGURATION` names an IDE-plus-agent environment. `pycharm` is the current
+implemented configuration. `vscode_with_claude` is registered as the next V1
+proof point, but its image and launcher are not implemented yet.
+
+End users should be able to:
+
+- discover available configurations with `docker4ides --help`;
+- build or update a configuration image when that configuration supports
+  `build`;
+- run a configuration against a selected project with `run`;
+- pass configuration-specific options without exposing unrelated host state;
+- use the same command shape from source installs and from the PEX artifact.
+
 ```bash
 python -m docker4ides --help
 docker4ides pycharm run --project /path/to/project
@@ -109,3 +128,7 @@ docker4ides bootstrap project --project /path/to/project
 NAME` to group shared PyCharm settings and plugins under
 `~/.config/docker-pycharm-NAME/`, and `--project-state-root DIR` to mirror
 per-project state under a separate state tree.
+
+Unsupported command shapes such as `docker4ides run pycharm`,
+`docker4ides build pycharm`, and `docker4ides bootstrap-project` are
+intentionally not part of the Python CLI.

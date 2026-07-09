@@ -1004,7 +1004,8 @@ noun-first `commands/run`, `commands/build`, and `commands/check` compatibility
 groups. The Python CLI now supports only the configuration-first command shape.
 The bulk of PyCharm knowledge is now packaged under
 `docker4ides/docker4ides/configurations/pycharm/`, with public names exposed
-from `__init__.py` and private implementation details kept in `_launcher.py`.
+from `__init__.py`, `PycharmConfiguration` implemented in `configuration.py`,
+and private implementation details kept in `_launcher.py`.
 Verification passed from `docker4ides/` with `.venv/bin/python -m pytest` and
 `.venv/bin/python -m nox -s build`.
 
@@ -1019,6 +1020,19 @@ The current command adapter tree is intentionally small: generic command
 helpers plus one file per public top-level command. Verification passed from
 `docker4ides/` with `.venv/bin/python -m pytest` and
 `.venv/bin/python -m nox -s build`.
+
+User-facing configuration model update for 2026-07-09: requirements and user
+documentation now describe the intended end-user shape as
+`docker4ides CONFIGURATION ACTION [options]`. `R-IDE-CONFIG-001` records this
+configuration-first CLI model and explicitly rejects noun-first paths such as
+`docker4ides run pycharm`. `R-DOCS-002` and `WORKFLOW.md` now define the
+user-level documentation protocol: user-visible behavior changes must update
+requirements, relevant user docs, and handoff notes together. `docker4ides/README.md`
+now explains what an end user should be able to do with IDE configurations:
+discover configurations, build/update supported configuration images, run a
+configuration against a project, pass configuration-specific options without
+exposing unrelated host state, and use the same command shape from source and
+PEX paths.
 
 Current and next work:
 
@@ -1056,9 +1070,9 @@ Current task:
 
 Next task:
 
-1. Tighten end-user PEX/source-install documentation around
-   `docker4ides pycharm run`, validation expectations, and the VS Code plus
-   Claude configuration model.
+1. Define the small shared Python protocol for IDE configurations based on the
+   documented end-user model, then make PyCharm and VS Code plus Claude conform
+   to it before implementing VS Code plus Claude behavior.
 
 Standing stabilization rule:
 

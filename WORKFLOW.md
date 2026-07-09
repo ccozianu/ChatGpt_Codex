@@ -72,6 +72,40 @@ Do not turn `REQUIREMENTS.md` into a second active backlog. Requirements should
 remain stable enough to help future sessions understand intent. The active
 tasks in `README.md` remain the source of truth for immediate next work.
 
+## User-Level Documentation Protocol
+
+When changing behavior that an end user can observe or invoke, update the
+user-level documentation in the same change as the code and requirement update.
+Examples include command names, command order, options, defaults, generated
+artifacts, setup steps, validation expectations, IDE configuration names, or
+host-exposure behavior.
+
+Use this documentation split:
+
+- `REQUIREMENTS.md` records what the user must be able to do and why it is in
+  scope.
+- Target user docs such as `docker4ides/README.md` describe how the user does
+  it: installation path, command path, common examples, validation expectations,
+  and current limitations.
+- The root `README.md` final section records current state, recent changes, and
+  next work for future agents.
+- Implementation notes record design rationale, rejected alternatives, and
+  evidence that would distract from user instructions.
+
+For every user-visible change, check:
+
+1. Is there an accepted or proposed requirement for the behavior?
+2. Does the relevant user-level README show the supported command path and
+   defaults?
+3. Are unsupported or intentionally removed paths absent from current user docs?
+4. If host exposure, credentials, devices, Docker access, or persistent state
+   changed, is the isolation impact documented beside the option/default?
+5. Does the handoff mention any manual validation still required?
+
+Do not rely on historical notes as user documentation. Historical sections may
+keep old command names when they describe what happened at that time, but
+current user docs must show only the supported interface.
+
 ## Active Task Format
 
 Each active task should include enough closure detail that the next agent knows
