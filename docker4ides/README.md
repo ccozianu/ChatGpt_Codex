@@ -3,11 +3,12 @@
 `docker4ides` is the Python command layer for the post-MVP refactor. It uses
 Click for the public command tree and option parsing, with class-backed built-in
 commands discovered from `docker4ides.commands`. The primary command shape is
-configuration-first, for example `docker4ides pycharm run`. The PyCharm run
-path is being translated from the validated
+configuration-first, for example `docker4ides pycharm run`. The `commands`
+package is deliberately a thin CLI adapter; IDE-specific knowledge belongs in
+configuration packages such as `docker4ides.configurations.pycharm`. The
+PyCharm run path is being translated from the validated
 `docker4pycharm/run-pycharm-container.sh` Bash launcher into maintainable Python
-runtime planning and Docker invocation code. Compatibility wrappers remain for
-commands that have not been translated yet.
+runtime planning and Docker invocation code.
 
 ## User Setup
 
@@ -86,9 +87,9 @@ python3.12 docker4ides/dist/docker4ides.pex --help
 python3.12 docker4ides/dist/docker4ides.pex pycharm run --help
 ```
 
-The archive contains the Python CLI and runtime dependencies. Compatibility
-commands that delegate to sibling `docker4pycharm/` shell scripts still require
-a source checkout.
+The archive contains the Python CLI and runtime dependencies. Commands that
+delegate to sibling `docker4pycharm/` shell scripts still require a source
+checkout.
 
 ## Commands
 
@@ -103,9 +104,6 @@ docker4ides pycharm check-runtime
 docker4ides vscode_with_claude --help
 docker4ides bootstrap project --project /path/to/project
 ```
-
-The older noun-first compatibility paths such as `docker4ides run pycharm`
-still work, but are no longer the documented primary command order.
 
 `pycharm run` defaults `--project` to the current directory. Use `--profile
 NAME` to group shared PyCharm settings and plugins under

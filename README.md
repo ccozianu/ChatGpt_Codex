@@ -981,17 +981,44 @@ The same shape applies to the PEX artifact, for example:
 python3.12 docker4ides/dist/docker4ides.pex pycharm run --help
 ```
 
-This is not only a cosmetic command-order change. Top-level configuration
-groups now live under `docker4ides/docker4ides/commands/<configuration>/`, and
-per-configuration support functions live under
-`docker4ides/docker4ides/configurations/`. The PyCharm configuration owns the
-Click option embedding used by both `pycharm run` and the legacy
-`run pycharm` compatibility path, plus the build/runtime-check compatibility
-drivers. A tested `vscode_with_claude` configuration module is registered as
-the next proof-point alias with explicit not-yet-implemented `run` and `build`
-commands. The old noun-first `run`, `build`, and `check` groups remain callable
-as hidden compatibility paths. Verification passed from `docker4ides/` with
-`.venv/bin/python -m pytest` and `.venv/bin/python -m nox -s build`.
+This is not only a cosmetic command-order change. The Click-facing `commands`
+package is now intended to stay a small command-tree adapter, while
+per-configuration packages under `docker4ides/docker4ides/configurations/`
+own the IDE-specific interface and implementation. For PyCharm, the public
+module interface is `docker4ides.configurations.pycharm.PycharmConfiguration`;
+that object builds the `pycharm run`, `pycharm build`, and
+`pycharm check-runtime` Click commands. The private translated launcher now lives in
+`docker4ides/docker4ides/configurations/pycharm/_launcher.py`. A tested
+`vscode_with_claude` configuration module is registered as the next proof-point
+alias with explicit not-yet-implemented `run` and `build` commands. Verification
+passed from `docker4ides/` with `.venv/bin/python -m pytest` and
+`.venv/bin/python -m nox -s build`.
+
+PyCharm module-boundary cleanup for 2026-07-09: following the
+configuration-first CLI work, the PyCharm command files were collapsed so
+`docker4ides/docker4ides/commands/pycharm.py` is the only PyCharm adapter in
+the command tree. The previous almost-empty
+`commands/pycharm/run.py`, `commands/pycharm/build.py`, and
+`commands/pycharm/check_runtime.py` files were removed, along with the
+noun-first `commands/run`, `commands/build`, and `commands/check` compatibility
+groups. The Python CLI now supports only the configuration-first command shape.
+The bulk of PyCharm knowledge is now packaged under
+`docker4ides/docker4ides/configurations/pycharm/`, with public names exposed
+from `__init__.py` and private implementation details kept in `_launcher.py`.
+Verification passed from `docker4ides/` with `.venv/bin/python -m pytest` and
+`.venv/bin/python -m nox -s build`.
+
+Command adapter cleanup for 2026-07-09: the same module-boundary cleanup was
+applied to Bootstrap and VS Code plus Claude. `commands/bootstrap.py` is now the
+single Bootstrap command adapter, and the hidden `bootstrap-project` alias was
+removed. `commands/vscode_with_claude.py` is now the single VS Code plus Claude
+command adapter. Its proof-point configuration identity and explicit
+not-yet-implemented `run` / `build` behavior are owned by
+`docker4ides.configurations.vscode_with_claude.VscodeWithClaudeConfiguration`.
+The current command adapter tree is intentionally small: generic command
+helpers plus one file per public top-level command. Verification passed from
+`docker4ides/` with `.venv/bin/python -m pytest` and
+`.venv/bin/python -m nox -s build`.
 
 Current and next work:
 

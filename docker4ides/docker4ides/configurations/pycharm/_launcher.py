@@ -16,7 +16,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Mapping
 
-from .project import ProjectMountError, plan_project
+from ...project import ProjectMountError, plan_project
 
 
 class PycharmRunError(Exception):
@@ -734,7 +734,7 @@ def config_lock_message(ide_config: Path, project: Path, project_state: Path) ->
 The default shared config directory can only be used by one live PyCharm
 process at a time. For concurrent sessions against different projects, launch
 the second IDE with:
-  docker4ides run pycharm --project "{project}" --project-config
+  docker4ides pycharm run --project "{project}" --project-config
 
 That stores JetBrains idea.config.path under the per-project state directory:
   {project_state / "config"}
@@ -768,10 +768,10 @@ default local-development convenience mode, but it gives tools inside the IDE
 broad control over host Docker images, containers, networks, and bind mounts.
 
 For an isolated inner daemon, run:
-  docker4ides run pycharm --project "{config.project}" --docker-in-docker
+  docker4ides pycharm run --project "{config.project}" --docker-in-docker
 
 For a higher-isolation session with no Docker access, run:
-  docker4ides run pycharm --project "{config.project}" --no-docker
+  docker4ides pycharm run --project "{config.project}" --no-docker
 ========================================================================""",
         file=sys.stderr,
     )
@@ -789,10 +789,10 @@ The inner daemon does not manage bridge/iptables networking; use --network host
 for inner builds that need network access.
 
 To use the default host Docker daemon instead, run:
-  docker4ides run pycharm --project "{config.project}" --docker
+  docker4ides pycharm run --project "{config.project}" --docker
 
 To turn Docker off for a higher-isolation session, run:
-  docker4ides run pycharm --project "{config.project}" --no-docker
+  docker4ides pycharm run --project "{config.project}" --no-docker
 ========================================================================""",
         file=sys.stderr,
     )

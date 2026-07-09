@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from docker4ides.pycharm import DockerMode, IdeConfigMode, PycharmRunOptions, build_run_config
+from docker4ides.configurations.pycharm import DockerMode, IdeConfigMode, PycharmRunOptions, build_run_config
 
 
 def base_env(tmp_path: Path) -> dict[str, str]:

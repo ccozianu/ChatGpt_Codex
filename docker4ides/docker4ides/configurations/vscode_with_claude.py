@@ -1,34 +1,57 @@
-"""VS Code plus Claude configuration command support."""
+"""VS Code plus Claude IDE configuration."""
 
 from __future__ import annotations
-
-from dataclasses import dataclass
 
 import click
 
 
-ALIAS = "vscode_with_claude"
-
-
-@dataclass(frozen=True)
 class VscodeWithClaudeConfiguration:
-    alias: str = ALIAS
-    ide: str = "vscode"
-    agent: str = "claude"
-    implemented: bool = False
+    """Public interface for the VS Code plus Claude proof-point configuration."""
+
+    name = "vscode_with_claude"
+    help = "Build and run the VS Code plus Claude configuration."
+    ide = "vscode"
+    agent = "claude"
+    implemented = False
+
+    def to_click_command(self) -> click.Command:
+        group = click.Group(name=self.name, help=self.help, no_args_is_help=True)
+        group.add_command(self.build_command())
+        group.add_command(self.run_command())
+        return group
+
+    def build_command(self) -> click.Command:
+        def callback() -> int:
+            return self.build()
+
+        return click.Command(
+            name="build",
+            callback=callback,
+            help="Build the VS Code plus Claude image.",
+        )
+
+    def run_command(self) -> click.Command:
+        def callback() -> int:
+            return self.run()
+
+        return click.Command(
+            name="run",
+            callback=callback,
+            help="Launch the VS Code plus Claude configuration.",
+        )
+
+    def build(self) -> int:
+        return self._not_implemented("build")
+
+    def run(self) -> int:
+        return self._not_implemented("run")
+
+    def _not_implemented(self, command: str) -> int:
+        raise click.ClickException(
+            f"{self.name} {command} is registered as the next configuration module, "
+            "but its Docker image and launcher are not implemented yet."
+        )
 
 
-def describe_configuration() -> VscodeWithClaudeConfiguration:
-    """Return the V1 proof-point configuration identity."""
-
-    return VscodeWithClaudeConfiguration()
-
-
-def not_implemented(command: str) -> int:
-    """Fail explicitly for commands whose implementation is still pending."""
-
-    raise click.ClickException(
-        f"{ALIAS} {command} is registered as the next configuration module, "
-        "but its Docker image and launcher are not implemented yet."
-    )
+__all__ = ["VscodeWithClaudeConfiguration"]
 

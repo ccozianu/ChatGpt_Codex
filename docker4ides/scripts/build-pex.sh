@@ -60,6 +60,7 @@ fi
 mkdir -p "$(dirname "${output}")"
 
 cd "${project_dir}"
+rm -rf build docker4ides.egg-info
 exec "${python_bin}" -m pex \
   -r requirements.txt \
   . \
