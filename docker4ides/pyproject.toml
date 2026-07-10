@@ -39,6 +39,13 @@ docker4ides = "docker4ides.cli:main"
 where = ["."]
 include = ["docker4ides*"]
 
+[tool.setuptools.package-data]
+"docker4ides.assets.docker4pycharm" = [
+  "Dockerfile",
+  "*.sh",
+  "image-assets/*.md",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]

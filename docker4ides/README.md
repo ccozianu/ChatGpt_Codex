@@ -85,11 +85,18 @@ Run the artifact with Python 3.12+:
 ```bash
 python3.12 docker4ides/dist/docker4ides.pex --help
 python3.12 docker4ides/dist/docker4ides.pex pycharm run --help
+python3.12 docker4ides/dist/docker4ides.pex pycharm build --help
 ```
 
-The archive contains the Python CLI and runtime dependencies. Commands that
-delegate to sibling `docker4pycharm/` shell scripts still require a source
-checkout.
+The archive contains the Python CLI, runtime dependencies, and the legacy
+PyCharm build/runtime helper assets still needed by the current delegated
+`pycharm build`, `pycharm check-runtime`, and `bootstrap project` commands.
+
+The PEX build embeds `/tmp/docker4ides-pex-root` as its default runtime
+extraction/cache root so it does not depend on IDE project-state cache
+directories being writable. If the launch environment explicitly sets
+`PEX_ROOT`, that value still controls PEX before Docker4IDEs starts; point it
+at a writable directory or unset it if PEX warns about an unwritable cache.
 
 ## Commands
 

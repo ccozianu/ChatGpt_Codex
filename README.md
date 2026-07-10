@@ -108,6 +108,20 @@ Recent documentation cleanup:
 - Root `README.md`, root markdown files, and top-level `docs/` are now meant to
   stay implementation-agnostic.
 
+Recent implementation fix:
+
+- `docker4ides` PEX artifacts now package the legacy PyCharm helper assets
+  needed by delegated `pycharm build`, `pycharm check-runtime`, and
+  `bootstrap project` commands, so those commands no longer require a sibling
+  source checkout at runtime.
+
+Recent manual validation:
+
+- On 2026-07-10, the user confirmed the rebuilt PEX path successfully built a
+  new `codex-debu-v012` PyCharm image from the PEX command line and launched
+  this environment successfully. Treat the PEX-packaged `pycharm build` fix as
+  manually validated.
+
 Current task:
 
 1. Continue Python V1 hardening on the configuration-first command surface.

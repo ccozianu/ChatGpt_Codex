@@ -458,6 +458,8 @@ Implementation:
 - PEX build script: `docker4ides/scripts/build-pex.sh`
 - PEX build dependency in contributor tooling: `docker4ides/pyproject.toml`,
   `docker4ides/dev-requirements.txt`
+- Packaged legacy PyCharm helper assets:
+  `docker4ides/docker4ides/assets/docker4pycharm/`
 - Python build gate: `docker4ides/noxfile.py`
 - End-user artifact documentation: `docker4ides/README.md`
 - The generated artifact is intentionally ignored under `docker4ides/dist/`.
@@ -475,6 +477,14 @@ Validation:
   the PEX build plus PEX smoke checks as part of the build gate.
 - On 2026-07-08, the user confirmed host smoke validation passed for the
   PyCharm run path through the PEX artifact on the Ubuntu 22.04 workstation.
+- On 2026-07-10, `pycharm build` was fixed for PEX execution by packaging the
+  legacy PyCharm build helper, Dockerfile, entrypoint, runtime-check,
+  bootstrap helper, and process-template assets inside the `docker4ides`
+  package. A regression test covers running the build command when the source
+  repository root is unavailable.
+- On 2026-07-10, the user confirmed host smoke validation passed for the PEX
+  build path by building a new `codex-debu-v012` PyCharm image from the PEX
+  command line and launching this environment successfully.
 
 Related:
 - `R-PYTHON-MVP-001`

@@ -126,6 +126,34 @@ def test_build_pycharm_delegates_to_current_script() -> None:
     assert command[1:] == ["--pycharm", "/tmp/pycharm.tar.gz"]
 
 
+def test_build_pycharm_falls_back_to_packaged_assets(tmp_path: Path) -> None:
+    missing_repo = tmp_path / "missing-repo"
+
+    def run_compat_script(command: list[str], check: bool) -> subprocess.CompletedProcess[str]:
+        script = Path(command[0])
+        asset_root = script.parent
+
+        assert check is False
+        assert script.name == "build-image.sh"
+        assert script.exists()
+        assert os.access(script, os.X_OK)
+        assert (asset_root / "Dockerfile").exists()
+        assert (asset_root / "entrypoint.sh").exists()
+        assert (asset_root / "bootstrap-project.sh").exists()
+        assert (asset_root / "check-runtime-deps.sh").exists()
+        assert (asset_root / "image-assets" / "vibe-coding-process.md").exists()
+
+        return subprocess.CompletedProcess(command, 0)
+
+    with (
+        patch.dict(os.environ, {"DOCKER4IDES_REPO_ROOT": str(missing_repo)}),
+        patch.object(compat.subprocess, "run", side_effect=run_compat_script),
+    ):
+        result = cli.main(["pycharm", "build", "--pycharm", "/tmp/pycharm.tar.gz"])
+
+    assert result == 0
+
+
 def test_runtime_check_pycharm_delegates_to_current_script() -> None:
     with patch.object(compat.subprocess, "run") as run:
         run.return_value.returncode = 0

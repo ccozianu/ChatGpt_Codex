@@ -13,6 +13,9 @@ Environment:
   PYTHON                 Python executable used to run PEX. Default: python
   DOCKER4IDES_PEX_SHEBANG  Shebang embedded in the archive.
                            Default: /usr/bin/env python3.12
+  DOCKER4IDES_RUNTIME_PEX_ROOT
+                         Runtime extraction/cache root embedded in the archive.
+                         Default: /tmp/docker4ides-pex-root
 USAGE
 }
 
@@ -44,6 +47,7 @@ done
 
 python_bin="${PYTHON:-python}"
 pex_shebang="${DOCKER4IDES_PEX_SHEBANG:-/usr/bin/env python3.12}"
+runtime_pex_root="${DOCKER4IDES_RUNTIME_PEX_ROOT:-/tmp/docker4ides-pex-root}"
 
 if ! "${python_bin}" -c "import pex" >/dev/null 2>&1; then
   cat >&2 <<EOF
@@ -66,4 +70,5 @@ exec "${python_bin}" -m pex \
   . \
   -c docker4ides \
   --python-shebang "${pex_shebang}" \
+  --runtime-pex-root "${runtime_pex_root}" \
   -o "${output}"

@@ -28,7 +28,7 @@ Docker4IDE is an open-source project that combines reproducible IDE runtimes
 with repo-local project memory. A project can declare how it should be opened,
 which IDE or agent surface it uses, which host resources are allowed, which
 secrets are required by name, which ports and services are expected, and which
-checks prove that the project is alive. The same repository also carries its
+checks prove that the project is healthy. The same repository also carries its
 requirements register, handoff notes, bug records, decisions, validation
 history, and current next step.
 
