@@ -122,6 +122,22 @@ Recent manual validation:
   this environment successfully. Treat the PEX-packaged `pycharm build` fix as
   manually validated.
 
+Current validation workflow:
+
+- `docker4ides` uses Nox as the main developer validation entry point. Nox
+  reuses its managed virtual environments by default for faster iteration.
+  Use `cd docker4ides && python -m nox -s tests` for Python compile checks plus
+  pytest, and `cd docker4ides && python -m nox -s build` for the full local
+  gate: Python compile checks, shell syntax checks, pytest, CLI smoke tests,
+  PEX build, and PEX smoke tests.
+- When a clean slate is required, run
+  `cd docker4ides && python -m nox --no-reuse-existing-virtualenvs -s build`.
+  Removing `docker4ides/.nox/` before the command is also acceptable when
+  deliberately discarding cached Nox environments.
+- Prefer adding automated Nox-covered checks over relying on one-off manual
+  smoke tests. Manual validation is still useful for host Docker/image/IDE
+  behavior that cannot yet be exercised in repository automation.
+
 Current task:
 
 1. Continue Python V1 hardening on the configuration-first command surface.
@@ -132,9 +148,10 @@ Current task:
    cleanup within the accepted V1 scope.
    Requirements: `docker4ides/REQUIREMENTS.md` R-PYTHON-MVP-003,
    R-FRAMEWORK-001, R-SCOPE-001.
-   Verification: run `cd docker4ides && python -m nox -s build`; review
-   generated Docker arguments and docs together for changed mount, credential,
-   device, or Docker access behavior.
+   Verification: run `cd docker4ides && python -m nox -s build` for the normal
+   reused-environment gate, or add `--no-reuse-existing-virtualenvs` when a
+   clean slate is required; review generated Docker arguments and docs together
+   for changed mount, credential, device, or Docker access behavior.
 
 Next task:
 

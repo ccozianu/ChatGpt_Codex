@@ -23,21 +23,62 @@ python -m docker4ides --help
 
 ## Development Setup
 
+Nox is the preferred developer cycle. By default this repository reuses Nox's
+managed virtual environments between runs, so repeated commands avoid starting
+from a completely fresh venv unless explicitly requested.
+
+Run these commands from a Python environment where Nox is installed.
+
+```bash
+cd docker4ides
+
+python -m nox -s tests   # Python compile checks plus pytest
+python -m nox -s syntax  # Python compile checks plus shell syntax checks
+python -m nox -s smoke   # source CLI and shell-wrapper help smoke tests
+python -m nox -s pex     # build the PEX artifact and smoke-test it
+python -m nox -s build   # full local gate
+```
+
+The `tests` session is the Nox way to run pytest for this project. It installs
+the locked contributor dependencies into the managed Nox venv, installs
+`docker4ides` editable with `--no-deps`, runs Python compile checks, then runs
+`python -m pytest docker4ides`.
+
+The `build` session is the default Nox session, so these are equivalent:
+
+```bash
+cd docker4ides
+python -m nox
+python -m nox -s build
+```
+
+Run a clean-slate build when dependency or environment reuse could hide a
+problem:
+
+```bash
+cd docker4ides
+python -m nox --no-reuse-existing-virtualenvs -s build
+```
+
+If you want to discard all cached Nox environments before a clean build:
+
+```bash
+cd docker4ides
+rm -rf .nox
+python -m nox -s build
+```
+
+The manual virtualenv workflow is still supported when directly inspecting a
+developer environment:
+
 ```bash
 python3.12 -m venv .venv-dev
 . .venv-dev/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -r docker4ides/dev-requirements.txt
-python -m pip install -e ./docker4ides --no-deps
+python -m pip install -r dev-requirements.txt
+python -m pip install -e . --no-deps
 
 python -m pytest docker4ides
-```
-
-Run the full local build gate:
-
-```bash
-cd docker4ides
-python -m nox -s build
 ```
 
 The Nox build session installs the locked contributor dependencies, installs

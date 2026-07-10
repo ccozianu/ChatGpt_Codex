@@ -7,6 +7,7 @@ import nox
 
 nox.options.sessions = ["build"]
 nox.options.default_venv_backend = "venv"
+nox.options.reuse_existing_virtualenvs = True
 
 PROJECT_ROOT = Path(__file__).parent
 REPO_ROOT = PROJECT_ROOT.parent
