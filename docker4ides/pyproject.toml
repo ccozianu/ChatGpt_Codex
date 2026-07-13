@@ -22,6 +22,7 @@ classifiers = [
 ]
 dependencies = [
   "click>=8.1,<9",
+  "python-on-whales>=0.81.0,<0.82",
 ]
 
 [project.optional-dependencies]
@@ -44,6 +45,13 @@ include = ["docker4ides*"]
   "Dockerfile",
   "*.sh",
   "image-assets/*.md",
+]
+"docker4ides.assets.pycharm" = [
+  "*.sh",
+  "image-assets/*.md",
+]
+"docker4ides.assets.codium_with_claude" = [
+  "*.sh",
 ]
 
 [tool.pytest.ini_options]

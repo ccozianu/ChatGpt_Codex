@@ -27,6 +27,7 @@ def check_shell_syntax(session: nox.Session) -> None:
     scripts = [
         *sorted((REPO_ROOT / "docker4pycharm").glob("*.sh")),
         *sorted((PROJECT_ROOT / "scripts").glob("*.sh")),
+        *sorted((PROJECT_ROOT / "docker4ides" / "assets").rglob("*.sh")),
     ]
     for script in scripts:
         session.run("bash", "-n", str(script), external=True)
@@ -39,7 +40,10 @@ def run_tests(session: nox.Session) -> None:
 def run_smoke(session: nox.Session) -> None:
     session.run("python", "-m", "docker4ides", "--help")
     session.run("python", "-m", "docker4ides", "pycharm", "run", "--help")
+    session.run("python", "-m", "docker4ides", "pycharm", "build", "--help")
     session.run("python", "-m", "docker4ides", "vscode_with_claude", "--help")
+    session.run("python", "-m", "docker4ides", "codium_with_claude", "build", "--help")
+    session.run("python", "-m", "docker4ides", "codium_with_claude", "run", "--help")
     session.run(str(REPO_ROOT / "docker4pycharm" / "run-pycharm-container.sh"), "--help", external=True)
 
 
@@ -54,7 +58,10 @@ def build_pex(session: nox.Session) -> None:
 def smoke_pex(session: nox.Session) -> None:
     session.run("python", str(PEX_PATH), "--help")
     session.run("python", str(PEX_PATH), "pycharm", "run", "--help")
+    session.run("python", str(PEX_PATH), "pycharm", "build", "--help")
     session.run("python", str(PEX_PATH), "vscode_with_claude", "--help")
+    session.run("python", str(PEX_PATH), "codium_with_claude", "build", "--help")
+    session.run("python", str(PEX_PATH), "codium_with_claude", "run", "--help")
 
 
 @nox.session(python="3.12")

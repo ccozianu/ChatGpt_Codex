@@ -4,6 +4,8 @@
 #
 #    pip-compile --extra=dev --output-file=dev-requirements.txt --strip-extras pyproject.toml
 #
+annotated-types==0.7.0
+    # via pydantic
 argcomplete==3.7.0
     # via nox
 attrs==26.1.0
@@ -47,6 +49,10 @@ platformdirs==4.10.0
     #   virtualenv
 pluggy==1.6.0
     # via pytest
+pydantic==2.13.4
+    # via python-on-whales
+pydantic-core==2.46.4
+    # via pydantic
 pygments==2.20.0
     # via pytest
 pyproject-hooks==1.2.0
@@ -57,6 +63,16 @@ pytest==9.1.1
     # via docker4ides (pyproject.toml)
 python-discovery==1.4.3
     # via virtualenv
+python-on-whales==0.81.0
+    # via docker4ides (pyproject.toml)
+typing-extensions==4.16.0
+    # via
+    #   pydantic
+    #   pydantic-core
+    #   python-on-whales
+    #   typing-inspection
+typing-inspection==0.4.2
+    # via pydantic
 virtualenv==21.6.0
     # via nox
 wheel==0.47.0

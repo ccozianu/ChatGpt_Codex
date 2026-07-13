@@ -147,9 +147,10 @@ Docker4IDEs uses a configuration-first command model:
 docker4ides CONFIGURATION ACTION [options]
 ```
 
-`CONFIGURATION` names an IDE-plus-agent environment. `pycharm` is the current
-implemented configuration. `vscode_with_claude` is registered as the next V1
-proof point, but its image and launcher are not implemented yet.
+`CONFIGURATION` names an IDE-plus-agent environment. `pycharm` and
+`codium_with_claude` are implemented configurations. `codium_with_claude` is
+VSCodium plus the Claude Code CLI and is distinct from the registered,
+unimplemented `vscode_with_claude` placeholder.
 
 End users should be able to:
 
@@ -169,8 +170,34 @@ docker4ides pycharm run --profile codex --project-state-root /path/to/workspace/
 docker4ides pycharm build --pycharm /path/to/pycharm.tar.gz
 docker4ides pycharm check-runtime
 docker4ides vscode_with_claude --help
+docker4ides codium_with_claude build
+docker4ides codium_with_claude build --ide-archive /path/to/VSCodium-linux-x64.tar.gz
+docker4ides codium_with_claude run --project /path/to/project
 docker4ides bootstrap project --project /path/to/project
 ```
+
+`codium_with_claude build` uses Ubuntu 24.04 and installs VSCodium, Python
+3.12, the current Node.js channel, the latest npm, and the latest Claude Code
+CLI available at image-build time. The image also includes `xterm` for basic
+X11 validation and `strace` for process-level diagnostics. Because these
+upstream channels move, a later rebuild can resolve newer versions. Use
+`--image`, `--base-image`,
+`--network`, and repeatable `--extra-apt-package` options to customize a build.
+Pass `--ide-archive PATH` to install VSCodium from a local `.tar.gz` (or other
+tar format recognized by Python) containing an executable `bin/codium`. In
+that mode the build does not configure or contact the VSCodium apt repository;
+the archive is installed under `/opt/codium`. Node.js, npm, and Claude Code are
+still downloaded from their configured upstream channels.
+
+`codium_with_claude run` currently targets Linux X11. It mounts the selected
+project at `/workspace/project`, a persistent VSCodium/Claude home (by default
+`~/.config/docker4ides/codium-with-claude`) at `/ide-global-settings`, a
+project-local state directory (by default `.docker4ides/codium-state`) at
+`/ide-project-state`, and the host X11 socket read-only. It passes `DISPLAY`
+and uses ordinary Docker bridge networking so VSCodium and Claude Code can
+reach their services. It does not mount the Docker socket, SSH agent, host
+home, devices, or other credentials by default. Claude authentication written
+under its container home persists in the explicit global state directory.
 
 `pycharm run` defaults `--project` to the current directory. Use `--profile
 NAME` to group shared PyCharm settings and plugins under

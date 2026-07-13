@@ -18,6 +18,8 @@ same change.
 - [Docker4IDEs Python CLI](docker4ides/README.md)
 - [Docker4IDEs implementation requirements](docker4ides/REQUIREMENTS.md)
 - [Click-based CLI parsing brief](docker4ides/implementation-notes/click_based_cli_parsing_brief.md)
+- [PyCharm image vibe-coding bootstrap template](docker4ides/docker4ides/assets/pycharm/image-assets/vibe-coding-process.md)
+- [TypeScript five-in-a-row sample project](docker4ides/tests/resources/sample_projects/typescript_tictactoe_5inrow/README.md)
 
 ## Product And Positioning
 

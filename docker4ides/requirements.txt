@@ -4,5 +4,21 @@
 #
 #    pip-compile --output-file=requirements.txt --strip-extras pyproject.toml
 #
+annotated-types==0.7.0
+    # via pydantic
 click==8.4.2
     # via docker4ides (pyproject.toml)
+pydantic==2.13.4
+    # via python-on-whales
+pydantic-core==2.46.4
+    # via pydantic
+python-on-whales==0.81.0
+    # via docker4ides (pyproject.toml)
+typing-extensions==4.16.0
+    # via
+    #   pydantic
+    #   pydantic-core
+    #   python-on-whales
+    #   typing-inspection
+typing-inspection==0.4.2
+    # via pydantic

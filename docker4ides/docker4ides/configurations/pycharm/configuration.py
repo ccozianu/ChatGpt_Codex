@@ -7,6 +7,7 @@ from typing import Any
 
 import click
 
+from docker4ides.compat import CliError
 from docker4ides.compat import run_script
 
 from ._launcher import (
@@ -16,6 +17,7 @@ from ._launcher import (
     PycharmRunOptions,
     run_pycharm,
 )
+from ._image_build import build_pycharm_image, parse_pycharm_build_options
 
 
 class PycharmConfiguration:
@@ -158,15 +160,43 @@ class PycharmConfiguration:
         )
 
     def build_command(self, *, name: str = "build") -> click.Command:
-        @click.pass_context
-        def callback(ctx: click.Context, **kwargs: Any) -> int:
-            return self.build_image(list(ctx.args))
-
         return click.Command(
             name=name,
-            callback=callback,
-            help="Build the current Dockerized PyCharm image through the compatibility script.",
-            context_settings=self._forward_context,
+            callback=self.build_image_from_cli_options,
+            params=[
+                click.Option(
+                    ["--pycharm"],
+                    type=click.Path(path_type=Path),
+                    required=True,
+                    help="PyCharm .tar.gz archive or unpacked PyCharm directory.",
+                ),
+                click.Option(["--image"], default="pycharm-isolated:latest", help="Docker image tag to create."),
+                click.Option(
+                    ["--base-image"],
+                    default="ubuntu:24.04",
+                    show_default=True,
+                    help="Base OCI image used for the IDE image.",
+                ),
+                click.Option(
+                    ["--network"],
+                    default="default",
+                    show_default=True,
+                    help="Build network mode passed to docker buildx through python-on-whales.",
+                ),
+                click.Option(
+                    ["--extra-apt-package"],
+                    multiple=True,
+                    help="Extra apt package to install into the image. Repeat as needed.",
+                ),
+                click.Option(
+                    ["--ai-agent"],
+                    type=click.Choice(["none", "codex-cli"], case_sensitive=False),
+                    default="none",
+                    show_default=True,
+                    help="Optional AI-agent payload to add to the image.",
+                ),
+            ],
+            help="Build the current Dockerized PyCharm image through the Python buildx backend.",
         )
 
     def check_runtime_command(self, *, name: str = "check-runtime") -> click.Command:
@@ -188,8 +218,28 @@ class PycharmConfiguration:
         except PycharmRunError as exc:
             raise click.ClickException(str(exc)) from exc
 
-    def build_image(self, args: list[str]) -> int:
-        return run_script("docker4pycharm/build-image.sh", args)
+    def build_image_from_cli_options(
+        self,
+        *,
+        pycharm: Path,
+        image: str,
+        base_image: str,
+        network: str,
+        extra_apt_package: tuple[str, ...],
+        ai_agent: str,
+    ) -> int:
+        try:
+            options = parse_pycharm_build_options(
+                pycharm=pycharm,
+                image=image,
+                base_image=base_image,
+                network=network.lower(),
+                extra_apt_packages=tuple(extra_apt_package),
+                ai_agent=ai_agent.lower(),
+            )
+            return build_pycharm_image(options)
+        except CliError as exc:
+            raise click.ClickException(str(exc)) from exc
 
     def check_runtime(self, args: list[str]) -> int:
         return run_script("docker4pycharm/check-runtime-deps.sh", args)

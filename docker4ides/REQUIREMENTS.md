@@ -483,7 +483,7 @@ Validation:
   package. A regression test covers running the build command when the source
   repository root is unavailable.
 - On 2026-07-10, the user confirmed host smoke validation passed for the PEX
-  build path by building a new `codex-debu-v012` PyCharm image from the PEX
+  build path by building a new `codex-debug-v012` PyCharm image from the PEX
   command line and launching this environment successfully.
 
 Related:
@@ -519,15 +519,20 @@ Implementation:
     crutches. The old shell implementation may remain as a user-facing
     compatibility wrapper and reference surface, but not as the implementation
     path for Python `pycharm run`.
+  - Replace the delegated PyCharm image builder with a Python-native,
+    configuration-neutral build pipeline. The active Python implementation
+    should compose base-image, IDE, AI-agent/tooling, and
+    configuration-specific contributions without using `docker4pycharm` as an
+    implementation dependency. See `R-IMAGE-BUILD-001`.
   - Provide both contributor and end-user invocation paths: editable source
     install, pinned contributor setup, Nox build gate, and local PEX artifact.
   - Build and test at least one additional IDE-plus-agent combination:
-    VS Code plus Claude. This should demonstrate that the framework works
+    VSCodium plus Claude Code. This should demonstrate that the framework works
     beyond the original PyCharm prototype and provide a concrete model for how
     future users can create their own IDE/agent configuration.
   - Provide acceptable user documentation for the functionality exposed in
     V1 / `python_mvp`, including the supported command path, setup path,
-    validation expectations, and the VS Code plus Claude configuration model.
+    validation expectations, and the VSCodium plus Claude Code configuration model.
   - Make the `docker4ides` Python project itself embody a lightweight
     good-enough engineering process by current project standards. V1 should not
     add heavyweight release machinery, but should close obvious quality-gate
@@ -542,31 +547,37 @@ Implementation:
 - Explicit V1 deferrals:
   - General YAML/JSON profile loading and product-profile validation beyond
     the model needed for the V1 VS Code plus Claude proof point.
-  - IntelliJ, VSCodium, and broader IDE-family adapters beyond the V1 VS Code
-    plus Claude proof point.
+  - IntelliJ and broader IDE-family adapters beyond the V1 VSCodium plus
+    Claude Code proof point. The separate `vscode_with_claude` stub remains
+    deferred.
   - Extension/plugin installation workflows beyond persistent plugin state.
-  - Translating `pycharm build`, `pycharm check-runtime`, and
-    `bootstrap project` away from shell-script delegation.
+  - Translating `pycharm check-runtime` and `bootstrap project` away from
+    shell-script delegation.
   - Formal release automation, artifact signing, checksums, or publishing.
   - Alternative GUI transports such as Wayland, xpra, VNC, or nested X servers.
   - GPU/device profiles, including NVIDIA/CUDA-oriented passthrough.
   - GitHub SSH/HTTPS remote push validation that was explicitly deferred from
     the PyCharm v0 stabilization pass.
 - Likely implementation order:
-  1. Audit Python `pycharm run` against the shell launcher and current docs,
-     then add focused tests for any missing run-planning or Docker-argument
-     parity.
-  2. Tighten end-user PEX/source-install documentation around the accepted V1
-     command path and validation expectations.
-  3. Build and test the V1 VS Code plus Claude proof point, keeping the result
+  1. Define the Python-native composable image-build protocol and migrate
+     `docker4ides pycharm build` away from the historical implementation.
+  2. Validate the new source and PEX build paths with focused build-plan tests
+     plus a host PyCharm image build and launch.
+  3. Build and test the V1 VSCodium plus Claude Code proof point on the shared
+     image-build protocol, keeping the result
      small enough to act as a model for future user-defined configurations.
-  4. Close any small PyCharm parity gaps found by that audit without broadening
+  4. Define and refine the shared IDE-configuration protocol from the PyCharm
+     and VSCodium implementations.
+  5. Audit Python `pycharm run` against the historical launcher and close any
+     remaining run-planning or Docker-argument parity gaps without broadening
      host exposure.
-  5. Add or tighten lightweight quality gates for the `docker4ides` Python
+  6. Tighten end-user PEX/source-install documentation around the accepted V1
+     command path and validation expectations.
+  7. Add or tighten lightweight quality gates for the `docker4ides` Python
      project itself, including coverage reporting/gating unless explicitly
      deferred with rationale.
-  6. Re-run `nox -s build`, host PEX PyCharm launch smoke, and the documented
-     VS Code plus Claude validation path before calling V1 complete.
+  8. Re-run `nox -s build`, host PEX PyCharm launch smoke, and the documented
+     VSCodium plus Claude Code validation path before calling V1 complete.
 
 Validation:
 - The accepted V1 feature list, explicit deferrals, done criteria, and likely
@@ -577,7 +588,50 @@ Validation:
 Related:
 - `R-PYTHON-MVP-001`
 - `R-PYTHON-MVP-002`
+- `R-IMAGE-BUILD-001`
 - `R-FRAMEWORK-001`
+
+### R-IMAGE-BUILD-001: Python-Native Composable Image Building
+
+Statement: Supported Docker4IDEs image builds must be planned and executed by
+the active Python package without depending on the historical
+`docker4pycharm` build scripts, Dockerfile, or source tree. The design must
+allow configurations to compose different base images, IDE payloads or
+installation strategies, AI-agent/tooling options, and configuration-specific
+assets without placing PyCharm-specific conditionals in a shared builder.
+
+Python must own the build model, generation of any Docker build recipe and
+context, validation of build inputs, and Docker invocation. `docker4pycharm/`
+may remain as historical reference material, but the supported Python build
+path must not execute, extract, copy, or read its build implementation.
+
+Priority: current stabilization
+Status: accepted
+
+Implementation:
+- The current delegated `pycharm build` implementation and packaged legacy
+  assets are transitional behavior to replace.
+- The initial implementation should establish the shared build protocol and
+  migrate the PyCharm configuration to it.
+- The configuration-first CLI and both editable-source and PEX invocation
+  paths must remain supported.
+
+Validation:
+- Add focused tests for build-plan composition, input validation, generated
+  build context/recipe, and Docker command construction.
+- Exercise representative substitutions for base-image, IDE, and AI-agent
+  contributions so the shared layer is not accidentally PyCharm-specific.
+- Confirm the source-install and PEX `pycharm build` paths work when the
+  historical source tree is unavailable and do not invoke packaged legacy
+  build helpers.
+- Run `python -m nox -s build`, then manually build and launch a PyCharm image
+  through the PEX artifact on the host.
+
+Related:
+- `R-PYTHON-MVP-002`
+- `R-PYTHON-MVP-003`
+- `R-FRAMEWORK-001`
+- `R-SCOPE-001`
 
 ### R-FRAMEWORK-001: Shared Python Docker4IDE Orchestration
 

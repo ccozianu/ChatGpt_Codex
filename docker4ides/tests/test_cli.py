@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from docker4ides import cli, compat
+from docker4ides.configurations.pycharm._image_build import PycharmImageBuildOptions
 from docker4ides.configurations.vscode_with_claude import VscodeWithClaudeConfiguration
 
 
@@ -16,6 +17,7 @@ def test_top_level_help_returns_success(capsys) -> None:
     output = capsys.readouterr().out
     assert "pycharm" in output
     assert "vscode_with_claude" in output
+    assert "codium_with_claude" in output
 
 
 def test_run_pycharm_uses_translated_python_launcher(tmp_path: Path) -> None:
@@ -114,44 +116,53 @@ def test_run_pycharm_rejects_multiple_config_shorthands(tmp_path: Path) -> None:
     assert result == 2
 
 
-def test_build_pycharm_delegates_to_current_script() -> None:
-    with patch.object(compat.subprocess, "run") as run:
-        run.return_value.returncode = 0
+def test_build_pycharm_uses_python_buildx_builder(tmp_path: Path) -> None:
+    source = tmp_path / "pycharm"
+    (source / "bin").mkdir(parents=True)
+    (source / "bin" / "pycharm.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
 
-        result = cli.main(["pycharm", "build", "--pycharm", "/tmp/pycharm.tar.gz"])
-
-    assert result == 0
-    command = run.call_args.args[0]
-    assert command[0].endswith("docker4pycharm/build-image.sh")
-    assert command[1:] == ["--pycharm", "/tmp/pycharm.tar.gz"]
-
-
-def test_build_pycharm_falls_back_to_packaged_assets(tmp_path: Path) -> None:
-    missing_repo = tmp_path / "missing-repo"
-
-    def run_compat_script(command: list[str], check: bool) -> subprocess.CompletedProcess[str]:
-        script = Path(command[0])
-        asset_root = script.parent
-
-        assert check is False
-        assert script.name == "build-image.sh"
-        assert script.exists()
-        assert os.access(script, os.X_OK)
-        assert (asset_root / "Dockerfile").exists()
-        assert (asset_root / "entrypoint.sh").exists()
-        assert (asset_root / "bootstrap-project.sh").exists()
-        assert (asset_root / "check-runtime-deps.sh").exists()
-        assert (asset_root / "image-assets" / "vibe-coding-process.md").exists()
-
-        return subprocess.CompletedProcess(command, 0)
-
-    with (
-        patch.dict(os.environ, {"DOCKER4IDES_REPO_ROOT": str(missing_repo)}),
-        patch.object(compat.subprocess, "run", side_effect=run_compat_script),
-    ):
-        result = cli.main(["pycharm", "build", "--pycharm", "/tmp/pycharm.tar.gz"])
+    with patch("docker4ides.configurations.pycharm.configuration.build_pycharm_image") as build_image:
+        build_image.return_value = 0
+        result = cli.main(
+            [
+                "pycharm",
+                "build",
+                "--pycharm",
+                str(source),
+                "--image",
+                "custom:latest",
+                "--base-image",
+                "ubuntu:24.04",
+                "--extra-apt-package",
+                "rsync",
+                "--ai-agent",
+                "codex-cli",
+            ]
+        )
 
     assert result == 0
+    options = build_image.call_args.args[0]
+    assert options == PycharmImageBuildOptions(
+        pycharm=source.resolve(),
+        image="custom:latest",
+        base_image="ubuntu:24.04",
+        network="default",
+        extra_apt_packages=("rsync",),
+        ai_agent="codex-cli",
+    )
+
+
+def test_build_pycharm_accepts_host_network(tmp_path: Path) -> None:
+    source = tmp_path / "pycharm"
+    (source / "bin").mkdir(parents=True)
+    (source / "bin" / "pycharm.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+
+    with patch("docker4ides.configurations.pycharm.configuration.build_pycharm_image") as build_image:
+        build_image.return_value = 0
+        result = cli.main(["pycharm", "build", "--pycharm", str(source), "--network", "host"])
+
+    assert result == 0
+    assert build_image.call_args.args[0].network == "host"
 
 
 def test_runtime_check_pycharm_delegates_to_current_script() -> None:
@@ -189,6 +200,7 @@ def test_top_level_commands_are_discovered() -> None:
     assert "bootstrap" in commands
     assert "pycharm" in commands
     assert "vscode_with_claude" in commands
+    assert "codium_with_claude" in commands
     assert "bootstrap-project" not in commands
     assert "run" not in commands
     assert "build" not in commands

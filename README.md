@@ -90,11 +90,16 @@ Current status:
   `docker4pycharm/historical-root-README.md`.
 - `docker4ides/` contains the active Python package, configuration-first CLI,
   distribution path, tests, and the PyCharm configuration package.
+- `docker4ides pycharm build` now uses a Python-owned `python-on-whales` /
+  Docker buildx backend plus
+  packaged PyCharm runtime assets under `docker4ides/`, instead of delegating
+  image construction to `docker4pycharm/build-image.sh`.
 - The accepted end-user CLI model is
   `docker4ides CONFIGURATION ACTION [options]`; noun-first paths such as
   `docker4ides run pycharm` are intentionally unsupported.
-- `vscode_with_claude` is the intended next proof-point configuration after
-  the PyCharm run-path hardening work.
+- `codium_with_claude` is the active next proof-point configuration. It is a
+  distinct VSCodium plus Claude Code environment; the earlier
+  `vscode_with_claude` placeholder remains separate.
 
 Recent documentation cleanup:
 
@@ -118,9 +123,46 @@ Recent implementation fix:
 Recent manual validation:
 
 - On 2026-07-10, the user confirmed the rebuilt PEX path successfully built a
-  new `codex-debu-v012` PyCharm image from the PEX command line and launched
+  new `codex-debug-v012` PyCharm image from the PEX command line and launched
   this environment successfully. Treat the PEX-packaged `pycharm build` fix as
   manually validated.
+- On 2026-07-12, the user confirmed the Python-owned,
+  `python-on-whales`-backed PyCharm image builder was built and launched
+  successfully on the host. Its outstanding host-level validation is complete.
+
+Current proof-point implementation:
+
+- On 2026-07-12, implementation started for the user-selected
+  `codium_with_claude` configuration. It composes an Ubuntu 24.04 image with
+  VSCodium, Claude Code CLI, Python 3.12, and the current Node.js/npm release
+  channels, plus an X11 launcher with explicit project and state mounts.
+- This target intentionally does not reuse the registered
+  `vscode_with_claude` stub. A local host-network build produced
+  `codium-with-claude:latest` and container checks confirmed VSCodium
+  1.126.04524, Python 3.12.3, Node.js 26.5.0, npm 12.0.1, and Claude Code
+  2.1.207. GUI/X11 launch validation remains outstanding.
+- A build-verified Vite, React, and TypeScript five-in-a-row project now lives
+  under `docker4ides/tests/resources/sample_projects/` as a realistic manual
+  IDE workload and a future end-to-end-test fixture.
+- `codium_with_claude build` accepts `--ide-archive` for a local VSCodium tar
+  archive, avoiding the VSCodium apt repository when that option is used.
+- The Codium image development baseline now includes `xterm` for direct X11
+  validation and `strace` for diagnosing silent process exits. A rebuilt image
+  and host GUI launch still need manual validation.
+
+Current architectural direction:
+
+- On 2026-07-11, the user made Python-native, reusable image building the
+  current priority. The supported `docker4ides` image-build path must stop
+  delegating to or copying build implementation from `docker4pycharm`. The
+  active Python package should own build planning and execution, with
+  composable inputs for base images, IDEs, and AI-agent options.
+- On 2026-07-12, the user selected a Docker CLI-backed Python backend for the
+  active image-build path. `docker4ides` should use `python-on-whales` to drive
+  local Docker buildx while keeping image planning, configuration composition,
+  and CLI behavior in repository-owned Python code.
+- `docker4pycharm/` remains useful as historical reference material, but it is
+  not the implementation source for the target Python image-build path.
 
 Current validation workflow:
 
@@ -140,24 +182,35 @@ Current validation workflow:
 
 Current task:
 
-1. Continue Python V1 hardening on the configuration-first command surface.
-   Audit `docker4ides pycharm run` parity against the historical shell
-   launcher, add focused tests for missing run-planning or Docker-argument
-   behavior, verify the Python implementation no longer depends on
-   `docker4pycharm` bootstrap crutches for supported run behavior, and keep
-   cleanup within the accepted V1 scope.
-   Requirements: `docker4ides/REQUIREMENTS.md` R-PYTHON-MVP-003,
-   R-FRAMEWORK-001, R-SCOPE-001.
-   Verification: run `cd docker4ides && python -m nox -s build` for the normal
-   reused-environment gate, or add `--no-reuse-existing-virtualenvs` when a
-   clean slate is required; review generated Docker arguments and docs together
-   for changed mount, credential, device, or Docker access behavior.
+1. Add a real static typecheck gate for the `docker4ides` Python
+   source tree. A recent minor issue in
+   `docker4ides/docker4ides/configurations/pycharm/_image_build.py` should
+   have been caught before runtime by `mypy`, `pyright`, or an equivalent
+   checker, but the repository currently has no such gate. Define the chosen
+   checker, add it to the contributor/dev workflow, wire it into Nox, and make
+   sure source and PEX-affecting Python paths are covered.
+   Requirements: `docker4ides/REQUIREMENTS.md` R-FRAMEWORK-001,
+   R-PYTHON-MVP-003.
+   This task is explicitly delayed at the user's request while the VSCodium
+   proof point is implemented. Verification: add the typecheck command/session, run it cleanly on the
+   current tree, and include it in `cd docker4ides && python -m nox -s build`
+   or document an explicit short-term reason not to.
+
+2. Finish and validate `codium_with_claude` as a distinct VSCodium plus Claude
+   Code proof point. Confirm the image provides Python 3.12, current Node.js
+   and npm, and Claude Code; then build and launch it on the host against a
+   project. Keep its project, X11, persistent state, credentials, and network
+   exposure explicit.
+   Requirements: `docker4ides/REQUIREMENTS.md` R-IMAGE-BUILD-001,
+   R-PYTHON-MVP-003, R-FRAMEWORK-001, R-SCOPE-001.
+   Verification: run `cd docker4ides && python -m nox -s build`; manually run
+   `docker4ides codium_with_claude build`, verify tool versions in the image,
+   and run `docker4ides codium_with_claude run --project ...` on an X11 host.
 
 Next task:
 
-1. Define the small shared Python protocol for IDE configurations based on the
-   documented end-user model, then make PyCharm and VS Code plus Claude conform
-   to it before implementing VS Code plus Claude behavior.
+1. Complete host validation and any fixes for `codium_with_claude`, then return
+   to the delayed static typecheck gate and shared IDE-configuration protocol.
 
 Standing rule:
 
