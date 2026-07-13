@@ -49,6 +49,7 @@ same change.
 
 ## Bugs
 
+- [VSCodium sandbox failure exits silently with status zero](docker4ides/implementation-notes/bugs/2026-07-13-vscodium-sandbox-silent-exit.md)
 - [Bug template](docker4pycharm/implementation-notes/bugs/_template.md)
 - [Concurrent projects sharing global settings lock](docker4pycharm/implementation-notes/bugs/2026-06-24-concurrent-projects-shared-global-settings-lock.md)
 

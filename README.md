@@ -149,6 +149,14 @@ Current proof-point implementation:
 - The Codium image development baseline now includes `xterm` for direct X11
   validation and `strace` for diagnosing silent process exits. A rebuilt image
   and host GUI launch still need manual validation.
+- `codium_with_claude run --debug-shell` provides interactive Bash through the
+  normal entrypoint with the same mounts and X11 environment for host-level
+  diagnosis.
+- Host debugging confirmed X11 with `xterm`, then traced the silent VSCodium
+  exit to Chromium sandbox startup: Docker denies the user-namespace path and
+  the archive-installed `/opt/codium/chrome-sandbox` has mode `0755` instead
+  of the required root-owned `4755`. The active bug record is
+  `docker4ides/implementation-notes/bugs/2026-07-13-vscodium-sandbox-silent-exit.md`.
 
 Current architectural direction:
 
@@ -206,6 +214,9 @@ Current task:
    Verification: run `cd docker4ides && python -m nox -s build`; manually run
    `docker4ides codium_with_claude build`, verify tool versions in the image,
    and run `docker4ides codium_with_claude run --project ...` on an X11 host.
+   First fix and validate the root-owned `4755` VSCodium sandbox helper for the
+   local-archive image path without making `--no-sandbox`, broad capabilities,
+   or a relaxed seccomp profile part of the supported launcher.
 
 Next task:
 

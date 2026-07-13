@@ -21,6 +21,7 @@ class CodiumRunOptions:
     name: str | None = None
     state: Path | None = None
     project_state: Path | None = None
+    debug_shell: bool = False
     extra_docker_args: tuple[str, ...] = ()
 
 
@@ -38,10 +39,22 @@ def build_codium_run_command(options: CodiumRunOptions, env: Mapping[str, str] |
     state.mkdir(parents=True, exist_ok=True)
     project_state.mkdir(parents=True, exist_ok=True)
     name = options.name or f"codium-with-claude-{os.getuid()}-{int(time.time())}"
+    container_command = (
+        ["bash"]
+        if options.debug_shell
+        else [
+            "codium",
+            "--user-data-dir=/ide-global-settings/codium/user-data",
+            "--extensions-dir=/ide-global-settings/codium/extensions",
+            "/workspace/project",
+        ]
+    )
+    interactive_args = ["--interactive", "--tty"] if options.debug_shell else []
     return [
         "docker",
         "run",
         "--rm",
+        *interactive_args,
         "--name",
         name,
         "--env",
@@ -60,10 +73,7 @@ def build_codium_run_command(options: CodiumRunOptions, env: Mapping[str, str] |
         "/tmp/.X11-unix:/tmp/.X11-unix:ro",
         *options.extra_docker_args,
         options.image,
-        "codium",
-        "--user-data-dir=/ide-global-settings/codium/user-data",
-        "--extensions-dir=/ide-global-settings/codium/extensions",
-        "/workspace/project",
+        *container_command,
     ]
 
 

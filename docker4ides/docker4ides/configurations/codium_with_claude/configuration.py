@@ -53,6 +53,7 @@ class CodiumWithClaudeConfiguration:
                         name=kwargs["name"],
                         state=kwargs["state"],
                         project_state=kwargs["project_state"],
+                        debug_shell=kwargs["debug_shell"],
                         extra_docker_args=tuple(kwargs["docker_arg"]),
                     )
                 )
@@ -68,6 +69,11 @@ class CodiumWithClaudeConfiguration:
                 click.Option(["--name"]),
                 click.Option(["--state"], type=click.Path(path_type=Path), help="Persistent VSCodium and Claude home."),
                 click.Option(["--project-state"], type=click.Path(path_type=Path), help="Persistent project-local cache state."),
+                click.Option(
+                    ["--debug-shell"],
+                    is_flag=True,
+                    help="Run an interactive Bash shell through the image entrypoint instead of VSCodium.",
+                ),
                 click.Option(["--docker-arg"], multiple=True, help="Append one advanced docker run argument."),
             ],
             help="Launch VSCodium against a host project using X11.",

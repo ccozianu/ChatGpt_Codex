@@ -173,6 +173,7 @@ docker4ides vscode_with_claude --help
 docker4ides codium_with_claude build
 docker4ides codium_with_claude build --ide-archive /path/to/VSCodium-linux-x64.tar.gz
 docker4ides codium_with_claude run --project /path/to/project
+docker4ides codium_with_claude run --project /path/to/project --debug-shell
 docker4ides bootstrap project --project /path/to/project
 ```
 
@@ -198,6 +199,16 @@ and uses ordinary Docker bridge networking so VSCodium and Claude Code can
 reach their services. It does not mount the Docker socket, SSH agent, host
 home, devices, or other credentials by default. Claude authentication written
 under its container home persists in the explicit global state directory.
+Use `--debug-shell` to run interactive Bash through the normal image
+entrypoint with the same project, state, and X11 mounts instead of starting
+VSCodium.
+
+Known limitation: the current local-archive image path strips the setuid mode
+from VSCodium's Chromium sandbox helper. On Docker hosts that deny the
+user-namespace fallback, VSCodium can therefore exit silently with status
+zero. Do not adopt `--no-sandbox` as a normal workaround. The tracked fix and
+validation criteria are documented in
+`implementation-notes/bugs/2026-07-13-vscodium-sandbox-silent-exit.md`.
 
 `pycharm run` defaults `--project` to the current directory. Use `--profile
 NAME` to group shared PyCharm settings and plugins under

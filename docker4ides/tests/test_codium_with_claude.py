@@ -123,3 +123,17 @@ def test_run_command_mounts_only_explicit_state_and_x11(tmp_path: Path) -> None:
     assert "/tmp/.X11-unix:/tmp/.X11-unix:ro" in command
     assert "/var/run/docker.sock" not in " ".join(command)
     assert command[-1] == "/workspace/project"
+
+
+def test_debug_shell_runs_interactive_bash_through_entrypoint(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    command = build_codium_run_command(
+        CodiumRunOptions(project=project, debug_shell=True),
+        {"DISPLAY": ":0", "HOME": str(tmp_path)},
+    )
+
+    assert "--interactive" in command
+    assert "--tty" in command
+    assert command[-2:] == ["codium-with-claude:latest", "bash"]
+    assert "--entrypoint" not in command

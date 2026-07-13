@@ -626,12 +626,16 @@ Validation:
   build helpers.
 - Run `python -m nox -s build`, then manually build and launch a PyCharm image
   through the PEX artifact on the host.
+- Local-archive VSCodium host validation is currently blocked by the sandbox
+  helper permission bug recorded in
+  `implementation-notes/bugs/2026-07-13-vscodium-sandbox-silent-exit.md`.
 
 Related:
 - `R-PYTHON-MVP-002`
 - `R-PYTHON-MVP-003`
 - `R-FRAMEWORK-001`
 - `R-SCOPE-001`
+- `implementation-notes/bugs/2026-07-13-vscodium-sandbox-silent-exit.md`
 
 ### R-FRAMEWORK-001: Shared Python Docker4IDE Orchestration
 
