@@ -49,12 +49,13 @@ same change.
 
 ## Bugs
 
-- [VSCodium sandbox failure exits silently with status zero](docker4ides/implementation-notes/bugs/2026-07-13-vscodium-sandbox-silent-exit.md)
+- [Codium run lacks shared developer runtime options](docker4ides/implementation-notes/bugs/2026-07-13-codium-run-option-parity.md)
 - [Bug template](docker4pycharm/implementation-notes/bugs/_template.md)
 - [Concurrent projects sharing global settings lock](docker4pycharm/implementation-notes/bugs/2026-06-24-concurrent-projects-shared-global-settings-lock.md)
 
 ## Completed, Retired, And Deferred Tasks
 
+- [VSCodium sandbox and foreground launch](docker4ides/implementation-notes/completed-tasks/2026-07-13-vscodium-sandbox-and-foreground-launch.md)
 - [Completed task archive README](docker4pycharm/implementation-notes/completed-tasks/README.md)
 - [Bootstrap process template V004 validation](docker4pycharm/implementation-notes/completed-tasks/2026-06-20-bootstrap-process-template-v004-validation.md)
 - [Default host Docker passthrough validation retired](docker4pycharm/implementation-notes/completed-tasks/2026-06-20-default-host-docker-passthrough-validation-retired.md)

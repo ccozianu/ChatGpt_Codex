@@ -1,8 +1,10 @@
-# Bug: VSCodium Sandbox Failure Exits Silently With Status Zero
+# Completed Task: VSCodium Sandbox And Foreground Launch
 
 Date opened: 2026-07-13
 
-Status: root cause identified; fix and host validation pending
+Date closed: 2026-07-13
+
+Status: manually validated
 
 Requirements: R-IMAGE-BUILD-001, R-PYTHON-MVP-003, R-FRAMEWORK-001,
 R-SCOPE-001
@@ -113,6 +115,37 @@ Also consider preventing the VSCodium CLI wrapper from detaching, or enabling
 verbose foreground diagnostics, so future startup failures propagate a useful
 exit status.
 
+## Fix Implemented
+
+On 2026-07-13, the local-archive build plan was updated to fail with a clear
+message when `/opt/codium/chrome-sandbox` is absent, then apply root ownership
+and mode `4755` after copying the normalized archive. A focused build-plan test
+asserts the presence of the validation, `chown`, and `chmod` operations.
+
+The user confirmed that `codium --no-sandbox .` opens successfully, validating
+the sandbox diagnosis. That flag was not added to the supported launcher.
+
+Further host testing found a second lifecycle defect: after sandbox startup
+was enabled with an explicit `SYS_ADMIN` diagnostic capability, the normal
+container briefly displayed a window and then stopped. The `bin/codium` CLI
+wrapper forks and detaches the Electron process, so the wrapper exits and
+Docker terminates the container. The launcher now uses a packaged
+`codium-foreground` link to the Electron binary (`/opt/codium/codium` for a
+local archive and `/usr/share/codium/codium` for the apt package). This keeps
+the IDE attached as the foreground container process. Rebuilt host validation
+was initially pending.
+
+## Manual Validation
+
+On 2026-07-13, the user rebuilt and launched the image successfully. VSCodium
+remained open as the foreground container process, and the Claude integration
+worked sufficiently to accept the Codium plus Claude MVP proof point.
+
+The validating launch explicitly used host networking and added `SYS_ADMIN` so
+Chromium could create its sandbox namespaces. These remain explicit isolation
+relaxations rather than ambient defaults. The `--no-sandbox` diagnostic was
+not retained in the supported launch command.
+
 ## Verification Target
 
 1. Confirm `codium --no-sandbox .` opens once as diagnosis only.
@@ -126,8 +159,9 @@ exit status.
    Expected result: `root:root 4755 /opt/codium/chrome-sandbox`.
 4. Launch the sample project through the normal configuration command and
    confirm VSCodium opens and remains running.
-5. Confirm the normal command does not include `--no-sandbox`, added
-   capabilities, `--privileged`, or a relaxed seccomp profile.
+5. Confirm the normal command does not include `--no-sandbox`, `--privileged`,
+   or a relaxed seccomp profile, and that any required capability such as
+   `SYS_ADMIN` remains an explicit opt-in launch argument.
 6. Run `cd docker4ides && python -m nox -s build`.
 
 ## Close Criteria
@@ -136,3 +170,8 @@ Close this bug only after the focused regression test passes and a rebuilt
 local-archive image launches VSCodium successfully on the host with Chromium's
 sandbox enabled. Preserve the result as a completed-task record if later
 sessions would benefit from the validation history.
+
+The criteria were satisfied on 2026-07-13. Reopen if a rebuilt image again
+loses the helper ownership/mode, the normal launcher detaches from Electron,
+the window immediately disappears, or sandbox startup fails under the
+documented capability profile.

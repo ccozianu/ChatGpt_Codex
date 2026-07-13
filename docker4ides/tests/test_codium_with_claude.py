@@ -51,6 +51,7 @@ def test_image_spec_contains_requested_sdks_and_claude(tmp_path: Path) -> None:
     assert "@anthropic-ai/claude-code@latest" in install_script
     assert "apt-get install -y --no-install-recommends codium" in install_script
     assert "apt-get install -y --no-install-recommends nodejs" in install_script
+    assert "/usr/share/codium/codium /usr/local/bin/codium-foreground" in install_script
     assert ("docker4ides.configuration", "codium_with_claude") in plan.labels
     context = tmp_path / "context"
     context.mkdir()
@@ -90,6 +91,10 @@ def test_archive_image_spec_skips_vscodium_repository(tmp_path: Path) -> None:
     assert "apt-get install -y --no-install-recommends codium" not in install_script
     assert any(copy.source == codium_root and copy.destination == "/opt/codium" for copy in plan.directories)
     assert "/opt/codium/bin/codium" in install_script
+    assert "VSCodium archive is missing /opt/codium/chrome-sandbox" in install_script
+    assert "chown root:root /opt/codium/chrome-sandbox" in install_script
+    assert "chmod 4755 /opt/codium/chrome-sandbox" in install_script
+    assert "/opt/codium/codium /usr/local/bin/codium-foreground" in install_script
 
 
 def test_normalize_codium_archive_finds_executable_launcher(tmp_path: Path) -> None:
@@ -123,6 +128,8 @@ def test_run_command_mounts_only_explicit_state_and_x11(tmp_path: Path) -> None:
     assert "/tmp/.X11-unix:/tmp/.X11-unix:ro" in command
     assert "/var/run/docker.sock" not in " ".join(command)
     assert command[-1] == "/workspace/project"
+    assert "codium-foreground" in command
+    assert "codium" not in command
 
 
 def test_debug_shell_runs_interactive_bash_through_entrypoint(tmp_path: Path) -> None:
@@ -137,3 +144,17 @@ def test_debug_shell_runs_interactive_bash_through_entrypoint(tmp_path: Path) ->
     assert "--tty" in command
     assert command[-2:] == ["codium-with-claude:latest", "bash"]
     assert "--entrypoint" not in command
+
+
+def test_run_network_mode_applies_to_normal_and_debug_shell(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+
+    for debug_shell in (False, True):
+        command = build_codium_run_command(
+            CodiumRunOptions(project=project, network="host", debug_shell=debug_shell),
+            {"DISPLAY": ":0", "HOME": str(tmp_path)},
+        )
+
+        network_index = command.index("--network")
+        assert command[network_index + 1] == "host"

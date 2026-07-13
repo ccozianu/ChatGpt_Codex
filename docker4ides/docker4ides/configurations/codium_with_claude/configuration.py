@@ -53,6 +53,7 @@ class CodiumWithClaudeConfiguration:
                         name=kwargs["name"],
                         state=kwargs["state"],
                         project_state=kwargs["project_state"],
+                        network=kwargs["network"],
                         debug_shell=kwargs["debug_shell"],
                         extra_docker_args=tuple(kwargs["docker_arg"]),
                     )
@@ -69,6 +70,10 @@ class CodiumWithClaudeConfiguration:
                 click.Option(["--name"]),
                 click.Option(["--state"], type=click.Path(path_type=Path), help="Persistent VSCodium and Claude home."),
                 click.Option(["--project-state"], type=click.Path(path_type=Path), help="Persistent project-local cache state."),
+                click.Option(
+                    ["--network"],
+                    help="Docker network mode. Use 'host' only when direct host-network access is required.",
+                ),
                 click.Option(
                     ["--debug-shell"],
                     is_flag=True,

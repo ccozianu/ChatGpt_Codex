@@ -21,6 +21,7 @@ class CodiumRunOptions:
     name: str | None = None
     state: Path | None = None
     project_state: Path | None = None
+    network: str | None = None
     debug_shell: bool = False
     extra_docker_args: tuple[str, ...] = ()
 
@@ -43,18 +44,20 @@ def build_codium_run_command(options: CodiumRunOptions, env: Mapping[str, str] |
         ["bash"]
         if options.debug_shell
         else [
-            "codium",
+            "codium-foreground",
             "--user-data-dir=/ide-global-settings/codium/user-data",
             "--extensions-dir=/ide-global-settings/codium/extensions",
             "/workspace/project",
         ]
     )
     interactive_args = ["--interactive", "--tty"] if options.debug_shell else []
+    network_args = ["--network", options.network] if options.network is not None else []
     return [
         "docker",
         "run",
         "--rm",
         *interactive_args,
+        *network_args,
         "--name",
         name,
         "--env",

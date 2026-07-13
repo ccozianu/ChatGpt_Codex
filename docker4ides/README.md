@@ -174,6 +174,7 @@ docker4ides codium_with_claude build
 docker4ides codium_with_claude build --ide-archive /path/to/VSCodium-linux-x64.tar.gz
 docker4ides codium_with_claude run --project /path/to/project
 docker4ides codium_with_claude run --project /path/to/project --debug-shell
+docker4ides codium_with_claude run --project /path/to/project --network host
 docker4ides bootstrap project --project /path/to/project
 ```
 
@@ -202,13 +203,27 @@ under its container home persists in the explicit global state directory.
 Use `--debug-shell` to run interactive Bash through the normal image
 entrypoint with the same project, state, and X11 mounts instead of starting
 VSCodium.
+Use `--network MODE` to select an explicit Docker network mode for either the
+normal IDE or `--debug-shell` path. The default remains Docker bridge
+networking. `--network host` is useful for host-bound development services and
+debugging, but shares the host network namespace and therefore weakens network
+isolation.
+Normal launches execute VSCodium's Electron binary directly so it remains the
+foreground container process. They do not use the `bin/codium` CLI wrapper,
+which detaches the GUI and exits before the IDE session ends.
 
-Known limitation: the current local-archive image path strips the setuid mode
-from VSCodium's Chromium sandbox helper. On Docker hosts that deny the
-user-namespace fallback, VSCodium can therefore exit silently with status
-zero. Do not adopt `--no-sandbox` as a normal workaround. The tracked fix and
-validation criteria are documented in
-`implementation-notes/bugs/2026-07-13-vscodium-sandbox-silent-exit.md`.
+The local-archive build path restores root ownership and mode `4755` on
+VSCodium's Chromium sandbox helper after safe archive extraction strips the
+setuid bit. This path and foreground launching were manually validated on
+2026-07-13. Do not adopt `--no-sandbox` as a normal workaround. The evidence
+and validation record are documented in
+`implementation-notes/completed-tasks/2026-07-13-vscodium-sandbox-and-foreground-launch.md`.
+
+Known parity gap: `codium_with_claude run` does not yet expose many of the
+explicit state, Git credential, Docker capability, debugging, sudo, and
+filesystem options available from `pycharm run`. The intended shared versus
+IDE-specific behavior is tracked in
+`implementation-notes/bugs/2026-07-13-codium-run-option-parity.md`.
 
 `pycharm run` defaults `--project` to the current directory. Use `--profile
 NAME` to group shared PyCharm settings and plugins under

@@ -173,11 +173,31 @@ rm -rf /var/lib/apt/lists/*
         components.extend(
             (
                 DirectoryComponent(codium_root, "/opt/codium"),
+                ExecComponent(
+                    (
+                        "bash",
+                        "-euxo",
+                        "pipefail",
+                        "-c",
+                        "if [[ ! -f /opt/codium/chrome-sandbox ]]; then "
+                        "echo 'VSCodium archive is missing /opt/codium/chrome-sandbox' >&2; exit 1; fi; "
+                        "chown root:root /opt/codium/chrome-sandbox; "
+                        "chmod 4755 /opt/codium/chrome-sandbox",
+                    )
+                ),
                 ExecComponent(("ln", "-s", "/opt/codium/bin/codium", "/usr/local/bin/codium")),
             )
         )
     components.extend((
         ExecComponent(("bash", "-euxo", "pipefail", "-c", install_tooling)),
+        ExecComponent(
+            (
+                "ln",
+                "-s",
+                "/opt/codium/codium" if codium_root is not None else "/usr/share/codium/codium",
+                "/usr/local/bin/codium-foreground",
+            )
+        ),
         FileComponent(assets_root / "entrypoint.sh", "/usr/local/bin/codium-entrypoint", permissions=0o755),
         ExecComponent(("mkdir", "-p", "/workspace/project", "/ide-global-settings", "/ide-project-state")),
         EnvComponent(

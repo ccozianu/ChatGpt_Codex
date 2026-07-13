@@ -140,23 +140,43 @@ Current proof-point implementation:
   `vscode_with_claude` stub. A local host-network build produced
   `codium-with-claude:latest` and container checks confirmed VSCodium
   1.126.04524, Python 3.12.3, Node.js 26.5.0, npm 12.0.1, and Claude Code
-  2.1.207. GUI/X11 launch validation remains outstanding.
+  2.1.207. GUI/X11 and Claude integration were manually validated on
+  2026-07-13.
 - A build-verified Vite, React, and TypeScript five-in-a-row project now lives
   under `docker4ides/tests/resources/sample_projects/` as a realistic manual
   IDE workload and a future end-to-end-test fixture.
 - `codium_with_claude build` accepts `--ide-archive` for a local VSCodium tar
   archive, avoiding the VSCodium apt repository when that option is used.
 - The Codium image development baseline now includes `xterm` for direct X11
-  validation and `strace` for diagnosing silent process exits. A rebuilt image
-  and host GUI launch still need manual validation.
+  validation and `strace` for diagnosing silent process exits.
 - `codium_with_claude run --debug-shell` provides interactive Bash through the
   normal entrypoint with the same mounts and X11 environment for host-level
   diagnosis.
 - Host debugging confirmed X11 with `xterm`, then traced the silent VSCodium
   exit to Chromium sandbox startup: Docker denies the user-namespace path and
   the archive-installed `/opt/codium/chrome-sandbox` has mode `0755` instead
-  of the required root-owned `4755`. The active bug record is
-  `docker4ides/implementation-notes/bugs/2026-07-13-vscodium-sandbox-silent-exit.md`.
+  of the required root-owned `4755`. The completed validation record is
+  `docker4ides/implementation-notes/completed-tasks/2026-07-13-vscodium-sandbox-and-foreground-launch.md`.
+- The local-archive build now verifies the sandbox helper and restores its
+  root ownership and mode `4755`. The user confirmed `--no-sandbox` opens the
+  IDE as a diagnostic; the supported launcher remains sandboxed.
+- A command-surface audit found that `codium_with_claude run` lacks most of
+  PyCharm's developer runtime profiles. Git transport, Docker modes, native
+  debugging, sudo, writable-root, project mount, and profile/state-root
+  controls are broadly useful across IDEs and should move into shared runtime
+  planning. IDEA lock handling remains PyCharm-specific. The active parity bug
+  is `docker4ides/implementation-notes/bugs/2026-07-13-codium-run-option-parity.md`.
+- Codium now accepts an opt-in run-time `--network MODE` for both normal and
+  debug-shell launches. The default remains Docker bridge networking;
+  `--network host` is an explicit host-network isolation relaxation intended
+  for development and diagnosis.
+- The normal Codium launcher now invokes the Electron binary directly through
+  `codium-foreground` instead of the detaching `bin/codium` CLI wrapper, so the
+  IDE remains attached to the container lifecycle.
+- On 2026-07-13, the user confirmed the rebuilt VSCodium foreground launch and
+  Claude integration work. This accepts the Codium plus Claude MVP proof point.
+  The validating command explicitly used host networking and `SYS_ADMIN` for
+  Chromium sandbox namespaces; neither is an ambient default.
 
 Current architectural direction:
 
@@ -199,29 +219,36 @@ Current task:
    sure source and PEX-affecting Python paths are covered.
    Requirements: `docker4ides/REQUIREMENTS.md` R-FRAMEWORK-001,
    R-PYTHON-MVP-003.
-   This task is explicitly delayed at the user's request while the VSCodium
-   proof point is implemented. Verification: add the typecheck command/session, run it cleanly on the
-   current tree, and include it in `cd docker4ides && python -m nox -s build`
-   or document an explicit short-term reason not to.
+   The VSCodium MVP that delayed this task is now manually validated.
+   Verification: add the typecheck command/session, run it cleanly on the
+   current tree, and include it in `cd docker4ides && python -m nox -s build`.
 
-2. Finish and validate `codium_with_claude` as a distinct VSCodium plus Claude
-   Code proof point. Confirm the image provides Python 3.12, current Node.js
-   and npm, and Claude Code; then build and launch it on the host against a
-   project. Keep its project, X11, persistent state, credentials, and network
-   exposure explicit.
-   Requirements: `docker4ides/REQUIREMENTS.md` R-IMAGE-BUILD-001,
-   R-PYTHON-MVP-003, R-FRAMEWORK-001, R-SCOPE-001.
-   Verification: run `cd docker4ides && python -m nox -s build`; manually run
-   `docker4ides codium_with_claude build`, verify tool versions in the image,
-   and run `docker4ides codium_with_claude run --project ...` on an X11 host.
-   First fix and validate the root-owned `4755` VSCodium sandbox helper for the
-   local-archive image path without making `--no-sandbox`, broad capabilities,
-   or a relaxed seccomp profile part of the supported launcher.
+2. Address the shared run-option parity gap recorded in
+   `docker4ides/implementation-notes/bugs/2026-07-13-codium-run-option-parity.md`,
+   beginning with a shared runtime-options model rather than copying PyCharm
+   flags into the Codium launcher.
+   Requirements: `docker4ides/REQUIREMENTS.md` R-PYTHON-MVP-003,
+   R-FRAMEWORK-001, R-SCOPE-001, R-DOCKER-001.
+   Verification: add shared option-planning tests, retain explicit isolation
+   boundaries, run `cd docker4ides && python -m nox -s build`, and manually
+   validate security-sensitive profiles.
+
+3. Add a sensible shared extended-logging option for configuration `run`
+   subcommands. It should print a sanitized runtime/Docker plan, enable
+   configuration-specific verbose IDE logging, keep the foreground process
+   attached, preserve actionable failure evidence, and never expose Git,
+   agent, or other credential values.
+   Requirements: `docker4ides/REQUIREMENTS.md` R-FRAMEWORK-001,
+   R-PYTHON-MVP-003, R-SCOPE-001.
+   Verification: cover PyCharm and Codium command planning, credential
+   redaction, source and PEX help surfaces, and at least one manual failing IDE
+   startup that leaves useful diagnostics.
 
 Next task:
 
-1. Complete host validation and any fixes for `codium_with_claude`, then return
-   to the delayed static typecheck gate and shared IDE-configuration protocol.
+1. Return to the static typecheck gate, then use the shared
+   IDE-configuration/runtime protocol to address Codium option parity and
+   extended run logging.
 
 Standing rule:
 

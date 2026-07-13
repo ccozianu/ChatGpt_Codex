@@ -590,6 +590,7 @@ Related:
 - `R-PYTHON-MVP-002`
 - `R-IMAGE-BUILD-001`
 - `R-FRAMEWORK-001`
+- `implementation-notes/bugs/2026-07-13-codium-run-option-parity.md`
 
 ### R-IMAGE-BUILD-001: Python-Native Composable Image Building
 
@@ -626,16 +627,17 @@ Validation:
   build helpers.
 - Run `python -m nox -s build`, then manually build and launch a PyCharm image
   through the PEX artifact on the host.
-- Local-archive VSCodium host validation is currently blocked by the sandbox
-  helper permission bug recorded in
-  `implementation-notes/bugs/2026-07-13-vscodium-sandbox-silent-exit.md`.
+- The local-archive VSCodium build now restores the root-owned mode `4755`
+  sandbox helper and has a focused build-plan regression assertion. On
+  2026-07-13, the user manually validated the rebuilt foreground launch and
+  Codium plus Claude MVP using explicit host networking and `SYS_ADMIN`.
 
 Related:
 - `R-PYTHON-MVP-002`
 - `R-PYTHON-MVP-003`
 - `R-FRAMEWORK-001`
 - `R-SCOPE-001`
-- `implementation-notes/bugs/2026-07-13-vscodium-sandbox-silent-exit.md`
+- `implementation-notes/completed-tasks/2026-07-13-vscodium-sandbox-and-foreground-launch.md`
 
 ### R-FRAMEWORK-001: Shared Python Docker4IDE Orchestration
 
