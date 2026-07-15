@@ -136,6 +136,14 @@ Recent implementation fix:
   needed by delegated `pycharm build`, `pycharm check-runtime`, and
   `bootstrap project` commands, so those commands no longer require a sibling
   source checkout at runtime.
+- `docker4ides` now has a real `mypy` typecheck gate wired into contributor
+  dependencies, a dedicated `nox -s typecheck` session, and the default
+  `nox -s build` gate. The initial gate runs cleanly on the current tree and
+  covers the Python package, tests, and `noxfile.py`.
+- `codium_with_claude run` now shares the first extracted runtime-layout slice
+  with PyCharm: `--profile`, `--project-state-root`, and `--project-mount`
+  are backed by a common planner module while broader Git/Docker/debug/sudo
+  parity remains open.
 
 Recent manual validation:
 
@@ -227,20 +235,7 @@ Current validation workflow:
 
 Current task:
 
-1. Add a real static typecheck gate for the `docker4ides` Python
-   source tree. A recent minor issue in
-   `docker4ides/docker4ides/configurations/pycharm/_image_build.py` should
-   have been caught before runtime by `mypy`, `pyright`, or an equivalent
-   checker, but the repository currently has no such gate. Define the chosen
-   checker, add it to the contributor/dev workflow, wire it into Nox, and make
-   sure source and PEX-affecting Python paths are covered.
-   Requirements: `docker4ides/REQUIREMENTS.md` R-FRAMEWORK-001,
-   R-PYTHON-MVP-003.
-   The VSCodium MVP that delayed this task is now manually validated.
-   Verification: add the typecheck command/session, run it cleanly on the
-   current tree, and include it in `cd docker4ides && python -m nox -s build`.
-
-2. Address the shared run-option parity gap recorded in
+1. Address the shared run-option parity gap recorded in
    `docker4ides/implementation-notes/bugs/2026-07-13-codium-run-option-parity.md`,
    beginning with a shared runtime-options model rather than copying PyCharm
    flags into the Codium launcher.
@@ -250,7 +245,7 @@ Current task:
    boundaries, run `cd docker4ides && python -m nox -s build`, and manually
    validate security-sensitive profiles.
 
-3. Add a sensible shared extended-logging option for configuration `run`
+2. Add a sensible shared extended-logging option for configuration `run`
    subcommands. It should print a sanitized runtime/Docker plan, enable
    configuration-specific verbose IDE logging, keep the foreground process
    attached, preserve actionable failure evidence, and never expose Git,
@@ -263,9 +258,8 @@ Current task:
 
 Next task:
 
-1. Return to the static typecheck gate, then use the shared
-   IDE-configuration/runtime protocol to address Codium option parity and
-   extended run logging.
+1. Use the shared IDE-configuration/runtime protocol to address Codium option
+   parity first, then shared extended run logging.
 
 Standing rule:
 

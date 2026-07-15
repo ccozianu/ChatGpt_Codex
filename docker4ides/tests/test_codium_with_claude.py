@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from docker4ides import cli
 from docker4ides.configurations.codium_with_claude import (
+    CodiumWithClaudeConfiguration,
     CodiumImageBuildOptions,
     CodiumRunOptions,
     build_codium_image_spec,
@@ -132,6 +133,33 @@ def test_run_command_mounts_only_explicit_state_and_x11(tmp_path: Path) -> None:
     assert "codium" not in command
 
 
+def test_run_command_supports_shared_profile_and_project_state_root(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    state_root = tmp_path / "state-root"
+    command = build_codium_run_command(
+        CodiumRunOptions(project=project, profile="codex", project_state_root=state_root),
+        {"DISPLAY": ":0", "HOME": str(tmp_path)},
+    )
+
+    expected_state = tmp_path / ".config" / "docker4ides-codium-with-claude-codex" / "state"
+    expected_project_state = state_root / project.name
+    assert f"{expected_state.resolve()}:/ide-global-settings" in command
+    assert f"{expected_project_state.resolve()}:/ide-project-state" in command
+
+
+def test_run_command_supports_explicit_project_mount(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    command = build_codium_run_command(
+        CodiumRunOptions(project=project, project_mount="/workspace/custom-project"),
+        {"DISPLAY": ":0", "HOME": str(tmp_path)},
+    )
+
+    assert f"{project.resolve()}:/workspace/custom-project" in command
+    assert command[-1] == "/workspace/custom-project"
+
+
 def test_debug_shell_runs_interactive_bash_through_entrypoint(tmp_path: Path) -> None:
     project = tmp_path / "project"
     project.mkdir()
@@ -158,3 +186,12 @@ def test_run_network_mode_applies_to_normal_and_debug_shell(tmp_path: Path) -> N
 
         network_index = command.index("--network")
         assert command[network_index + 1] == "host"
+
+
+def test_codium_run_command_exposes_shared_state_layout_options() -> None:
+    command = CodiumWithClaudeConfiguration().run_command()
+    option_names = {option for param in command.params for option in getattr(param, "opts", [])}
+
+    assert "--profile" in option_names
+    assert "--project-state-root" in option_names
+    assert "--project-mount" in option_names

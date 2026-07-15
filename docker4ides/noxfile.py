@@ -37,6 +37,17 @@ def run_tests(session: nox.Session) -> None:
     session.run("python", "-m", "pytest", str(PROJECT_ROOT))
 
 
+def run_typecheck(session: nox.Session) -> None:
+    session.run(
+        "python",
+        "-m",
+        "mypy",
+        str(PROJECT_ROOT / "docker4ides"),
+        str(PROJECT_ROOT / "tests"),
+        str(PROJECT_ROOT / "noxfile.py"),
+    )
+
+
 def run_smoke(session: nox.Session) -> None:
     session.run("python", "-m", "docker4ides", "--help")
     session.run("python", "-m", "docker4ides", "pycharm", "run", "--help")
@@ -85,6 +96,12 @@ def smoke(session: nox.Session) -> None:
 
 
 @nox.session(python="3.12")
+def typecheck(session: nox.Session) -> None:
+    install_locked(session)
+    run_typecheck(session)
+
+
+@nox.session(python="3.12")
 def pex(session: nox.Session) -> None:
     install_locked(session)
     check_shell_syntax(session)
@@ -97,6 +114,7 @@ def build(session: nox.Session) -> None:
     install_locked(session)
     check_python_syntax(session)
     check_shell_syntax(session)
+    run_typecheck(session)
     run_tests(session)
     run_smoke(session)
     build_pex(session)

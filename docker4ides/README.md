@@ -38,6 +38,7 @@ cd docker4ides
 
 python -m nox -s tests   # Python compile checks plus pytest
 python -m nox -s syntax  # Python compile checks plus shell syntax checks
+python -m nox -s typecheck  # mypy for package, tests, and noxfile.py
 python -m nox -s smoke   # source CLI and shell-wrapper help smoke tests
 python -m nox -s pex     # build the PEX artifact and smoke-test it
 python -m nox -s build   # full local gate
@@ -47,6 +48,9 @@ The `tests` session is the Nox way to run pytest for this project. It installs
 the locked contributor dependencies into the managed Nox venv, installs
 `docker4ides` editable with `--no-deps`, runs Python compile checks, then runs
 `python -m pytest docker4ides`.
+
+The `typecheck` session runs `mypy` across the `docker4ides` Python package,
+tests, and `noxfile.py`.
 
 The `build` session is the default Nox session, so these are equivalent:
 
@@ -87,8 +91,8 @@ python -m pytest docker4ides
 
 The Nox build session installs the locked contributor dependencies, installs
 `docker4ides` editable with `--no-deps`, compiles Python files, checks shell
-script syntax, runs tests, smoke-tests the Python CLI and shell wrapper help,
-builds the PEX artifact, and smoke-tests the PEX CLI.
+script syntax, runs `mypy`, runs tests, smoke-tests the Python CLI and shell
+wrapper help, builds the PEX artifact, and smoke-tests the PEX CLI.
 
 `pyproject.toml` is the source of truth for Python runtime and development
 dependencies. The pinned `requirements.txt` and `dev-requirements.txt` files
@@ -177,6 +181,9 @@ docker4ides vscode_with_claude --help
 docker4ides codium_with_claude build
 docker4ides codium_with_claude build --ide-archive /path/to/VSCodium-linux-x64.tar.gz
 docker4ides codium_with_claude run --project /path/to/project
+docker4ides codium_with_claude run --project /path/to/project --profile codex
+docker4ides codium_with_claude run --project /path/to/project --project-state-root /path/to/workspace/.state
+docker4ides codium_with_claude run --project /path/to/project --project-mount /workspace/project
 docker4ides codium_with_claude run --project /path/to/project --debug-shell
 docker4ides codium_with_claude run --project /path/to/project --network host
 docker4ides bootstrap project --project /path/to/project
@@ -196,14 +203,18 @@ the archive is installed under `/opt/codium`. Node.js, npm, and Claude Code are
 still downloaded from their configured upstream channels.
 
 `codium_with_claude run` currently targets Linux X11. It mounts the selected
-project at `/workspace/project`, a persistent VSCodium/Claude home (by default
-`~/.config/docker4ides/codium-with-claude`) at `/ide-global-settings`, a
-project-local state directory (by default `.docker4ides/codium-state`) at
-`/ide-project-state`, and the host X11 socket read-only. It passes `DISPLAY`
-and uses ordinary Docker bridge networking so VSCodium and Claude Code can
-reach their services. It does not mount the Docker socket, SSH agent, host
-home, devices, or other credentials by default. Claude authentication written
-under its container home persists in the explicit global state directory.
+project at `/workspace/project` by default, a persistent VSCodium/Claude home
+(by default `~/.config/docker4ides/codium-with-claude`) at
+`/ide-global-settings`, a project-local state directory (by default
+`.docker4ides/codium-state`) at `/ide-project-state`, and the host X11 socket
+read-only. `--profile NAME` moves the shared global state under
+`~/.config/docker4ides-codium-with-claude-NAME/state`. `--project-state-root
+DIR` mirrors per-project state outside the source tree, and `--project-mount`
+overrides the in-container project path explicitly. It passes `DISPLAY` and
+uses ordinary Docker bridge networking so VSCodium and Claude Code can reach
+their services. It does not mount the Docker socket, SSH agent, host home,
+devices, or other credentials by default. Claude authentication written under
+its container home persists in the explicit global state directory.
 Use `--debug-shell` to run interactive Bash through the normal image
 entrypoint with the same project, state, and X11 mounts instead of starting
 VSCodium.
@@ -223,10 +234,11 @@ setuid bit. This path and foreground launching were manually validated on
 and validation record are documented in
 `implementation-notes/completed-tasks/2026-07-13-vscodium-sandbox-and-foreground-launch.md`.
 
-Known parity gap: `codium_with_claude run` does not yet expose many of the
-explicit state, Git credential, Docker capability, debugging, sudo, and
-filesystem options available from `pycharm run`. The intended shared versus
-IDE-specific behavior is tracked in
+Known parity gap: `codium_with_claude run` now shares `--profile`,
+`--project-state-root`, and `--project-mount` with the common runtime-layout
+model, but it still lacks many of the Git credential, Docker capability,
+debugging, sudo, and additional filesystem options available from
+`pycharm run`. The intended shared versus IDE-specific behavior is tracked in
 `implementation-notes/bugs/2026-07-13-codium-run-option-parity.md`.
 
 `pycharm run` defaults `--project` to the current directory. Use `--profile

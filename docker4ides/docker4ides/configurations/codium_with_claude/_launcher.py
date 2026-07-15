@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Mapping
 
 from docker4ides.compat import CliError
+from docker4ides.runtime import SharedRuntimeOptions, plan_shared_runtime
 
 DEFAULT_IMAGE = "codium-with-claude:latest"
 
@@ -17,10 +18,13 @@ DEFAULT_IMAGE = "codium-with-claude:latest"
 @dataclass(frozen=True)
 class CodiumRunOptions:
     project: Path
+    profile: str | None = None
     image: str = DEFAULT_IMAGE
     name: str | None = None
     state: Path | None = None
     project_state: Path | None = None
+    project_state_root: Path | None = None
+    project_mount: str | None = None
     network: str | None = None
     debug_shell: bool = False
     extra_docker_args: tuple[str, ...] = ()
@@ -35,10 +39,27 @@ def build_codium_run_command(options: CodiumRunOptions, env: Mapping[str, str] |
     if not display:
         raise CliError("DISPLAY is not set; VSCodium currently requires a host X11 display")
     home = Path(env.get("HOME", str(Path.home()))).expanduser()
-    state = (options.state or home / ".config" / "docker4ides" / "codium-with-claude").resolve()
-    project_state = (options.project_state or project / ".docker4ides" / "codium-state").resolve()
-    state.mkdir(parents=True, exist_ok=True)
-    project_state.mkdir(parents=True, exist_ok=True)
+    try:
+        runtime_plan = plan_shared_runtime(
+            SharedRuntimeOptions(
+                project=options.project,
+                profile=options.profile,
+                global_settings=options.state,
+                project_state=options.project_state,
+                project_state_root=options.project_state_root,
+                project_mount=options.project_mount or "/workspace/project",
+            ),
+            env,
+            explicit_profile_root_env_var="DOCKER4IDES_CODIUM_PROFILE_ROOT",
+            profile_dir_prefix="docker4ides-codium-with-claude-",
+            default_global_settings=home / ".config" / "docker4ides" / "codium-with-claude",
+            default_project_state=lambda project_plan: project_plan.project_path / ".docker4ides" / "codium-state",
+        )
+    except ValueError as exc:
+        raise CliError(str(exc)) from exc
+    project = runtime_plan.project
+    if not project.is_dir():
+        raise CliError(f"Project directory does not exist: {project}")
     name = options.name or f"codium-with-claude-{os.getuid()}-{int(time.time())}"
     container_command = (
         ["bash"]
@@ -47,7 +68,7 @@ def build_codium_run_command(options: CodiumRunOptions, env: Mapping[str, str] |
             "codium-foreground",
             "--user-data-dir=/ide-global-settings/codium/user-data",
             "--extensions-dir=/ide-global-settings/codium/extensions",
-            "/workspace/project",
+            runtime_plan.project_mount,
         ]
     )
     interactive_args = ["--interactive", "--tty"] if options.debug_shell else []
@@ -67,11 +88,11 @@ def build_codium_run_command(options: CodiumRunOptions, env: Mapping[str, str] |
         "--env",
         f"HOST_GID={os.getgid()}",
         "--volume",
-        f"{project}:/workspace/project",
+        f"{project}:{runtime_plan.project_mount}",
         "--volume",
-        f"{state}:/ide-global-settings",
+        f"{runtime_plan.global_settings}:/ide-global-settings",
         "--volume",
-        f"{project_state}:/ide-project-state",
+        f"{runtime_plan.project_state}:/ide-project-state",
         "--volume",
         "/tmp/.X11-unix:/tmp/.X11-unix:ro",
         *options.extra_docker_args,

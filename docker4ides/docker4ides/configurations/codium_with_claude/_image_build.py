@@ -13,6 +13,7 @@ from docker4ides.compat import CliError
 from docker4ides.image_build import (
     AptPackagesComponent,
     BaseImageComponent,
+    BuildComponent,
     BuildxImageBuilder,
     DirectoryComponent,
     EntrypointComponent,
@@ -165,7 +166,7 @@ rm -rf /var/lib/apt/lists/*
         )
     install_lines.insert(-2, "codium --no-sandbox --user-data-dir=/tmp/codium-version-check --version")
     install_tooling = "; ".join(line.strip() for line in install_lines if line.strip())
-    components = [
+    components: list[BuildComponent] = [
         BaseImageComponent(options.base_image),
         AptPackagesComponent(packages),
     ]

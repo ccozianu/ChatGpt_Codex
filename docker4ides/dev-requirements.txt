@@ -8,6 +8,8 @@ annotated-types==0.7.0
     # via pydantic
 argcomplete==3.7.0
     # via nox
+ast-serialize==0.6.0
+    # via mypy
 attrs==26.1.0
     # via nox
 build==1.5.0
@@ -30,6 +32,12 @@ humanize==4.16.0
     # via nox
 iniconfig==2.3.0
     # via pytest
+librt==0.13.0
+    # via mypy
+mypy==2.3.0
+    # via docker4ides (pyproject.toml)
+mypy-extensions==1.1.0
+    # via mypy
 nox==2026.4.10
     # via docker4ides (pyproject.toml)
 packaging==26.2
@@ -39,6 +47,8 @@ packaging==26.2
     #   nox
     #   pytest
     #   wheel
+pathspec==1.1.1
+    # via mypy
 pex==2.97.1
     # via docker4ides (pyproject.toml)
 pip-tools==7.5.3
@@ -67,6 +77,7 @@ python-on-whales==0.81.0
     # via docker4ides (pyproject.toml)
 typing-extensions==4.16.0
     # via
+    #   mypy
     #   pydantic
     #   pydantic-core
     #   python-on-whales

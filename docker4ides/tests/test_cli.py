@@ -5,6 +5,8 @@ import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
+import click
+
 from docker4ides import cli, compat
 from docker4ides.configurations.pycharm._image_build import PycharmImageBuildOptions
 from docker4ides.configurations.vscode_with_claude import VscodeWithClaudeConfiguration
@@ -195,7 +197,7 @@ def test_repo_root_can_be_overridden(tmp_path: Path) -> None:
 
 
 def test_top_level_commands_are_discovered() -> None:
-    commands = cli.cli.list_commands(None)
+    commands = cli.cli.list_commands(click.Context(cli.cli))
 
     assert "bootstrap" in commands
     assert "pycharm" in commands

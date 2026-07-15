@@ -165,16 +165,24 @@ class BuildxImageBuilder:
         with tempfile.TemporaryDirectory(prefix="docker4ides-buildx-context-") as temp_dir:
             context_root = Path(temp_dir)
             dockerfile_path = render_build_context(plan, context_root)
-            build_kwargs: dict[str, object] = {
-                "file": dockerfile_path,
-                "tags": [plan.image],
-                "load": True,
-                "network": network,
-            }
-            if network == "host":
-                build_kwargs["allow"] = ["network.host"]
             try:
-                docker.build(context_root, **build_kwargs)
+                if network == "host":
+                    docker.build(
+                        context_root,
+                        file=dockerfile_path,
+                        tags=[plan.image],
+                        load=True,
+                        network=network,
+                        allow=["network.host"],
+                    )
+                else:
+                    docker.build(
+                        context_root,
+                        file=dockerfile_path,
+                        tags=[plan.image],
+                        load=True,
+                        network=network,
+                    )
             except DockerException as exc:
                 raise CliError(str(exc)) from exc
 
@@ -194,22 +202,22 @@ def render_build_context(plan: ImageBuildPlan, context_root: Path) -> Path:
             ]
         )
 
-    for copy in plan.directories:
+    for directory_copy in plan.directories:
         relative_source = f"copy-dir-{copy_index}"
-        destination = normalize_container_path(copy.destination)
-        shutil.copytree(copy.source, context_root / relative_source, dirs_exist_ok=True)
+        destination = normalize_container_path(directory_copy.destination)
+        shutil.copytree(directory_copy.source, context_root / relative_source, dirs_exist_ok=True)
         dockerfile_lines.append(f"COPY {relative_source}/ {destination}/")
         copy_index += 1
 
-    for copy in plan.files:
+    for file_copy in plan.files:
         relative_source = f"copy-file-{copy_index}"
-        destination = normalize_container_path(copy.destination)
+        destination = normalize_container_path(file_copy.destination)
         destination_parent = Path(destination).parent.as_posix()
-        shutil.copy2(copy.source, context_root / relative_source)
+        shutil.copy2(file_copy.source, context_root / relative_source)
         dockerfile_lines.append(f"RUN mkdir -p {shell_quote(destination_parent)}")
         dockerfile_lines.append(f"COPY {relative_source} {destination}")
-        if copy.permissions is not None:
-            dockerfile_lines.append(f"RUN chmod {copy.permissions:o} {shell_quote(destination)}")
+        if file_copy.permissions is not None:
+            dockerfile_lines.append(f"RUN chmod {file_copy.permissions:o} {shell_quote(destination)}")
         copy_index += 1
 
     for step in plan.exec_steps:

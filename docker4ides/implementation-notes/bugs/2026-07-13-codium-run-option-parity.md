@@ -2,7 +2,7 @@
 
 Date opened: 2026-07-13
 
-Status: accepted parity gap; design and implementation pending
+Status: accepted parity gap; first shared state-layout slice implemented, broader parity still pending
 
 Requirements: R-PYTHON-MVP-003, R-FRAMEWORK-001, R-SCOPE-001, R-DOCKER-001
 
@@ -21,10 +21,13 @@ The command name in this record is `codium_with_claude`; references to
 Both commands currently expose:
 
 - `--project`, `-p`
+- `--profile`
 - `--image`
 - `--name`
 - `--state` (`pycharm` also calls this `--global-settings`)
 - `--project-state`
+- `--project-state-root`
+- `--project-mount`
 - `--docker-arg`
 
 Codium alone currently exposes `--debug-shell`.
@@ -34,20 +37,22 @@ debugging slice. It applies to both normal and `--debug-shell` launches;
 `--network host` explicitly relaxes network isolation. Broader option parity
 remains pending.
 
+On 2026-07-15, Codium gained a first shared runtime-layout slice backed by a
+common planner module used by both PyCharm and Codium. That slice added shared
+support for `--profile`, `--project-state-root`, and `--project-mount` while
+preserving Codium's existing default in-container project path.
+
 ## Options Present Only On PyCharm Run
 
 The following list includes aliases because they are part of the public
 command surface:
 
 1. State and filesystem layout:
-   - `--profile`
    - `--global-settings` as the descriptive alias of `--state`
-   - `--project-state-root`
    - `--config-mode [shared|project|custom]`
    - `--ide-config`
    - `--project-config`
    - `--shared-config`
-   - `--project-mount`
    - `--plugins`
 2. Git identity and credentials:
    - `--ssh-agent`

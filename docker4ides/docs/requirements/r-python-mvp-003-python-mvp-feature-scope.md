@@ -54,6 +54,9 @@ post-MVP framework work.
 
 - The accepted V1 feature list, deferrals, and likely implementation order are
   recorded here
+- On 2026-07-15, the lightweight quality-gate gap around static Python
+  typechecking was closed with a `mypy` gate wired into contributor
+  dependencies, `nox -s typecheck`, and `nox -s build`
 - The root README handoff should identify the next implementation task from
   this scope
 

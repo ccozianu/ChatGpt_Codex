@@ -49,10 +49,13 @@ class CodiumWithClaudeConfiguration:
                 return run_codium(
                     CodiumRunOptions(
                         project=kwargs["project"],
+                        profile=kwargs["profile"],
                         image=kwargs["image"],
                         name=kwargs["name"],
                         state=kwargs["state"],
                         project_state=kwargs["project_state"],
+                        project_state_root=kwargs["project_state_root"],
+                        project_mount=kwargs["project_mount"],
                         network=kwargs["network"],
                         debug_shell=kwargs["debug_shell"],
                         extra_docker_args=tuple(kwargs["docker_arg"]),
@@ -66,10 +69,17 @@ class CodiumWithClaudeConfiguration:
             callback=callback,
             params=[
                 click.Option(["--project", "-p"], type=click.Path(path_type=Path), default=Path("."), show_default=True),
+                click.Option(["--profile"], help="Named Codium state profile under ~/.config/docker4ides-codium-with-claude-NAME."),
                 click.Option(["--image"], default="codium-with-claude:latest", show_default=True),
                 click.Option(["--name"]),
                 click.Option(["--state"], type=click.Path(path_type=Path), help="Persistent VSCodium and Claude home."),
                 click.Option(["--project-state"], type=click.Path(path_type=Path), help="Persistent project-local cache state."),
+                click.Option(
+                    ["--project-state-root"],
+                    type=click.Path(path_type=Path),
+                    help="Root for mirrored per-project state paths outside the source tree.",
+                ),
+                click.Option(["--project-mount"], help="In-container project path."),
                 click.Option(
                     ["--network"],
                     help="Docker network mode. Use 'host' only when direct host-network access is required.",

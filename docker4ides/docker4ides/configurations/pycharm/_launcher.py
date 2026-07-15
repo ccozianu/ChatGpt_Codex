@@ -16,7 +16,12 @@ from enum import Enum
 from pathlib import Path
 from typing import Mapping
 
-from ...project import ProjectMountError, plan_project
+from ...project import ProjectMountError
+from ...runtime import (
+    plan_shared_runtime,
+    resolve_existing_or_create,
+    SharedRuntimeOptions,
+)
 
 
 class PycharmRunError(Exception):
@@ -138,7 +143,6 @@ def build_run_config(options: PycharmRunOptions, env: Mapping[str, str]) -> Pych
         env.get("XDG_DATA_HOME") or str(Path(env.get("HOME", "~")).expanduser() / ".local/share")
     ) / "pycharm-docker"
     profile = options.profile or env.get("DOCKER4IDES_PYCHARM_PROFILE", "")
-    profile_root = resolve_profile_root(profile, env) if profile else None
     host_user = current_host_user()
 
     docker_mode = initial_docker_mode(env)
@@ -175,27 +179,35 @@ def build_run_config(options: PycharmRunOptions, env: Mapping[str, str]) -> Pych
     if not env.get("DISPLAY"):
         raise PycharmRunError("DISPLAY is not set; this X11 launcher needs an active X session.")
 
+    global_settings_default = base_data_dir / "state"
+
     try:
-        project_plan = plan_project(options.project, options.project_mount or env.get("PYCHARM_PROJECT_MOUNT"))
-    except ProjectMountError as exc:
+        runtime_plan = plan_shared_runtime(
+            SharedRuntimeOptions(
+                project=options.project,
+                profile=profile or None,
+                global_settings=options.global_settings or env.get("PYCHARM_GLOBAL_SETTINGS_DIR"),
+                project_state=options.project_state or env.get("PYCHARM_PROJECT_STATE_DIR"),
+                project_state_root=options.project_state_root or env.get("PYCHARM_PROJECT_STATE_ROOT") or None,
+                project_mount=options.project_mount or env.get("PYCHARM_PROJECT_MOUNT"),
+            ),
+            env,
+            explicit_profile_root_env_var="DOCKER4IDES_PYCHARM_PROFILE_ROOT",
+            profile_dir_prefix="docker-pycharm-",
+            default_global_settings=global_settings_default,
+            default_project_state=lambda project_plan: base_data_dir / "project-state" / project_plan.project_id,
+        )
+    except (ProjectMountError, ValueError) as exc:
         raise PycharmRunError(str(exc)) from exc
 
-    project = project_plan.project_path
+    project = runtime_plan.project
     if not project.is_dir():
         raise PycharmRunError(f"Project directory does not exist: {project}")
 
-    global_settings_default = profile_root / "state" if profile_root else base_data_dir / "state"
+    profile_root = runtime_plan.profile_root
     plugins_default = profile_root / "plugins" if profile_root else base_data_dir / "plugins"
-
-    global_settings = resolve_existing_or_create(
-        options.global_settings or env.get("PYCHARM_GLOBAL_SETTINGS_DIR") or global_settings_default
-    )
-    project_state = resolve_existing_or_create(
-        options.project_state
-        or env.get("PYCHARM_PROJECT_STATE_DIR")
-        or project_state_from_root(options.project_state_root or env.get("PYCHARM_PROJECT_STATE_ROOT", ""), project)
-        or base_data_dir / "project-state" / project_plan.project_id
-    )
+    global_settings = runtime_plan.global_settings
+    project_state = runtime_plan.project_state
 
     ide_config_arg = options.ide_config if options.ide_config is not None else env.get("PYCHARM_IDE_CONFIG_DIR", "")
     if ide_config_mode == "shared":
@@ -249,7 +261,7 @@ def build_run_config(options: PycharmRunOptions, env: Mapping[str, str]) -> Pych
         ide_config=ide_config,
         ide_config_mode=ide_config_mode,
         plugins=plugins,
-        project_mount=project_plan.project_mount,
+        project_mount=runtime_plan.project_mount,
         docker_mode=docker_mode,
         host_docker_socket=host_docker_socket,
         host_docker_gid=host_docker_gid,
@@ -675,37 +687,6 @@ def git_config_value(key: str) -> str:
         text=True,
     )
     return completed.stdout.strip()
-
-
-def resolve_existing_or_create(path: str | Path) -> Path:
-    resolved = Path(path).expanduser()
-    resolved.mkdir(parents=True, exist_ok=True)
-    return resolved.resolve()
-
-
-def resolve_profile_root(profile: str, env: Mapping[str, str]) -> Path:
-    if any(separator in profile for separator in ("/", "\\")) or profile in {".", ".."}:
-        raise PycharmRunError("--profile must be a simple profile name, not a path.")
-
-    explicit_root = env.get("DOCKER4IDES_PYCHARM_PROFILE_ROOT", "")
-    if explicit_root:
-        return Path(explicit_root).expanduser()
-
-    config_home = Path(env.get("XDG_CONFIG_HOME") or Path(env.get("HOME", "~")).expanduser() / ".config")
-    return config_home / f"docker-pycharm-{profile}"
-
-
-def project_state_from_root(root: str | Path | None, project: Path) -> Path | None:
-    if not root:
-        return None
-
-    state_root = Path(root).expanduser().resolve(strict=False)
-    project = project.resolve(strict=False)
-    try:
-        relative_project = project.relative_to(state_root.parent)
-    except ValueError:
-        relative_project = Path(project.name)
-    return state_root / relative_project
 
 
 def is_socket(path: Path) -> bool:

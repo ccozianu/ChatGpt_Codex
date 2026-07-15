@@ -27,6 +27,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+  "mypy>=2.3,<3",
   "nox>=2025.5,<2027",
   "pex>=2.20,<3",
   "pip-tools>=7.5,<8",
@@ -57,3 +58,10 @@ include = ["docker4ides*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["docker4ides", "tests", "noxfile.py"]
+warn_unused_configs = true
+show_error_codes = true
+pretty = true

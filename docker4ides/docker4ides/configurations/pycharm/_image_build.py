@@ -11,6 +11,7 @@ from docker4ides.compat import CliError
 from docker4ides.image_build import (
     AptPackagesComponent,
     BaseImageComponent,
+    BuildComponent,
     BuildxImageBuilder,
     DirectoryComponent,
     EntrypointComponent,
@@ -167,7 +168,7 @@ def build_pycharm_image_spec(
     pycharm_root: Path,
     assets_root: Path,
 ) -> ImageBuildSpec:
-    components = [
+    components: list[BuildComponent] = [
         BaseImageComponent(options.base_image),
         AptPackagesComponent(BASE_APT_PACKAGES + tuple(options.extra_apt_packages)),
         DirectoryComponent(source=pycharm_root, destination="/opt/pycharm"),

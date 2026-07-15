@@ -32,7 +32,7 @@ class PycharmConfiguration:
         "help_option_names": [],
     }
 
-    _run_params = [
+    _run_params: list[click.Parameter] = [
         click.Option(
             ["--project", "-p"],
             type=click.Path(path_type=Path),
