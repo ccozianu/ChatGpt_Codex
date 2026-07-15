@@ -18,7 +18,7 @@ documented, the user can ask:
 ```text
 Bootstrap the vibe-coding process documentation from
 /usr/local/share/docker4ide/vibe-coding-process.md into this project.
-Create or update AGENTS.md, README.md, REQUIREMENTS.md, and
+Create or update AGENTS.md, README.md, REQUIREMENTS.md, docs/requirements/, and
 implementation-notes/ as appropriate. Preserve existing project docs and adapt
 the process to this repository.
 ```
@@ -32,9 +32,9 @@ If you are the agent receiving that prompt:
 3. Create or update `AGENTS.md` so future agents read the project brief first.
 4. Ensure `README.md` contains or links to the project purpose, current state,
    and active next task list.
-5. Create or update `REQUIREMENTS.md` as the canonical requirements register
-   with stable IDs, priorities, statuses, implementation references, validation
-   references, and related task or bug links.
+5. Create or update `REQUIREMENTS.md` as the overview and index for the
+   project's root requirements, and create or update canonical detailed
+   requirement files under `docs/requirements/`.
 6. Create `implementation-notes/` if the project does not already have a better
    equivalent.
 7. Create `implementation-notes/bugs/` for active bug records.
@@ -64,7 +64,7 @@ Pay special attention to the final current-state and next-step section. Then
 read any target-specific or handoff documents referenced there.
 
 After reading the required documents, acknowledge that you understand the
-project purpose, requirements register, current state, and planned next step
+project purpose, requirement overview, current state, and planned next step
 before proceeding.
 
 If the brief defines a planned next step, state that next step to the user
@@ -86,11 +86,12 @@ without deleting project-specific constraints.
 Create or adapt this file at the repository root:
 
 ````markdown
-# Requirements Register
+# Requirements Overview
 
-This file is the project-level source of truth for accepted requirements. It
+This file is the project-level overview and index for root requirements. It
 does not replace the active task list in `README.md`; it gives tasks, bugs, and
-implementation notes stable requirement IDs to reference.
+implementation notes stable requirement IDs to reference and links to the
+canonical detailed records under `docs/requirements/`.
 
 ## Status Values
 
@@ -110,48 +111,50 @@ implementation notes stable requirement IDs to reference.
   pass.
 - `later`: useful, but not required for the current target.
 
-## Requirement Template
+## Requirement Types
 
 ```markdown
-### R-AREA-000: Short Name
-
-Statement: ...
-
-Priority: MVP | current stabilization | later
-Status: proposed | accepted | implemented | repo-validated | manually validated | deferred | rejected
-
-Implementation:
-- ...
-
-Validation:
-- ...
-
-Related:
-- ...
+- high-level goals: judged against accumulated evidence and project direction;
+- concrete requirements: testable in principle, even when some validation is
+  manual.
 ```
 
 Every active task, bug, or completed-task record should include a
 `Requirements:` line when it materially implements, validates, changes, defers,
 or reinterprets a requirement.
 
+## Requirement File Template
+
+Each detailed file under `docs/requirements/` should be the canonical record
+for one requirement:
+
+```markdown
+---
+id: R-AREA-000
+title: Short Name
+type: requirement
+kind: high-level-goal | concrete-requirement
+status: proposed | accepted | implemented | repo-validated | manually validated | deferred | rejected
+priority: MVP | current stabilization | later
+verification:
+  - ...
+external_refs: []
+---
+
+# R-AREA-000: Short Name
+
+## Statement
+
+...
+
+## Verification or Evaluation
+
+...
+```
+
 ## Current Requirements
 
-### R-BOOT-001: Define Initial Requirements
-
-Statement: Replace this bootstrap placeholder with the project's real accepted
-requirements.
-
-Priority: current stabilization
-Status: proposed
-
-Implementation:
-- `REQUIREMENTS.md`
-
-Validation:
-- Future agents can map active tasks and bugs to stable requirement IDs.
-
-Related:
-- `README.md`
+- `R-BOOT-001` — [Define Initial Requirements](docs/requirements/r-boot-001-define-initial-requirements.md)
 ````
 
 ## Recommended README.md Handoff Section
@@ -181,8 +184,9 @@ When resuming the project, read these files in order:
 
 1. `README.md`
 2. `REQUIREMENTS.md`
-3. `implementation-notes/bugs/` for active bug records, if relevant
-4. `implementation-notes/...`
+3. `docs/requirements/` for relevant canonical detail files
+4. `implementation-notes/bugs/` for active bug records, if relevant
+5. `implementation-notes/...`
 
 Planned next items:
 

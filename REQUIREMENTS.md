@@ -1,105 +1,91 @@
-# Project Requirements
+# Project Requirements Overview
 
-This root register records implementation-agnostic project requirements. It
-does not replace implementation-specific registers or notes inside subprojects.
+This file is the project-level overview and index for root requirements. It is
+the entry point humans and agents should read first to understand overall
+direction, current requirement categories, and where to find the canonical
+detail for each item.
 
-Use this file for requirements that should remain true whether the concrete
-implementation is the historical PyCharm shell prototype, the active Python
-`docker4ides` framework, or a later implementation.
+The canonical detailed record for each root requirement lives under:
 
-Implementation-specific requirements currently live in:
+```text
+docs/requirements/
+```
 
-- `docker4ides/REQUIREMENTS.md` for the active Python CLI/framework and the
-  PyCharm baseline requirements it is preserving.
-- `docker4pycharm/implementation-notes/` for the historical PyCharm shell
-  prototype decisions, validations, bugs, and completed tasks.
+Each requirement file uses frontmatter plus markdown so the repository remains
+the source of truth while preserving a path for later machine-readable
+integration with external systems if desired.
+
+Implementation-specific requirements still live in:
+
+- `docker4ides/REQUIREMENTS.md` for the active Python CLI/framework.
+- `docker4pycharm/implementation-notes/` for historical PyCharm prototype
+  context.
+
+## Requirement Types
+
+This project distinguishes two kinds of requirement records:
+
+- high-level goals: important outcomes that require judgment and accumulated
+  evidence rather than a strict pass/fail end-to-end test;
+- concrete requirements: capabilities, constraints, or behaviors that are
+  testable in principle, even when some verification must be manual.
+
+Goals justify concrete requirements. Concrete requirements operationalize goals.
+Tasks, bugs, validations, and completed-task records should reference the
+relevant IDs.
 
 ## Status Values
 
-- `proposed`: captured, but not yet accepted as a project requirement.
-- `accepted`: accepted, but not yet implemented.
-- `implemented`: supporting docs, process, or implementation exist, but
-  validation is incomplete.
-- `validated`: accepted by repository review, static checks, tests, or manual
-  project-owner validation.
-- `deferred`: accepted direction, but intentionally outside the current target.
+- `proposed`: captured, but not yet accepted.
+- `accepted`: accepted direction, not yet fully implemented.
+- `implemented`: supporting docs or implementation exist, but verification is
+  incomplete.
+- `validated`: accepted by repository review, static checks, tests, manual
+  validation, or explicit project-owner judgment, as appropriate for the item
+  type.
+- `deferred`: accepted direction, intentionally outside the current target.
 - `rejected`: considered and intentionally not pursued.
 
-## Current Requirements
+## Current Overview
 
-### R-PRODUCT-001: Batteries-Included IDE Environments
+Current root requirement emphasis:
 
-Statement: The project should produce development environments that include the
-IDE/editor surface, common development tools, persistent comfort state, and
-agent-ready project context needed for useful work without repeated local setup.
+- product goals define what kind of development environment and workflow this
+  repository is trying to produce;
+- documentation and process requirements keep the repo resumable and explicit
+  for both humans and agents;
+- active implementation work remains tracked in `README.md` and
+  `docker4ides/REQUIREMENTS.md`.
 
-Status: accepted
+Current release/stabilization reality:
 
-Validation:
-- A concrete implementation must document what is included, what remains
-  external, and how a user verifies the environment is ready.
+- the root requirement set is now normalized into one-file-per-item records
+  under `docs/requirements/`;
+- future work should maintain the overview here and update the detailed item
+  files when a requirement changes materially;
+- future automation may consume frontmatter from these files, but the repo
+  remains the canonical source of truth.
 
-### R-PRODUCT-002: Explicit Host Boundaries
+## Root Requirement Index
 
-Statement: Host exposure must be explicit. Project mounts, IDE state,
-credentials, Docker access, devices, networking, and other host integrations
-must be represented by documented options or defaults.
+### Product Goals
 
-Status: accepted
+- `R-PRODUCT-001` — [Batteries-Included IDE Environments](docs/requirements/r-product-001-batteries-included-ide-environments.md)
+- `R-PRODUCT-002` — [Explicit Host Boundaries](docs/requirements/r-product-002-explicit-host-boundaries.md)
+- `R-PRODUCT-003` — [Durable Human/Agent Project Memory](docs/requirements/r-product-003-durable-human-agent-project-memory.md)
+- `R-PRODUCT-004` — [Reusable Human/Agent Workflow](docs/requirements/r-product-004-reusable-human-agent-workflow.md)
 
-Validation:
-- Any implementation change that broadens host access must update the relevant
-  user documentation and implementation requirements in the same change.
+### Workflow And Documentation Requirements
 
-### R-PRODUCT-003: Durable Human/Agent Project Memory
+- `R-PRODUCT-005` — [Incremental Human/Agent Execution Loop](docs/requirements/r-product-005-incremental-human-agent-execution-loop.md)
+- `R-DOCS-001` — [Root Documentation Stays Implementation-Agnostic](docs/requirements/r-docs-001-root-documentation-stays-implementation-agnostic.md)
+- `R-DOCS-002` — [Current User Docs Show Current Interfaces](docs/requirements/r-docs-002-current-user-docs-show-current-interfaces.md)
 
-Statement: Important requirements, decisions, bugs, validation notes, handoff
-state, and next steps should live in repository files rather than only in chat
-history or local memory.
+## Maintenance Rules
 
-Status: implemented
-
-Validation:
-- Root workflow docs define the project-memory protocol.
-- Subproject docs should record implementation evidence close to the
-  implementation that produced it.
-
-### R-PRODUCT-004: Reusable Human/Agent Workflow
-
-Statement: The human/agent development workflow used to build this repository
-should itself be available to users of Dockerized environments created by this
-project when they choose that mode.
-
-Status: accepted
-
-Validation:
-- Environment implementations should provide or document a way to seed a target
-  project with agent instructions, requirements, handoff notes, bug records,
-  and implementation-note structure.
-
-### R-DOCS-001: Root Documentation Stays Implementation-Agnostic
-
-Statement: Root markdown files and top-level `docs/` should describe project
-purpose, product positioning, workflow, and current handoff without embedding
-implementation-specific shell/Python/Docker details that belong to a
-subproject.
-
-Status: implemented
-
-Validation:
-- `index.md` should route implementation-specific readers to the relevant
-  subproject.
-- When moving, adding, deleting, or renaming markdown files, update `index.md`
-  in the same change.
-
-### R-DOCS-002: Current User Docs Show Current Interfaces
-
-Statement: Current user-facing documentation must show the supported interface
-for the active implementation and must not require readers to infer whether an
-old command shape or historical note still applies.
-
-Status: accepted
-
-Validation:
-- Historical documents may keep old command names when describing old behavior,
-  but active user docs should point to supported commands only.
+- Read `REQUIREMENTS.md` first for orientation.
+- Read only the detailed files relevant to the current task.
+- Keep `REQUIREMENTS.md` concise: overview, grouping, status framing, and links.
+- Keep canonical detail in the per-item files under `docs/requirements/`.
+- When adding, deleting, renaming, or moving any requirement file, update this
+  index and `index.md` in the same change.

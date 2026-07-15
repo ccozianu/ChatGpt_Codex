@@ -8,8 +8,9 @@ survive model changes, IDE restarts, and future sessions.
 
 1. Start each session by reading the repository brief and its final handoff
    section.
-2. Read the requirements register when changing behavior, validation scope, or
-   priorities.
+2. Read `REQUIREMENTS.md` for the requirement overview when changing behavior,
+   validation scope, or priorities, then open the relevant detailed files under
+   `docs/requirements/` as needed.
 3. Work from the active task list, not from stale conversation memory.
 4. Keep each cycle narrow enough that the user can validate the result.
 5. When the user validates something manually, update the handoff so the same
@@ -19,17 +20,113 @@ survive model changes, IDE restarts, and future sessions.
 7. Commit coherent units of work when asked, or at natural save points when the
    user wants the session state preserved.
 
+## Turn-Level Choreography
+
+Use each meaningful work cycle as a small contract between the human and the
+agent.
+
+1. Frame the slice.
+   - The human states the goal, constraint, or uncertainty.
+   - The agent restates the target outcome, relevant assumptions, and the next
+     narrow slice it intends to execute.
+2. Define closure before deep work.
+   - State what "done for this slice" means.
+   - State what evidence will count: test output, diff review, manual
+     validation, or a documented decision.
+3. Execute one narrow slice.
+   - Prefer one coherent change over multiple partially finished ideas.
+   - If the work uncovers a larger issue, record it and either finish the
+     current slice or stop at a clear checkpoint.
+4. Report with evidence.
+   - Lead with the result.
+   - Include only the evidence the human needs to evaluate the slice.
+   - Separate "done", "not done", and "needs human input".
+5. Decide the next branch explicitly.
+   - Continue to the next slice.
+   - Ask the human to validate or choose.
+   - Stop and update the handoff because the session reached a useful checkpoint.
+
+The goal is steady throughput, not long uninterrupted agent runs with vague
+status.
+
+## Slice Sizing Rules
+
+Prefer slices that fit one of these shapes:
+
+- one code path plus its direct tests;
+- one documentation or workflow improvement plus the matching handoff update;
+- one bug reproduction or diagnosis write-up;
+- one manual-validation request with exact commands and expected observations;
+- one decision that removes ambiguity for later implementation work.
+
+Avoid slices that mix several of these unless the work is trivial. If a task is
+too large to validate in one pass, split it before implementation.
+
+## Human Input Contract
+
+The human should provide, when relevant:
+
+- the current priority or outcome to optimize for;
+- risk tolerance, especially for host access, credentials, and security
+  tradeoffs;
+- manual validation results that only the human can observe;
+- tie-break decisions when several defensible approaches remain.
+
+The agent should ask for human input only when it materially changes the work
+or when external validation is required. Otherwise, make the smallest reasonable
+assumption, state it, and continue.
+
+## Agent Reporting Contract
+
+For each meaningful slice, the agent should report in this order:
+
+1. Outcome.
+2. Evidence.
+3. Remaining gap or risk.
+4. Recommended next slice.
+
+Keep reports concise. The user should not need to reconstruct the state from a
+long chronology.
+
+## Decision And Escalation Rules
+
+Escalate to the human when:
+
+- a choice changes scope, architecture, or security posture materially;
+- repository evidence is insufficient and several plausible interpretations
+  remain;
+- external state must change outside the agent's authority;
+- the next slice would otherwise become speculative or broad.
+
+Do not escalate merely because implementation is tedious or because several
+small, compatible actions are possible.
+
+## Checkpoint Triggers
+
+Create or refresh durable state when any of these happen:
+
+- a stage or subtask reaches a real closure point;
+- manual validation changes project state;
+- a new bug, decision, or requirement appears;
+- the session ends with unfinished but resumable work;
+- the active next step changes.
+
+If the user and agent are moving quickly, prefer more frequent small handoff
+updates over one large retrospective rewrite.
+
 ## Markdown Roles
 
 Use markdown files with distinct responsibilities:
 
-- `README.md`: project brief, requirements, current state, and the active next
-  task list. The final section is the handoff point.
-- `REQUIREMENTS.md`: implementation-agnostic project requirements for product
-  purpose, documentation shape, and reusable human/agent workflow.
-- Subproject requirements files, such as `docker4ides/REQUIREMENTS.md`:
-  implementation-specific requirement IDs, traceability, validation evidence,
-  and current subproject scope.
+- `README.md`: project brief, current state, and the active next task list.
+  The final section is the handoff point.
+- `REQUIREMENTS.md`: implementation-agnostic requirement overview and index for
+  project-level goals and concrete requirements.
+- `docs/requirements/`: one markdown file per root requirement, with
+  frontmatter metadata and canonical detailed requirement text.
+- Subproject requirement overviews, such as `docker4ides/REQUIREMENTS.md`:
+  implementation-specific requirement scope, status framing, and links to the
+  canonical detailed requirement records for that subproject.
 - `AGENTS.md`: instructions every future agent should read before touching the
   repository.
 - `implementation-notes/`: decisions, retired issues, validation details,
@@ -66,25 +163,31 @@ development.
 
 ## Requirements Register
 
-Use root `REQUIREMENTS.md` for project-level requirements that should remain
-true across implementations. Use subproject requirements files for
-implementation-specific behavior, validation scope, and traceability.
+Use root `REQUIREMENTS.md` as the project-level overview and index for
+requirements that should remain true across implementations. Use
+`docs/requirements/` for the canonical detailed record of each root
+requirement. Use subproject requirements files for implementation-specific
+behavior, validation scope, and traceability.
 
 The active task list says what to do next; the relevant requirements register
 says why the task exists, how important it is, and how implementation and
 validation map back to project intent.
 
-Each requirement should have:
+Each root requirement record under `docs/requirements/` should have:
 
 - A stable ID such as `R-CONC-001`.
 - A short title.
+- A type split: high-level goal or concrete requirement.
 - A clear statement.
 - Priority: `MVP`, `current stabilization`, or `later`.
 - Status: `proposed`, `accepted`, `implemented`, `repo-validated`,
   `manually validated`, `deferred`, or `rejected`.
-- Implementation references.
-- Validation references.
+- Frontmatter metadata that stays easy to maintain in source control.
+- Validation references or evaluation signals appropriate to the item type.
 - Related tasks, bug records, decisions, or completed-task records.
+
+Goals are evaluated by judgment and accumulated evidence. Concrete requirements
+must be testable in principle, even if some verification is manual.
 
 When a task, bug, or implementation note materially implements, validates,
 changes, defers, rejects, or reinterprets a requirement, add a `Requirements:`
@@ -105,8 +208,8 @@ host-exposure behavior.
 
 Use this documentation split:
 
-- `REQUIREMENTS.md` records what the user must be able to do and why it is in
-  scope.
+- `REQUIREMENTS.md` records the requirement overview and links to the
+  canonical detailed requirement files.
 - Target user docs such as `docker4ides/README.md` describe how the user does
   it: installation path, command path, common examples, validation expectations,
   and current limitations.
@@ -254,6 +357,12 @@ and commits when requested.
 When the human reports a manual validation result, treat it as authoritative
 project state and update markdown accordingly.
 
+In practical terms:
+
+- the human chooses the hill to climb;
+- the agent chooses the next safe foothold;
+- both should expect each slice to end in evidence or an explicit blocker.
+
 ## Session Close Checklist
 
 At the end of a meaningful session, update the handoff with:
@@ -346,7 +455,7 @@ In the mounted project, ask the agent:
 ```text
 Bootstrap the vibe-coding process documentation from
 /usr/local/share/docker4ide/vibe-coding-process.md into this project.
-Create or update AGENTS.md, README.md, REQUIREMENTS.md, and
+Create or update AGENTS.md, README.md, REQUIREMENTS.md, docs/requirements/, and
 implementation-notes/ as appropriate. Preserve existing project docs and adapt
 the process to this repository.
 ```
@@ -357,15 +466,16 @@ At minimum, add or update these files in the target project:
 AGENTS.md
 README.md
 REQUIREMENTS.md
+docs/requirements/
 implementation-notes/
 implementation-notes/bugs/
 implementation-notes/completed-tasks/
 ```
 
 The target project's `README.md` should end with a current-state and next-step
-section. The target project's `REQUIREMENTS.md` should record accepted
-requirements with stable IDs and map them to active tasks, bugs,
-implementation, and validation evidence. The target project's `AGENTS.md`
+section. The target project's `REQUIREMENTS.md` should give an overview and
+index of accepted requirements with stable IDs, while the canonical detailed
+records live under `docs/requirements/`. The target project's `AGENTS.md`
 should instruct agents to read the brief first, then any target-specific
 handoff notes. Retired debugging details or important decisions should go under
 that project's `implementation-notes/` folder. Active bug evidence should go

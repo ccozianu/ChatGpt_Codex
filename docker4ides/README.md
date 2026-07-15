@@ -10,6 +10,10 @@ PyCharm run path is being translated from the validated
 `docker4pycharm/run-pycharm-container.sh` Bash launcher into maintainable Python
 runtime planning and Docker invocation code.
 
+Read [docker4ides/REQUIREMENTS.md](REQUIREMENTS.md) first for the subproject
+requirement overview. The canonical detailed records for those requirements live
+under `docker4ides/docs/requirements/`.
+
 ## User Setup
 
 ```bash

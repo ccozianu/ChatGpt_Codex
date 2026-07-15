@@ -9,8 +9,8 @@ that combine:
 
 1. A real IDE or agentic editor for the target development domain.
 2. The tools an AI coding agent needs to make progress inside that environment.
-3. Persistent project memory: requirements, decisions, bugs, validation notes,
-   and the current next step stored in the repository.
+3. Persistent project memory: requirement records, decisions, bugs, validation
+   notes, and the current next step stored in the repository.
 4. Reproducibility, portability, and clear host-exposure boundaries.
 
 The development process used in this repository is part of the product idea.
@@ -68,10 +68,12 @@ Start with:
 - `AGENTS.md` for instructions future agents must follow before changing this
   repository.
 - `WORKFLOW.md` for the human/agent iteration protocol.
-- `REQUIREMENTS.md` for implementation-agnostic product and workflow
-  requirements.
-- `docker4ides/REQUIREMENTS.md` for active Python implementation requirements
-  and traceability.
+- `REQUIREMENTS.md` for the implementation-agnostic root requirement overview.
+- `docs/requirements/` for the canonical detailed root requirement records.
+- `docker4ides/REQUIREMENTS.md` for the active Python implementation
+  requirement overview.
+- `docker4ides/docs/requirements/` for canonical detailed `docker4ides`
+  requirement records.
 - `docker4ides/README.md` for active Python CLI usage.
 - `docker4pycharm/README.md` for the historical PyCharm shell reference.
 
@@ -112,6 +114,21 @@ Recent documentation cleanup:
   `docker4ides/REQUIREMENTS.md`.
 - Root `README.md`, root markdown files, and top-level `docs/` are now meant to
   stay implementation-agnostic.
+
+Recent workflow refinement:
+
+- Root `WORKFLOW.md` now defines a tighter turn-level collaboration loop for
+  human plus agent work: frame a narrow slice, define closure and evidence
+  first, execute one coherent slice, report the result succinctly, and choose
+  the next branch explicitly.
+- Root requirements are now split between an overview/index in
+  `REQUIREMENTS.md` and one-file-per-item detailed records under
+  `docs/requirements/`, with frontmatter metadata for future machine-readable
+  use while keeping the repo as source of truth.
+- `docker4ides` requirements now follow the same pattern: overview/index in
+  `docker4ides/REQUIREMENTS.md`, canonical per-item files under
+  `docker4ides/docs/requirements/`, and a clearer separation between already
+  met requirements, active V1 requirements, and explicitly later work.
 
 Recent implementation fix:
 
