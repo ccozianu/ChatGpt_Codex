@@ -19,8 +19,8 @@ fi
 
 mkdir -p /ide-global-settings/home /ide-project-state/home/.cache
 chown "${uid}:${gid}" /ide-global-settings/home /ide-project-state/home /ide-project-state/home/.cache
-printf '%s ALL=(ALL) NOPASSWD:ALL\n' "${user_name}" > /etc/sudoers.d/docker4ides-developer
-chmod 0440 /etc/sudoers.d/docker4ides-developer
+printf '%s ALL=(ALL) NOPASSWD:ALL\n' "${user_name}" > /etc/sudoers.d/devcapsule-developer
+chmod 0440 /etc/sudoers.d/devcapsule-developer
 
 export HOME=/ide-global-settings/home
 export USER="${user_name}"

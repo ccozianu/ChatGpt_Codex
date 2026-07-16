@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from docker4ides.project import (
+from devcapsule.project import (
     ProjectMountError,
     default_project_mount,
     normalize_project_mount,

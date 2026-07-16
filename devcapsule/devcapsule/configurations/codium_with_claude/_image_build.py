@@ -9,8 +9,8 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from docker4ides.compat import CliError
-from docker4ides.image_build import (
+from devcapsule.compat import CliError
+from devcapsule.image_build import (
     AptPackagesComponent,
     BaseImageComponent,
     BuildComponent,
@@ -24,6 +24,7 @@ from docker4ides.image_build import (
     LabelComponent,
     resource_to_tempdir,
 )
+from devcapsule.image_tooling import NODE_CURRENT_BIN, public_default_cli_tooling_component
 
 DEFAULT_BASE_IMAGE = "ubuntu:24.04"
 DEFAULT_IMAGE = "codium-with-claude:latest"
@@ -61,10 +62,10 @@ def parse_codium_build_options(
 def build_codium_image(options: CodiumImageBuildOptions, builder: BuildxImageBuilder | None = None) -> int:
     builder = builder or BuildxImageBuilder()
     with contextlib.ExitStack() as stack:
-        assets = Path(stack.enter_context(resource_to_tempdir("docker4ides.assets.codium_with_claude")))
+        assets = Path(stack.enter_context(resource_to_tempdir("devcapsule.assets.codium_with_claude")))
         codium_root = None
         if options.ide_archive is not None:
-            extract_root = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix="docker4ides-codium-archive-")))
+            extract_root = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix="devcapsule-codium-archive-")))
             codium_root = normalize_codium_archive(options.ide_archive, extract_root)
         builder.build(
             build_codium_image_spec(options, assets_root=assets, codium_root=codium_root),
@@ -102,6 +103,7 @@ def build_codium_image_spec(
         "curl",
         "git",
         "gnupg",
+        "xz-utils",
         "openssh-client",
         "python3.12",
         "python3.12-dev",
@@ -144,28 +146,15 @@ curl -fsSL https://gitlab.com/paulcarroty/vscodium-deb-rpm-repo/raw/master/pub.g
   | gpg --dearmor -o /etc/apt/keyrings/vscodium-archive-keyring.gpg
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/vscodium-archive-keyring.gpg] https://download.vscodium.com/debs vscodium main" > /etc/apt/sources.list.d/vscodium.list
 """.strip().splitlines()
-    tooling_lines = """
-curl -fsSL https://deb.nodesource.com/setup_current.x | bash -
-apt-get update
-apt-get install -y --no-install-recommends nodejs
-npm install -g npm@latest
-npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code@latest
-python3.12 --version
-node --version
-npm --version
-claude --version
-npm cache clean --force
-rm -rf /var/lib/apt/lists/*
-""".strip().splitlines()
-    install_lines = list(tooling_lines)
+    install_lines: list[str] = []
     if codium_root is None:
-        install_lines = list(codium_repository_lines) + install_lines
-        install_lines.insert(
-            next(index for index, line in enumerate(install_lines) if line.startswith("npm install")),
-            "apt-get install -y --no-install-recommends codium",
+        install_lines.extend(codium_repository_lines)
+        install_lines.extend(
+            (
+                "apt-get update",
+                "apt-get install -y --no-install-recommends codium",
+            )
         )
-    install_lines.insert(-2, "codium --no-sandbox --user-data-dir=/tmp/codium-version-check --version")
-    install_tooling = "; ".join(line.strip() for line in install_lines if line.strip())
     components: list[BuildComponent] = [
         BaseImageComponent(options.base_image),
         AptPackagesComponent(packages),
@@ -190,7 +179,24 @@ rm -rf /var/lib/apt/lists/*
             )
         )
     components.extend((
-        ExecComponent(("bash", "-euxo", "pipefail", "-c", install_tooling)),
+        *(
+            (
+                ExecComponent(("bash", "-euxo", "pipefail", "-c", "\n".join(install_lines))),
+            )
+            if install_lines
+            else ()
+        ),
+        public_default_cli_tooling_component(),
+        ExecComponent(
+            (
+                "bash",
+                "-euxo",
+                "pipefail",
+                "-c",
+                "python3.12 --version\n"
+                "codium --no-sandbox --user-data-dir=/tmp/codium-version-check --version",
+            )
+        ),
         ExecComponent(
             (
                 "ln",
@@ -203,6 +209,7 @@ rm -rf /var/lib/apt/lists/*
         ExecComponent(("mkdir", "-p", "/workspace/project", "/ide-global-settings", "/ide-project-state")),
         EnvComponent(
             (
+                ("PATH", f"{NODE_CURRENT_BIN}:${{PATH}}"),
                 ("PROJECT_PATH", "/workspace/project"),
                 ("IDE_GLOBAL_SETTINGS_PATH", "/ide-global-settings"),
                 ("IDE_PROJECT_STATE_PATH", "/ide-project-state"),
@@ -214,10 +221,10 @@ rm -rf /var/lib/apt/lists/*
         ),
         LabelComponent(
             (
-                ("docker4ides.configuration", "codium_with_claude"),
-                ("docker4ides.ide", "vscodium"),
-                ("docker4ides.agent", "claude-code"),
-                ("docker4ides.builder", "python-on-whales"),
+                ("devcapsule.configuration", "codium_with_claude"),
+                ("devcapsule.ide", "vscodium"),
+                ("devcapsule.agent", "claude-code"),
+                ("devcapsule.builder", "python-on-whales"),
             )
         ),
         EntrypointComponent(("/usr/bin/tini", "--", "/usr/local/bin/codium-entrypoint")),

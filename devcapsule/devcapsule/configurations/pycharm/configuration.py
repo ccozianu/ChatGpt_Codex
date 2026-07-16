@@ -7,8 +7,8 @@ from typing import Any
 
 import click
 
-from docker4ides.compat import CliError
-from docker4ides.compat import run_script
+from devcapsule.compat import CliError
+from devcapsule.compat import run_script
 
 from ._launcher import (
     DockerMode,
@@ -188,15 +188,8 @@ class PycharmConfiguration:
                     multiple=True,
                     help="Extra apt package to install into the image. Repeat as needed.",
                 ),
-                click.Option(
-                    ["--ai-agent"],
-                    type=click.Choice(["none", "codex-cli"], case_sensitive=False),
-                    default="none",
-                    show_default=True,
-                    help="Optional AI-agent payload to add to the image.",
-                ),
             ],
-            help="Build the current Dockerized PyCharm image through the Python buildx backend.",
+            help="Build the current Dockerized PyCharm image with pinned Node/npm and Gemini CLI support.",
         )
 
     def check_runtime_command(self, *, name: str = "check-runtime") -> click.Command:
@@ -226,7 +219,6 @@ class PycharmConfiguration:
         base_image: str,
         network: str,
         extra_apt_package: tuple[str, ...],
-        ai_agent: str,
     ) -> int:
         try:
             options = parse_pycharm_build_options(
@@ -235,7 +227,6 @@ class PycharmConfiguration:
                 base_image=base_image,
                 network=network.lower(),
                 extra_apt_packages=tuple(extra_apt_package),
-                ai_agent=ai_agent.lower(),
             )
             return build_pycharm_image(options)
         except CliError as exc:

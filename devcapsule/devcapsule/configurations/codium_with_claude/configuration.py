@@ -1,4 +1,4 @@
-"""Public VSCodium plus Claude Code configuration."""
+"""Public VSCodium configuration with pinned public-default CLI tooling."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import Any
 
 import click
 
-from docker4ides.compat import CliError
+from devcapsule.compat import CliError
 
 from ._image_build import build_codium_image, parse_codium_build_options
 from ._launcher import CodiumRunOptions, run_codium
@@ -15,7 +15,7 @@ from ._launcher import CodiumRunOptions, run_codium
 
 class CodiumWithClaudeConfiguration:
     name = "codium_with_claude"
-    help = "Build and run VSCodium with the Claude Code CLI."
+    help = "Build and run VSCodium with pinned Node/npm and Gemini CLI tooling."
     ide = "vscodium"
     agent = "claude-code"
 
@@ -40,7 +40,7 @@ class CodiumWithClaudeConfiguration:
                     help="Local VSCodium .tar.gz archive containing bin/codium; skips the VSCodium apt repository.",
                 ),
             ],
-            help="Build VSCodium, Claude Code, Python 3.12, and current Node.js/npm.",
+            help="Build VSCodium with Python 3.12, pinned Node.js/npm, and bundled Gemini CLI support.",
         )
 
     def run_command(self) -> click.Command:
@@ -69,7 +69,7 @@ class CodiumWithClaudeConfiguration:
             callback=callback,
             params=[
                 click.Option(["--project", "-p"], type=click.Path(path_type=Path), default=Path("."), show_default=True),
-                click.Option(["--profile"], help="Named Codium state profile under ~/.config/docker4ides-codium-with-claude-NAME."),
+                click.Option(["--profile"], help="Named Codium state profile under ~/.config/devcapsule-codium-with-claude-NAME."),
                 click.Option(["--image"], default="codium-with-claude:latest", show_default=True),
                 click.Option(["--name"]),
                 click.Option(["--state"], type=click.Path(path_type=Path), help="Persistent VSCodium and Claude home."),

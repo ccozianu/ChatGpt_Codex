@@ -1,4 +1,4 @@
-"""Project path planning helpers for Docker4IDEs launchers."""
+"""Project path planning helpers for DevCapsule launchers."""
 
 from __future__ import annotations
 

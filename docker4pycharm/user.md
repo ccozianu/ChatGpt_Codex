@@ -3,8 +3,8 @@
 This guide records the PyCharm AI Assistant / Codex setup that was validated
 for the original Dockerized PyCharm environment under `docker4pycharm/`.
 Treat it as historical/reference user setup for that PyCharm MVP. Active
-framework development now happens under `docker4ides/`, and current CLI usage
-belongs in `docker4ides/README.md`.
+framework development now happens under `devcapsule/`, and current CLI usage
+belongs in `devcapsule/README.md`.
 
 ## Recommended PyCharm plugin
 
@@ -145,7 +145,7 @@ Do not broaden Docker access casually just to make login work. Any relaxation su
 Once PyCharm is running and JetBrains AI Assistant/Codex is connected, open this repository in the Dockerized IDE and ask the development agent something like:
 
 ```text
-Read README.md, index.md, REQUIREMENTS.md, WORKFLOW.md, and docker4ides/README.md. Continue the DockerForIDEIsolation project. Treat docker4ides as the active Python CLI/framework and docker4pycharm as the historical PyCharm reference baseline. Preserve the isolation model: only the selected project, IDE state, IDE plugins, X11 runtime resources, and narrowly scoped credential resources should be mounted. Work from the current task in the root README handoff.
+Read README.md, index.md, REQUIREMENTS.md, WORKFLOW.md, and devcapsule/README.md. Continue the DevCapsule project. Treat devcapsule as the active Python CLI/framework and docker4pycharm as the historical PyCharm reference baseline. Preserve the isolation model: only the selected project, IDE state, IDE plugins, X11 runtime resources, and narrowly scoped credential resources should be mounted. Work from the current task in the root README handoff.
 ```
 
 ## Links to re-check later

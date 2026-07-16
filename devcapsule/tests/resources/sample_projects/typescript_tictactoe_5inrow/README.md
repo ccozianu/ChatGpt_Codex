@@ -1,7 +1,7 @@
 # TypeScript Tic-Tac-Toe: Five in a Row
 
 This Vite, React, and TypeScript project is a realistic sample workload for
-manually evaluating Docker4IDEs configurations and for future automated IDE
+manually evaluating DevCapsule configurations and for future automated IDE
 end-to-end tests.
 
 The baseline scaffold and game implementation were adapted from the shared
@@ -25,8 +25,8 @@ npm run build
 To exercise the VSCodium and Claude Code configuration from the repository root:
 
 ```bash
-docker4ides codium_with_claude run \
-  --project docker4ides/tests/resources/sample_projects/typescript_tictactoe_5inrow
+devcapsule codium_with_claude run \
+  --project devcapsule/tests/resources/sample_projects/typescript_tictactoe_5inrow
 ```
 
 The application presents a 30×30 board. Two local players alternate `X` and

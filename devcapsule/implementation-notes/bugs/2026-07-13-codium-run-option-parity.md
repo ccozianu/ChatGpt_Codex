@@ -8,8 +8,8 @@ Requirements: R-PYTHON-MVP-003, R-FRAMEWORK-001, R-SCOPE-001, R-DOCKER-001
 
 ## Symptom
 
-`docker4ides codium_with_claude run` exposes a much smaller runtime surface
-than `docker4ides pycharm run`. Developers using VSCodium cannot select the
+`devcapsule codium_with_claude run` exposes a much smaller runtime surface
+than `devcapsule pycharm run`. Developers using VSCodium cannot select the
 same explicit state profiles, project mount layout, Git transport, Docker
 capability, native debugging, sudo, or writable-root behaviors.
 
@@ -178,7 +178,7 @@ replacement for safe, validated capability options.
 3. Verify default Codium launch arguments do not gain ambient host access.
 4. Verify explicit Git, Docker, debug, sudo, and state profiles on a host.
 5. Confirm concurrent Codium sessions with the chosen state split.
-6. Run `cd docker4ides && python -m nox -s build` and smoke-test the PEX
+6. Run `cd devcapsule && python -m nox -s build` and smoke-test the PEX
    command surface.
 
 ## Close Criteria

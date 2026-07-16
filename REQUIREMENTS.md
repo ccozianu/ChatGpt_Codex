@@ -17,7 +17,7 @@ integration with external systems if desired.
 
 Implementation-specific requirements still live in:
 
-- `docker4ides/REQUIREMENTS.md` for the active Python CLI/framework.
+- `devcapsule/REQUIREMENTS.md` for the active Python CLI/framework.
 - `docker4pycharm/implementation-notes/` for historical PyCharm prototype
   context.
 
@@ -55,7 +55,7 @@ Current root requirement emphasis:
 - documentation and process requirements keep the repo resumable and explicit
   for both humans and agents;
 - active implementation work remains tracked in `README.md` and
-  `docker4ides/REQUIREMENTS.md`.
+  `devcapsule/REQUIREMENTS.md`.
 
 Current release/stabilization reality:
 
@@ -80,6 +80,10 @@ Current release/stabilization reality:
 - `R-PRODUCT-005` — [Incremental Human/Agent Execution Loop](docs/requirements/r-product-005-incremental-human-agent-execution-loop.md)
 - `R-DOCS-001` — [Root Documentation Stays Implementation-Agnostic](docs/requirements/r-docs-001-root-documentation-stays-implementation-agnostic.md)
 - `R-DOCS-002` — [Current User Docs Show Current Interfaces](docs/requirements/r-docs-002-current-user-docs-show-current-interfaces.md)
+
+### Product Adoption And Positioning
+
+- `R-GTM-001` — [Compelling V1 Announcement For Adopters](docs/requirements/r-gtm-001-compelling-v1-announcement-for-adopters.md)
 
 ## Maintenance Rules
 

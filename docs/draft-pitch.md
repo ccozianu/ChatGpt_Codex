@@ -97,7 +97,7 @@ developer or AI coding agent to resume useful work quickly and safely.
 
 ## Positioning Sentence
 
-Docker4IDE gives each project a batteries-included, AI-ready coding workspace:
+DevCapsule gives each project a batteries-included, AI-ready coding workspace:
 a reproducible IDE runtime, durable project memory, persistent developer
 comfort state, and explicit host-access boundaries.
 
@@ -141,19 +141,17 @@ A safer structure may be:
 
 ```text
 Code Capsule by MyCodeSpace.ai
-Dev Capsule by MyCodeSpace.ai
-Docker4IDE by MyCodeSpace.ai
+DevCapsule by MyCodeSpace.ai
+DevCapsule by MyCodeSpace.ai
 ```
 
-The current technical name, Docker4IDE, remains accurate for the open-source
-implementation. A future product-facing name should emphasize contained,
-reproducible, AI-ready workspaces without depending entirely on "codespace" as
-the brand.
+The chosen product-facing name is `DevCapsule`. The current technical Python
+package name `devcapsule` remains accurate for the implementation, but the
+public brand should emphasize contained, reproducible, AI-ready workspaces
+without depending entirely on "codespace" as the brand.
 
 ## Open Questions
 
-- Should the public brand stay close to the technical name `Docker4IDE`, or
-  should `Docker4IDE` become the engine underneath a friendlier name?
 - Is "batteries included, boundaries explicit" strong enough to become the core
   message?
 - Should the first public pitch lead with AI-agent safety, development

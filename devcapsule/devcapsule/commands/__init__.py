@@ -1,2 +1,2 @@
-"""Built-in Docker4IDEs CLI commands."""
+"""Built-in DevCapsule CLI commands."""
 

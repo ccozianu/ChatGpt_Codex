@@ -16,7 +16,7 @@ external_refs: []
 
 ## Statement
 
-Supported Docker4IDEs image builds must be planned and executed by the active
+Supported DevCapsule image builds must be planned and executed by the active
 Python package without depending on the historical `docker4pycharm` build
 implementation.
 
@@ -43,4 +43,4 @@ implementation.
 - `R-PYTHON-MVP-003`
 - `R-FRAMEWORK-001`
 - `R-SCOPE-001`
-- `docker4ides/implementation-notes/completed-tasks/2026-07-13-vscodium-sandbox-and-foreground-launch.md`
+- `devcapsule/implementation-notes/completed-tasks/2026-07-13-vscodium-sandbox-and-foreground-launch.md`

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Docker4IDE - Working Backwards Press Release</title>
+  <title>DevCapsule - Working Backwards Press Release</title>
   <style>
     :root {
       color-scheme: light;
@@ -175,7 +175,7 @@
   <main>
     <header>
       <div class="eyebrow">Working backwards draft</div>
-      <h1>Docker4IDE gives every project a reproducible AI-ready environment and a durable memory.</h1>
+      <h1>DevCapsule gives every project a reproducible AI-ready environment and a durable memory.</h1>
       <p class="dek">A developer or coding agent should be able to return to a project months later, launch the right IDE runtime in one command, and recover the context needed to continue work safely.</p>
       <div class="meta">
         <span class="pill">Open-source direction</span>
@@ -189,7 +189,7 @@
       <h2>Press Release Draft</h2>
       <p>Modern software projects are increasingly developed with AI agents that can edit files, run commands, inspect logs, use browsers, call CLIs, install packages, make commits, and coordinate across tasks. That power is useful, but a normal local workstation gives those tools too much ambient access and too little memory.</p>
       <p>Project setup drifts over time, onboarding instructions decay, and important decisions disappear into chat history, private notes, or the memory of whoever was last working on the code.</p>
-      <p>Docker4IDE is an open-source project that combines reproducible IDE runtimes with repo-local project memory. A project can declare how it should be opened, which IDE or agent surface it uses, which host resources are allowed, which secrets are required by name, which ports and services are expected, and which checks prove that the project is alive.</p>
+      <p>DevCapsule is an open-source project that combines reproducible IDE runtimes with repo-local project memory. A project can declare how it should be opened, which IDE or agent surface it uses, which host resources are allowed, which secrets are required by name, which ports and services are expected, and which checks prove that the project is alive.</p>
       <p>The same repository also carries its requirements register, handoff notes, bug records, decisions, validation history, and current next step.</p>
       <p>The result is a practical middle ground between a loose local IDE setup and a locked-down container that no one wants to use. Developers get a real editor, persistent settings, plugins, project tools, Git workflows, and optional Docker access. AI agents get enough capability to make progress. The host machine keeps clearer boundaries.</p>
       <blockquote>
@@ -197,7 +197,7 @@
         <p><strong>Founding maintainer</strong></p>
       </blockquote>
       <p>The first implementation target is Dockerized PyCharm, currently in v0/MVP stabilization. It already demonstrates the core pattern: run a full IDE inside Docker, mount only the selected project and narrowly scoped runtime resources, keep IDE settings and plugins persistent outside the image, support Git without mounting the host home directory, and preserve project state in markdown files that future humans and agents can read.</p>
-      <p>The next product step is Docker4IDE v1: a profile-driven framework for IDEs and agentic editors such as PyCharm, IntelliJ, VS Code-family editors, and agent-first tools.</p>
+      <p>The next product step is DevCapsule v1: a profile-driven framework for IDEs and agentic editors such as PyCharm, IntelliJ, VS Code-family editors, and agent-first tools.</p>
     </section>
 
     <section class="section">
@@ -208,8 +208,8 @@
 
     <section class="section">
       <h2>The Product Promise</h2>
-      <p>A project using Docker4IDE should be able to offer:</p>
-      <pre><code>docker4ide open .</code></pre>
+      <p>A project using DevCapsule should be able to offer:</p>
+      <pre><code>devcapsule open .</code></pre>
       <p>That command should launch the declared IDE or agent surface, attach it to the selected project, apply the declared runtime profile, preserve IDE comfort state, expose only documented host resources, and point the human or agent at the current project memory.</p>
     </section>
 
@@ -257,10 +257,10 @@
       <h2>FAQ</h2>
 
       <h3>Is this just a devcontainer?</h3>
-      <p>No. Devcontainers solve an important part of the problem: reproducible project tooling. Docker4IDE is focused on the full IDE and agent runtime boundary, including GUI/editor state, AI-agent permissions, credential transport, persistent plugins, and durable project memory.</p>
+      <p>No. Devcontainers solve an important part of the problem: reproducible project tooling. DevCapsule is focused on the full IDE and agent runtime boundary, including GUI/editor state, AI-agent permissions, credential transport, persistent plugins, and durable project memory.</p>
 
       <h3>Why not just use the IDE locally?</h3>
-      <p>For simple solo work, a local IDE is often fine. Docker4IDE is aimed at the point where the IDE also hosts autonomous or semi-autonomous agents. At that point, local convenience starts to conflict with host safety, reproducibility, and handoff quality.</p>
+      <p>For simple solo work, a local IDE is often fine. DevCapsule is aimed at the point where the IDE also hosts autonomous or semi-autonomous agents. At that point, local convenience starts to conflict with host safety, reproducibility, and handoff quality.</p>
 
       <h3>Why preserve memory in markdown?</h3>
       <p>Markdown is versioned, reviewable, editable in any tool, and readable by humans and agents. Requirements, active tasks, decisions, bug evidence, validation notes, and next steps should not depend on a model's conversation history.</p>

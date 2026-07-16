@@ -1,4 +1,4 @@
-"""Translated PyCharm launcher for Docker4IDEs."""
+"""Translated PyCharm launcher for DevCapsule."""
 
 from __future__ import annotations
 
@@ -95,6 +95,7 @@ class PycharmRunConfig:
     project: Path
     global_settings: Path
     project_state: Path
+    gemini_state: Path
     ide_config: Path
     ide_config_mode: str
     plugins: Path
@@ -258,6 +259,7 @@ def build_run_config(options: PycharmRunOptions, env: Mapping[str, str]) -> Pych
         project=project,
         global_settings=global_settings,
         project_state=project_state,
+        gemini_state=runtime_plan.gemini_state,
         ide_config=ide_config,
         ide_config_mode=ide_config_mode,
         plugins=plugins,
@@ -349,6 +351,8 @@ def build_docker_args(
         f"type=bind,src={config.ide_config},dst=/ide-config",
         "--mount",
         f"type=bind,src={config.project_state},dst=/ide-project-state",
+        "--mount",
+        f"type=bind,src={config.gemini_state},dst=/ide-global-settings/home/.gemini",
         "--mount",
         f"type=bind,src={config.plugins},dst=/ide-plugins",
         "--mount",
@@ -715,7 +719,7 @@ def config_lock_message(ide_config: Path, project: Path, project_state: Path) ->
 The default shared config directory can only be used by one live PyCharm
 process at a time. For concurrent sessions against different projects, launch
 the second IDE with:
-  docker4ides pycharm run --project "{project}" --project-config
+  devcapsule pycharm run --project "{project}" --project-config
 
 That stores JetBrains idea.config.path under the per-project state directory:
   {project_state / "config"}
@@ -749,10 +753,10 @@ default local-development convenience mode, but it gives tools inside the IDE
 broad control over host Docker images, containers, networks, and bind mounts.
 
 For an isolated inner daemon, run:
-  docker4ides pycharm run --project "{config.project}" --docker-in-docker
+  devcapsule pycharm run --project "{config.project}" --docker-in-docker
 
 For a higher-isolation session with no Docker access, run:
-  docker4ides pycharm run --project "{config.project}" --no-docker
+  devcapsule pycharm run --project "{config.project}" --no-docker
 ========================================================================""",
         file=sys.stderr,
     )
@@ -770,10 +774,10 @@ The inner daemon does not manage bridge/iptables networking; use --network host
 for inner builds that need network access.
 
 To use the default host Docker daemon instead, run:
-  docker4ides pycharm run --project "{config.project}" --docker
+  devcapsule pycharm run --project "{config.project}" --docker
 
 To turn Docker off for a higher-isolation session, run:
-  docker4ides pycharm run --project "{config.project}" --no-docker
+  devcapsule pycharm run --project "{config.project}" --no-docker
 ========================================================================""",
         file=sys.stderr,
     )

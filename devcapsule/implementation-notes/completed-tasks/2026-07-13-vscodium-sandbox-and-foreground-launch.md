@@ -11,7 +11,7 @@ R-SCOPE-001
 
 ## Symptom
 
-`docker4ides codium_with_claude run` exits without opening VSCodium, prints no
+`devcapsule codium_with_claude run` exits without opening VSCodium, prints no
 useful diagnostic to the host console, and reports container exit status zero.
 An `xterm` started from `--debug-shell` works, showing that the forwarded
 `DISPLAY` and X11 socket are sufficient on the validating host.
@@ -23,7 +23,7 @@ An `xterm` started from `--debug-shell` works, showing that the forwarded
 - IDE payload: local VSCodium archive installed under `/opt/codium`
 - Observed VSCodium version: 1.126.04524
 - Container user: host UID/GID mapped by the normal image entrypoint
-- Workload: `docker4ides/tests/resources/sample_projects/typescript_tictactoe_5inrow`
+- Workload: `devcapsule/tests/resources/sample_projects/typescript_tictactoe_5inrow`
 
 The exact host kernel, Docker Engine, and Docker seccomp versions were not
 captured and remain useful validation metadata.
@@ -31,7 +31,7 @@ captured and remain useful validation metadata.
 ## Reproduction
 
 1. Build the configuration with a local VSCodium archive.
-2. Launch the sample project with `docker4ides codium_with_claude run`.
+2. Launch the sample project with `devcapsule codium_with_claude run`.
 3. Observe that no window appears and Docker reports exit status zero.
 4. Enter the same image with `--debug-shell`.
 5. Confirm `xterm` opens successfully.
@@ -162,7 +162,7 @@ not retained in the supported launch command.
 5. Confirm the normal command does not include `--no-sandbox`, `--privileged`,
    or a relaxed seccomp profile, and that any required capability such as
    `SYS_ADMIN` remains an explicit opt-in launch argument.
-6. Run `cd docker4ides && python -m nox -s build`.
+6. Run `cd devcapsule && python -m nox -s build`.
 
 ## Close Criteria
 

@@ -7,8 +7,8 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from docker4ides.compat import CliError
-from docker4ides.image_build import (
+from devcapsule.compat import CliError
+from devcapsule.image_build import (
     AptPackagesComponent,
     BaseImageComponent,
     BuildComponent,
@@ -23,6 +23,7 @@ from docker4ides.image_build import (
     normalize_pycharm_source,
     resource_to_tempdir,
 )
+from devcapsule.image_tooling import NODE_CURRENT_BIN, public_default_cli_tooling_component
 
 DEFAULT_BASE_IMAGE = "ubuntu:24.04"
 DEFAULT_IMAGE = "pycharm-isolated:latest"
@@ -31,6 +32,7 @@ BASE_APT_PACKAGES = (
     "ca-certificates",
     "curl",
     "wget",
+    "xz-utils",
     "git",
     "openssh-client",
     "gnupg2",
@@ -104,6 +106,7 @@ BASE_APT_PACKAGES = (
 )
 
 DEFAULT_ENV = (
+    ("PATH", f"{NODE_CURRENT_BIN}:${{PATH}}"),
     ("PROJECT_PATH", "/workspace/project"),
     ("IDE_GLOBAL_SETTINGS_PATH", "/ide-global-settings"),
     ("IDE_PROJECT_STATE_PATH", "/ide-project-state"),
@@ -126,7 +129,6 @@ class PycharmImageBuildOptions:
     base_image: str = DEFAULT_BASE_IMAGE
     network: str = "default"
     extra_apt_packages: tuple[str, ...] = ()
-    ai_agent: str = "none"
 
 
 def parse_pycharm_build_options(
@@ -136,7 +138,6 @@ def parse_pycharm_build_options(
     base_image: str,
     network: str,
     extra_apt_packages: tuple[str, ...],
-    ai_agent: str,
 ) -> PycharmImageBuildOptions:
     resolved_source = pycharm.expanduser().resolve()
     if not resolved_source.exists():
@@ -147,15 +148,14 @@ def parse_pycharm_build_options(
         base_image=base_image,
         network=network,
         extra_apt_packages=extra_apt_packages,
-        ai_agent=ai_agent,
     )
 
 
 def build_pycharm_image(options: PycharmImageBuildOptions, builder: BuildxImageBuilder | None = None) -> int:
     builder = builder or BuildxImageBuilder()
     with contextlib.ExitStack() as stack:
-        assets_dir = Path(stack.enter_context(resource_to_tempdir("docker4ides.assets.pycharm")))
-        build_root = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix="docker4ides-pycharm-build-")))
+        assets_dir = Path(stack.enter_context(resource_to_tempdir("devcapsule.assets.pycharm")))
+        build_root = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix="devcapsule-pycharm-build-")))
         pycharm_root = normalize_pycharm_source(options.pycharm, build_root)
         spec = build_pycharm_image_spec(options, pycharm_root=pycharm_root, assets_root=assets_dir)
         builder.build(spec, network=options.network)
@@ -199,29 +199,9 @@ def build_pycharm_image_spec(
                 "&& mkdir -p /ide-config /var/lib/docker /usr/local/share/docker4ide",
             ),
         ),
+        public_default_cli_tooling_component(),
         EnvComponent(DEFAULT_ENV),
-        LabelComponent((("docker4ides.configuration", "pycharm"), ("docker4ides.builder", "python-on-whales"))),
+        LabelComponent((("devcapsule.configuration", "pycharm"), ("devcapsule.builder", "python-on-whales"))),
         EntrypointComponent(("/usr/bin/tini", "--", "/usr/local/bin/entrypoint.sh")),
     ]
-    components.extend(ai_agent_components(options.ai_agent))
     return ImageBuildSpec(image=options.image, base_image=options.base_image, components=tuple(components))
-
-
-def ai_agent_components(ai_agent: str) -> tuple[ExecComponent, ...]:
-    if ai_agent == "none":
-        return ()
-    if ai_agent == "codex-cli":
-        return (
-            ExecComponent(
-                args=(
-                    "sh",
-                    "-euxc",
-                    "apt-get update && apt-get install -y --no-install-recommends nodejs npm "
-                    "&& npm install -g @openai/codex "
-                    "&& npm cache clean --force "
-                    "&& codex --version "
-                    "&& rm -rf /var/lib/apt/lists/*",
-                ),
-            ),
-        )
-    raise CliError(f"Unsupported AI agent option: {ai_agent}")

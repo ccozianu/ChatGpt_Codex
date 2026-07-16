@@ -1,4 +1,4 @@
-"""Command line entry point for Docker4IDEs."""
+"""Command line entry point for DevCapsule."""
 
 from __future__ import annotations
 
@@ -7,23 +7,23 @@ from typing import Sequence
 
 import click
 
-from docker4ides.commands.base import DiscoveredCommandGroup
-from docker4ides.compat import CliError, repo_root
+from devcapsule.commands.base import DiscoveredCommandGroup
+from devcapsule.compat import CliError, repo_root
 
 
-PROJECT_NAME = "docker4ides"
+PROJECT_NAME = "devcapsule"
 
 
 cli = DiscoveredCommandGroup(
     name=PROJECT_NAME,
-    package_name="docker4ides.commands",
+    package_name="devcapsule.commands",
     help="Profile-driven Docker launch tooling for isolated IDEs.",
     no_args_is_help=True,
 )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Run the Docker4IDEs CLI."""
+    """Run the DevCapsule CLI."""
 
     args = list(sys.argv[1:] if argv is None else argv)
     try:

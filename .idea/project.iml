@@ -4,6 +4,7 @@
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/docker4pycharm/.venv" />
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
+      <excludeFolder url="file://$MODULE_DIR$/docker4ides/.venv" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.12 (301e4208ef81-ChatGPT_Codex)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

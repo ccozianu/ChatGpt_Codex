@@ -1,18 +1,18 @@
-# Docker4IDEs Python CLI
+# DevCapsule Python CLI
 
-`docker4ides` is the Python command layer for the post-MVP refactor. It uses
+`devcapsule` is the Python command layer for the post-MVP refactor. It uses
 Click for the public command tree and option parsing, with class-backed built-in
-commands discovered from `docker4ides.commands`. The primary command shape is
-configuration-first, for example `docker4ides pycharm run`. The `commands`
+commands discovered from `devcapsule.commands`. The primary command shape is
+configuration-first, for example `devcapsule pycharm run`. The `commands`
 package is deliberately a thin CLI adapter; IDE-specific knowledge belongs in
-configuration packages such as `docker4ides.configurations.pycharm`. The
+configuration packages such as `devcapsule.configurations.pycharm`. The
 PyCharm run path is being translated from the validated
 `docker4pycharm/run-pycharm-container.sh` Bash launcher into maintainable Python
 runtime planning and Docker invocation code.
 
-Read [docker4ides/REQUIREMENTS.md](REQUIREMENTS.md) first for the subproject
+Read [devcapsule/REQUIREMENTS.md](REQUIREMENTS.md) first for the subproject
 requirement overview. The canonical detailed records for those requirements live
-under `docker4ides/docs/requirements/`.
+under `devcapsule/docs/requirements/`.
 
 ## User Setup
 
@@ -20,9 +20,9 @@ under `docker4ides/docs/requirements/`.
 python3.12 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e ./docker4ides
+python -m pip install -e ./devcapsule
 
-python -m docker4ides --help
+python -m devcapsule --help
 ```
 
 ## Development Setup
@@ -34,7 +34,7 @@ from a completely fresh venv unless explicitly requested.
 Run these commands from a Python environment where Nox is installed.
 
 ```bash
-cd docker4ides
+cd devcapsule
 
 python -m nox -s tests   # Python compile checks plus pytest
 python -m nox -s syntax  # Python compile checks plus shell syntax checks
@@ -46,16 +46,16 @@ python -m nox -s build   # full local gate
 
 The `tests` session is the Nox way to run pytest for this project. It installs
 the locked contributor dependencies into the managed Nox venv, installs
-`docker4ides` editable with `--no-deps`, runs Python compile checks, then runs
-`python -m pytest docker4ides`.
+`devcapsule` editable with `--no-deps`, runs Python compile checks, then runs
+`python -m pytest devcapsule`.
 
-The `typecheck` session runs `mypy` across the `docker4ides` Python package,
+The `typecheck` session runs `mypy` across the `devcapsule` Python package,
 tests, and `noxfile.py`.
 
 The `build` session is the default Nox session, so these are equivalent:
 
 ```bash
-cd docker4ides
+cd devcapsule
 python -m nox
 python -m nox -s build
 ```
@@ -64,14 +64,14 @@ Run a clean-slate build when dependency or environment reuse could hide a
 problem:
 
 ```bash
-cd docker4ides
+cd devcapsule
 python -m nox --no-reuse-existing-virtualenvs -s build
 ```
 
 If you want to discard all cached Nox environments before a clean build:
 
 ```bash
-cd docker4ides
+cd devcapsule
 rm -rf .nox
 python -m nox -s build
 ```
@@ -86,24 +86,24 @@ python -m pip install --upgrade pip
 python -m pip install -r dev-requirements.txt
 python -m pip install -e . --no-deps
 
-python -m pytest docker4ides
+python -m pytest devcapsule
 ```
 
 The Nox build session installs the locked contributor dependencies, installs
-`docker4ides` editable with `--no-deps`, compiles Python files, checks shell
+`devcapsule` editable with `--no-deps`, compiles Python files, checks shell
 script syntax, runs `mypy`, runs tests, smoke-tests the Python CLI and shell
 wrapper help, builds the PEX artifact, and smoke-tests the PEX CLI.
 
 `pyproject.toml` is the source of truth for Python runtime and development
 dependencies. The pinned `requirements.txt` and `dev-requirements.txt` files
 are reproducibility artifacts. Contributors should use the locked setup above;
-the direct `python -m pip install -e "./docker4ides[dev]"` path remains useful
+the direct `python -m pip install -e "./devcapsule[dev]"` path remains useful
 for quick local checks when exact dependency reproducibility is not needed.
 
 Regenerate lock files after editing dependencies in `pyproject.toml`:
 
 ```bash
-cd docker4ides
+cd devcapsule
 python -m piptools compile --strip-extras pyproject.toml --output-file requirements.txt
 python -m piptools compile --strip-extras --extra dev pyproject.toml --output-file dev-requirements.txt
 ```
@@ -113,7 +113,7 @@ python -m piptools compile --strip-extras --extra dev pyproject.toml --output-fi
 Build a single-file PEX archive from a contributor environment:
 
 ```bash
-cd docker4ides
+cd devcapsule
 scripts/build-pex.sh
 ```
 
@@ -126,43 +126,45 @@ python -m nox -s pex
 If the contributor environment is not activated, point the script at it:
 
 ```bash
-PYTHON=/path/to/venv/bin/python docker4ides/scripts/build-pex.sh
+PYTHON=/path/to/venv/bin/python devcapsule/scripts/build-pex.sh
 ```
 
 Run the artifact with Python 3.12+:
 
 ```bash
-python3.12 docker4ides/dist/docker4ides.pex --help
-python3.12 docker4ides/dist/docker4ides.pex pycharm run --help
-python3.12 docker4ides/dist/docker4ides.pex pycharm build --help
+python3.12 devcapsule/dist/devcapsule.pex --help
+python3.12 devcapsule/dist/devcapsule.pex pycharm run --help
+python3.12 devcapsule/dist/devcapsule.pex pycharm build --help
 ```
 
 The archive contains the Python CLI, runtime dependencies, and the legacy
 PyCharm build/runtime helper assets still needed by the current delegated
 `pycharm build`, `pycharm check-runtime`, and `bootstrap project` commands.
 
-The PEX build embeds `/tmp/docker4ides-pex-root` as its default runtime
+The PEX build embeds `/tmp/devcapsule-pex-root` as its default runtime
 extraction/cache root so it does not depend on IDE project-state cache
 directories being writable. If the launch environment explicitly sets
-`PEX_ROOT`, that value still controls PEX before Docker4IDEs starts; point it
+`PEX_ROOT`, that value still controls PEX before DevCapsule starts; point it
 at a writable directory or unset it if PEX warns about an unwritable cache.
 
 ## Commands
 
-Docker4IDEs uses a configuration-first command model:
+DevCapsule uses a configuration-first command model:
 
 ```text
-docker4ides CONFIGURATION ACTION [options]
+devcapsule CONFIGURATION ACTION [options]
 ```
 
 `CONFIGURATION` names an IDE-plus-agent environment. `pycharm` and
-`codium_with_claude` are implemented configurations. `codium_with_claude` is
-VSCodium plus the Claude Code CLI and is distinct from the registered,
+`codium_with_claude` are implemented configurations. The active public-default
+image builds bundle pinned Node.js/npm plus the Gemini CLI as command-line
+tooling. `codium_with_claude` is VSCodium plus that CLI/tooling baseline and
+is distinct from the registered,
 unimplemented `vscode_with_claude` placeholder.
 
 End users should be able to:
 
-- discover available configurations with `docker4ides --help`;
+- discover available configurations with `devcapsule --help`;
 - build or update a configuration image when that configuration supports
   `build`;
 - run a configuration against a selected project with `run`;
@@ -170,51 +172,59 @@ End users should be able to:
 - use the same command shape from source installs and from the PEX artifact.
 
 ```bash
-python -m docker4ides --help
-docker4ides pycharm run --project /path/to/project
-docker4ides pycharm run
-docker4ides pycharm run --project /path/to/project --config-mode project
-docker4ides pycharm run --profile codex --project-state-root /path/to/workspace/.state
-docker4ides pycharm build --pycharm /path/to/pycharm.tar.gz
-docker4ides pycharm check-runtime
-docker4ides vscode_with_claude --help
-docker4ides codium_with_claude build
-docker4ides codium_with_claude build --ide-archive /path/to/VSCodium-linux-x64.tar.gz
-docker4ides codium_with_claude run --project /path/to/project
-docker4ides codium_with_claude run --project /path/to/project --profile codex
-docker4ides codium_with_claude run --project /path/to/project --project-state-root /path/to/workspace/.state
-docker4ides codium_with_claude run --project /path/to/project --project-mount /workspace/project
-docker4ides codium_with_claude run --project /path/to/project --debug-shell
-docker4ides codium_with_claude run --project /path/to/project --network host
-docker4ides bootstrap project --project /path/to/project
+python -m devcapsule --help
+devcapsule pycharm run --project /path/to/project
+devcapsule pycharm run
+devcapsule pycharm run --project /path/to/project --config-mode project
+devcapsule pycharm run --profile codex --project-state-root /path/to/workspace/.state
+devcapsule pycharm build --pycharm /path/to/pycharm.tar.gz
+devcapsule pycharm check-runtime
+devcapsule vscode_with_claude --help
+devcapsule codium_with_claude build
+devcapsule codium_with_claude build --ide-archive /path/to/VSCodium-linux-x64.tar.gz
+devcapsule codium_with_claude run --project /path/to/project
+devcapsule codium_with_claude run --project /path/to/project --profile codex
+devcapsule codium_with_claude run --project /path/to/project --project-state-root /path/to/workspace/.state
+devcapsule codium_with_claude run --project /path/to/project --project-mount /workspace/project
+devcapsule codium_with_claude run --project /path/to/project --debug-shell
+devcapsule codium_with_claude run --project /path/to/project --network host
+devcapsule bootstrap project --project /path/to/project
 ```
 
-`codium_with_claude build` uses Ubuntu 24.04 and installs VSCodium, Python
-3.12, the current Node.js channel, the latest npm, and the latest Claude Code
-CLI available at image-build time. The image also includes `xterm` for basic
-X11 validation and `strace` for process-level diagnostics. Because these
-upstream channels move, a later rebuild can resolve newer versions. Use
+`pycharm build` and `codium_with_claude build` use Ubuntu 24.04 and install
+Python plus a pinned Node.js archive under `/opt/node/node-{version}`, expose
+that runtime through `/opt/node/current` and `/usr/local/bin`, and install a
+pinned Gemini CLI version with that bundled npm. The Codium image also installs
+VSCodium plus `xterm` for basic X11 validation and `strace` for process-level
+diagnostics. Update the pinned versions in source when intentionally advancing
+the public-default tooling baseline. Use
 `--image`, `--base-image`,
 `--network`, and repeatable `--extra-apt-package` options to customize a build.
 Pass `--ide-archive PATH` to install VSCodium from a local `.tar.gz` (or other
 tar format recognized by Python) containing an executable `bin/codium`. In
 that mode the build does not configure or contact the VSCodium apt repository;
-the archive is installed under `/opt/codium`. Node.js, npm, and Claude Code are
-still downloaded from their configured upstream channels.
+the archive is installed under `/opt/codium`. The pinned Node.js archive and
+Gemini CLI are still fetched during the image build from their configured
+upstream sources.
 
 `codium_with_claude run` currently targets Linux X11. It mounts the selected
 project at `/workspace/project` by default, a persistent VSCodium/Claude home
-(by default `~/.config/docker4ides/codium-with-claude`) at
+(by default `~/.config/devcapsule/codium-with-claude`) at
 `/ide-global-settings`, a project-local state directory (by default
-`.docker4ides/codium-state`) at `/ide-project-state`, and the host X11 socket
+`.devcapsule/codium-state`) at `/ide-project-state`, and the host X11 socket
 read-only. `--profile NAME` moves the shared global state under
-`~/.config/docker4ides-codium-with-claude-NAME/state`. `--project-state-root
+`~/.config/devcapsule-codium-with-claude-NAME/state`. `--project-state-root
 DIR` mirrors per-project state outside the source tree, and `--project-mount`
 overrides the in-container project path explicitly. It passes `DISPLAY` and
 uses ordinary Docker bridge networking so VSCodium and Claude Code can reach
 their services. It does not mount the Docker socket, SSH agent, host home,
 devices, or other credentials by default. Claude authentication written under
-its container home persists in the explicit global state directory.
+its container home persists in the explicit global state directory. Gemini CLI
+state is also bind-mounted directly from the host by default: the host
+`~/.gemini` directory is exposed as `~/.gemini` inside the container so
+existing Gemini authentication, settings, and trusted-folder state can be
+reused across DevCapsule launches. Set `DEVCAPSULE_GEMINI_STATE_DIR` to point
+at a different host directory when needed.
 Use `--debug-shell` to run interactive Bash through the normal image
 entrypoint with the same project, state, and X11 mounts instead of starting
 VSCodium.
@@ -244,8 +254,11 @@ debugging, sudo, and additional filesystem options available from
 `pycharm run` defaults `--project` to the current directory. Use `--profile
 NAME` to group shared PyCharm settings and plugins under
 `~/.config/docker-pycharm-NAME/`, and `--project-state-root DIR` to mirror
-per-project state under a separate state tree.
+per-project state under a separate state tree. Gemini CLI state is
+bind-mounted into the container at `~/.gemini` from the host `~/.gemini` by
+default; override that host source path with `DEVCAPSULE_GEMINI_STATE_DIR`
+when needed.
 
-Unsupported command shapes such as `docker4ides run pycharm`,
-`docker4ides build pycharm`, and `docker4ides bootstrap-project` are
+Unsupported command shapes such as `devcapsule run pycharm`,
+`devcapsule build pycharm`, and `devcapsule bootstrap-project` are
 intentionally not part of the Python CLI.

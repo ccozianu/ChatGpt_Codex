@@ -21,7 +21,7 @@ documentation in the same change.
 ## Implementation
 
 - User-level documentation protocol in `WORKFLOW.md`
-- `docker4ides/README.md`
+- `devcapsule/README.md`
 - root `README.md`
 
 ## Verification

@@ -9,8 +9,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
 
-from docker4ides.compat import CliError
-from docker4ides.runtime import SharedRuntimeOptions, plan_shared_runtime
+from devcapsule.compat import CliError
+from devcapsule.runtime import SharedRuntimeOptions, plan_shared_runtime
 
 DEFAULT_IMAGE = "codium-with-claude:latest"
 
@@ -51,9 +51,9 @@ def build_codium_run_command(options: CodiumRunOptions, env: Mapping[str, str] |
             ),
             env,
             explicit_profile_root_env_var="DOCKER4IDES_CODIUM_PROFILE_ROOT",
-            profile_dir_prefix="docker4ides-codium-with-claude-",
-            default_global_settings=home / ".config" / "docker4ides" / "codium-with-claude",
-            default_project_state=lambda project_plan: project_plan.project_path / ".docker4ides" / "codium-state",
+            profile_dir_prefix="devcapsule-codium-with-claude-",
+            default_global_settings=home / ".config" / "devcapsule" / "codium-with-claude",
+            default_project_state=lambda project_plan: project_plan.project_path / ".devcapsule" / "codium-state",
         )
     except ValueError as exc:
         raise CliError(str(exc)) from exc
@@ -93,6 +93,8 @@ def build_codium_run_command(options: CodiumRunOptions, env: Mapping[str, str] |
         f"{runtime_plan.global_settings}:/ide-global-settings",
         "--volume",
         f"{runtime_plan.project_state}:/ide-project-state",
+        "--volume",
+        f"{runtime_plan.gemini_state}:/ide-global-settings/home/.gemini",
         "--volume",
         "/tmp/.X11-unix:/tmp/.X11-unix:ro",
         *options.extra_docker_args,

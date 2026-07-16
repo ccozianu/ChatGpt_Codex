@@ -6,8 +6,8 @@ from typing import Any
 
 import click
 
-from docker4ides.commands.base import BaseCommand
-from docker4ides.configurations.vscode_with_claude import VscodeWithClaudeConfiguration
+from devcapsule.commands.base import BaseCommand
+from devcapsule.configurations.vscode_with_claude import VscodeWithClaudeConfiguration
 
 
 class VscodeWithClaudeCommand(BaseCommand):

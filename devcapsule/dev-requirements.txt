@@ -16,7 +16,7 @@ build==1.5.0
     # via pip-tools
 click==8.4.2
     # via
-    #   docker4ides (pyproject.toml)
+    #   devcapsule (pyproject.toml)
     #   pip-tools
 colorlog==6.10.1
     # via nox
@@ -35,11 +35,11 @@ iniconfig==2.3.0
 librt==0.13.0
     # via mypy
 mypy==2.3.0
-    # via docker4ides (pyproject.toml)
+    # via devcapsule (pyproject.toml)
 mypy-extensions==1.1.0
     # via mypy
 nox==2026.4.10
-    # via docker4ides (pyproject.toml)
+    # via devcapsule (pyproject.toml)
 packaging==26.2
     # via
     #   build
@@ -50,9 +50,9 @@ packaging==26.2
 pathspec==1.1.1
     # via mypy
 pex==2.97.1
-    # via docker4ides (pyproject.toml)
+    # via devcapsule (pyproject.toml)
 pip-tools==7.5.3
-    # via docker4ides (pyproject.toml)
+    # via devcapsule (pyproject.toml)
 platformdirs==4.10.0
     # via
     #   python-discovery
@@ -70,11 +70,11 @@ pyproject-hooks==1.2.0
     #   build
     #   pip-tools
 pytest==9.1.1
-    # via docker4ides (pyproject.toml)
+    # via devcapsule (pyproject.toml)
 python-discovery==1.4.3
     # via virtualenv
 python-on-whales==0.81.0
-    # via docker4ides (pyproject.toml)
+    # via devcapsule (pyproject.toml)
 typing-extensions==4.16.0
     # via
     #   mypy

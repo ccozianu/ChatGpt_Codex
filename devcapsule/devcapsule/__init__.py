@@ -1,4 +1,4 @@
-"""Docker4IDEs command package."""
+"""DevCapsule command package."""
 
 __all__ = ["__version__"]
 

@@ -6,8 +6,8 @@ from typing import Any
 
 import click
 
-from docker4ides.commands.base import BaseCommand
-from docker4ides.configurations.codium_with_claude import CodiumWithClaudeConfiguration
+from devcapsule.commands.base import BaseCommand
+from devcapsule.configurations.codium_with_claude import CodiumWithClaudeConfiguration
 
 
 class CodiumWithClaudeCommand(BaseCommand):

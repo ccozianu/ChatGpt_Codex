@@ -5,8 +5,8 @@ import tarfile
 from pathlib import Path
 from unittest.mock import patch
 
-from docker4ides import cli
-from docker4ides.configurations.codium_with_claude import (
+from devcapsule import cli
+from devcapsule.configurations.codium_with_claude import (
     CodiumWithClaudeConfiguration,
     CodiumImageBuildOptions,
     CodiumRunOptions,
@@ -14,7 +14,7 @@ from docker4ides.configurations.codium_with_claude import (
     build_codium_run_command,
     normalize_codium_archive,
 )
-from docker4ides.image_build import render_build_context
+from devcapsule.image_build import render_build_context
 
 
 def test_configuration_is_distinct_from_vscode_stub(capsys) -> None:
@@ -27,7 +27,7 @@ def test_configuration_is_distinct_from_vscode_stub(capsys) -> None:
 
 def test_build_command_uses_python_buildx_builder() -> None:
     with patch(
-        "docker4ides.configurations.codium_with_claude.configuration.build_codium_image"
+        "devcapsule.configurations.codium_with_claude.configuration.build_codium_image"
     ) as build_image:
         build_image.return_value = 0
         assert cli.main(["codium_with_claude", "build", "--image", "test-codium:latest"]) == 0
@@ -37,7 +37,7 @@ def test_build_command_uses_python_buildx_builder() -> None:
     assert options.base_image == "ubuntu:24.04"
 
 
-def test_image_spec_contains_requested_sdks_and_claude(tmp_path: Path) -> None:
+def test_image_spec_contains_requested_sdks_and_public_default_cli_tooling(tmp_path: Path) -> None:
     entrypoint = tmp_path / "entrypoint.sh"
     entrypoint.write_text("#!/bin/sh\n", encoding="utf-8")
     spec = build_codium_image_spec(CodiumImageBuildOptions(), assets_root=tmp_path)
@@ -47,17 +47,24 @@ def test_image_spec_contains_requested_sdks_and_claude(tmp_path: Path) -> None:
     assert "strace" in plan.apt_packages
     assert "xterm" in plan.apt_packages
     install_script = "\n".join(" ".join(step.args) for step in plan.exec_steps)
-    assert "setup_current.x" in install_script
-    assert "npm@latest" in install_script
-    assert "@anthropic-ai/claude-code@latest" in install_script
+    assert "nodejs.org/dist/${node_version}" in install_script
+    assert "nodejs.org/dist/${node_version}" in install_script
+    assert "@google/gemini-cli@0.50.0" in install_script
     assert "apt-get install -y --no-install-recommends codium" in install_script
-    assert "apt-get install -y --no-install-recommends nodejs" in install_script
+    assert "mkdir -p /opt/node" in install_script
+    assert "sha256sum -c -" in install_script
+    assert 'export PATH="/opt/node/current/bin:$PATH"' in install_script
+    assert "node --version" in install_script
+    assert "npm --version" in install_script
+    assert "gemini --version" in install_script
     assert "/usr/share/codium/codium /usr/local/bin/codium-foreground" in install_script
-    assert ("docker4ides.configuration", "codium_with_claude") in plan.labels
+    assert ("devcapsule.configuration", "codium_with_claude") in plan.labels
+    assert ("PATH", "/opt/node/current/bin:${PATH}") in plan.env
     context = tmp_path / "context"
     context.mkdir()
     dockerfile = render_build_context(plan, context).read_text(encoding="utf-8")
-    assert "\ncurl -fsSL" not in dockerfile
+    assert "download.vscodium.com/debs vscodium main" in dockerfile
+    assert "https://nodejs.org/dist/${node_version}" in dockerfile
     assert "RUN 'bash' '-euxo' 'pipefail' '-c'" in dockerfile
 
 
@@ -65,7 +72,7 @@ def test_build_command_accepts_local_ide_archive(tmp_path: Path) -> None:
     archive = tmp_path / "codium.tar.gz"
     archive.write_bytes(b"placeholder")
     with patch(
-        "docker4ides.configurations.codium_with_claude.configuration.build_codium_image"
+        "devcapsule.configurations.codium_with_claude.configuration.build_codium_image"
     ) as build_image:
         build_image.return_value = 0
         assert cli.main(["codium_with_claude", "build", "--ide-archive", str(archive)]) == 0
@@ -126,6 +133,7 @@ def test_run_command_mounts_only_explicit_state_and_x11(tmp_path: Path) -> None:
     assert f"{project.resolve()}:/workspace/project" in command
     assert f"{state.resolve()}:/ide-global-settings" in command
     assert f"{project_state.resolve()}:/ide-project-state" in command
+    assert f"{(tmp_path / '.gemini').resolve()}:/ide-global-settings/home/.gemini" in command
     assert "/tmp/.X11-unix:/tmp/.X11-unix:ro" in command
     assert "/var/run/docker.sock" not in " ".join(command)
     assert command[-1] == "/workspace/project"
@@ -142,10 +150,11 @@ def test_run_command_supports_shared_profile_and_project_state_root(tmp_path: Pa
         {"DISPLAY": ":0", "HOME": str(tmp_path)},
     )
 
-    expected_state = tmp_path / ".config" / "docker4ides-codium-with-claude-codex" / "state"
+    expected_state = tmp_path / ".config" / "devcapsule-codium-with-claude-codex" / "state"
     expected_project_state = state_root / project.name
     assert f"{expected_state.resolve()}:/ide-global-settings" in command
     assert f"{expected_project_state.resolve()}:/ide-project-state" in command
+    assert f"{(tmp_path / '.gemini').resolve()}:/ide-global-settings/home/.gemini" in command
 
 
 def test_run_command_supports_explicit_project_mount(tmp_path: Path) -> None:

@@ -1,11 +1,11 @@
-# Docker4IDEs Requirements Overview
+# DevCapsule Requirements Overview
 
-This file is the overview and index for `docker4ides` implementation
+This file is the overview and index for `devcapsule` implementation
 requirements. Read it first for scope, status, and current priorities. The
 canonical detailed record for each subproject requirement lives under:
 
 ```text
-docker4ides/docs/requirements/
+devcapsule/docs/requirements/
 ```
 
 This subproject keeps the existing implementation requirement IDs and status
@@ -14,7 +14,7 @@ model matches the root requirement structure.
 
 ## Scope
 
-`docker4ides` is the active Python CLI/framework subproject. These requirements
+`devcapsule` is the active Python CLI/framework subproject. These requirements
 describe the active implementation scope: user-facing CLI behavior, packaging,
 runtime planning, build behavior, validation expectations, and the current V1
 (`python_mvp`) target.
@@ -101,11 +101,11 @@ Explicitly later or deferred:
 - `R-PYTHON-MVP-002` — [Single-File Python CLI Artifact](docs/requirements/r-python-mvp-002-single-file-python-cli-artifact.md)
 - `R-PYTHON-MVP-003` — [Python MVP Feature Scope](docs/requirements/r-python-mvp-003-python-mvp-feature-scope.md)
 - `R-IMAGE-BUILD-001` — [Python-Native Composable Image Building](docs/requirements/r-image-build-001-python-native-composable-image-building.md)
-- `R-FRAMEWORK-001` — [Shared Python Docker4IDE Orchestration](docs/requirements/r-framework-001-shared-python-docker4ide-orchestration.md)
+- `R-FRAMEWORK-001` — [Shared Python DevCapsule Orchestration](docs/requirements/r-framework-001-shared-python-docker4ide-orchestration.md)
 
 ## Maintenance Rules
 
-- Read `docker4ides/REQUIREMENTS.md` first for orientation.
+- Read `devcapsule/REQUIREMENTS.md` first for orientation.
 - Open only the detailed requirement files relevant to the current task.
 - Keep this file concise: overview, grouping, status framing, and links.
-- Keep canonical detail in `docker4ides/docs/requirements/`.
+- Keep canonical detail in `devcapsule/docs/requirements/`.

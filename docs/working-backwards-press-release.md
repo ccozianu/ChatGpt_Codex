@@ -1,4 +1,4 @@
-# Working Backwards Press Release: Docker4IDE
+# Working Backwards Press Release: DevCapsule
 
 Status: positioning draft
 
@@ -10,7 +10,7 @@ host access.
 
 For immediate internal use.
 
-### Docker4IDE gives every project a reproducible AI-ready development environment and a durable project memory
+### DevCapsule gives every project a reproducible AI-ready development environment and a durable project memory
 
 Developers can now reopen a project months later, launch the right IDE runtime
 in one command, and recover the essential context a human or coding agent needs
@@ -24,7 +24,7 @@ memory. Project setup drifts over time, onboarding instructions decay, and
 important decisions disappear into chat history, private notes, or the memory
 of whoever was last working on the code.
 
-Docker4IDE is an open-source project that combines reproducible IDE runtimes
+DevCapsule is an open-source project that combines reproducible IDE runtimes
 with repo-local project memory. A project can declare how it should be opened,
 which IDE or agent surface it uses, which host resources are allowed, which
 secrets are required by name, which ports and services are expected, and which
@@ -40,7 +40,7 @@ keeps clearer boundaries.
 
 "AI-assisted development only works well when the agent has tools, context, and
 permission to act," said the founding maintainer. "The missing piece is making
-that permission explicit and making the project memory durable. Docker4IDE is
+that permission explicit and making the project memory durable. DevCapsule is
 our attempt to make coming back to a project feel less like archaeology and more
 like resuming a paused session."
 
@@ -51,7 +51,7 @@ resources, keep IDE settings and plugins persistent outside the image, support
 Git without mounting the host home directory, and preserve project state in
 markdown files that future humans and agents can read.
 
-The next product step is to generalize this into Docker4IDE v1: a
+The next product step is to generalize this into DevCapsule v1: a
 profile-driven framework for IDEs and agentic editors such as PyCharm, IntelliJ,
 VS Code-family editors, and agent-first tools. A Node/React/Prisma project
 could declare its package manager, Node version, Prisma/database strategy, dev
@@ -59,13 +59,13 @@ server ports, browser needs, credential names, Docker/Compose mode, and
 validation commands. A future developer or agent would run one command and get
 both the environment and the essential project memory back.
 
-Docker4IDE is being developed in the open so other developers can adapt the
+DevCapsule is being developed in the open so other developers can adapt the
 pattern, challenge the defaults, and help define what responsible AI-ready
 developer onboarding should look like.
 
 ## Customer
 
-Docker4IDE is for developers and small teams who:
+DevCapsule is for developers and small teams who:
 
 - use or expect to use AI coding agents inside real development projects;
 - want faster onboarding and better project resumption after long gaps;
@@ -93,7 +93,7 @@ to help.
 
 ## Product Promise
 
-A project using Docker4IDE should be able to offer:
+A project using DevCapsule should be able to offer:
 
 ```text
 open this project in its declared Dockerized IDE environment
@@ -129,7 +129,7 @@ The first proof point demonstrates the pattern with a full desktop IDE:
 
 ## What v1 Should Add
 
-Docker4IDE v1 should generalize the v0 pattern into a profile-driven framework:
+DevCapsule v1 should generalize the v0 pattern into a profile-driven framework:
 
 - IDE profiles: PyCharm, IntelliJ, VS Code-family editors, Antigravity-style
   agentic editors, and future IDE targets.
@@ -147,17 +147,17 @@ Docker4IDE v1 should generalize the v0 pattern into a profile-driven framework:
 ### Is this just a devcontainer?
 
 No. Devcontainers solve an important part of the problem: reproducible project
-tooling. Docker4IDE is focused on the full IDE and agent runtime boundary,
+tooling. DevCapsule is focused on the full IDE and agent runtime boundary,
 including GUI/editor state, AI-agent permissions, credential transport,
 persistent plugins, and durable project memory.
 
-The two approaches can coexist. A future Docker4IDE profile may use a
+The two approaches can coexist. A future DevCapsule profile may use a
 devcontainer-like project runtime while still managing the outer IDE and agent
 surface.
 
 ### Why not just use the IDE locally?
 
-For simple solo work, a local IDE is often fine. Docker4IDE is aimed at the
+For simple solo work, a local IDE is often fine. DevCapsule is aimed at the
 point where the IDE also hosts autonomous or semi-autonomous agents. At that
 point, local convenience starts to conflict with host safety, reproducibility,
 and handoff quality.

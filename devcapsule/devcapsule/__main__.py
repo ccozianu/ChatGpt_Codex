@@ -1,6 +1,6 @@
-"""Module entry point for ``python -m docker4ides``."""
+"""Module entry point for ``python -m devcapsule``."""
 
-from docker4ides.cli import main
+from devcapsule.cli import main
 
 
 if __name__ == "__main__":

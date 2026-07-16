@@ -51,7 +51,7 @@ append_missing_gitignore_entry() {
 
 if [ ! -f .gitignore ]; then
   cat > .gitignore <<'EOF_GITIGNORE'
-# Python / Docker4IDE defaults
+# Python / DevCapsule defaults
 __pycache__/
 *.py[cod]
 *$py.class
@@ -67,8 +67,8 @@ htmlcov/
 .idea/
 EOF_GITIGNORE
 else
-  if ! grep -Fq "Python / Docker4IDE defaults" .gitignore; then
-    printf '\n# Python / Docker4IDE defaults\n' >> .gitignore
+  if ! grep -Fq "Python / DevCapsule defaults" .gitignore; then
+    printf '\n# Python / DevCapsule defaults\n' >> .gitignore
   fi
   append_missing_gitignore_entry "__pycache__/"
   append_missing_gitignore_entry "*.py[cod]"
@@ -315,7 +315,7 @@ EOF_README_APPEND
 fi
 
 cat <<EOF_DONE
-Bootstrapped Docker4IDE project process in:
+Bootstrapped DevCapsule project process in:
   $TARGET
 
 Created or updated:

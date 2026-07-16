@@ -1,6 +1,6 @@
-# Future Agent Handoff: DockerForIDEIsolation Refactoring Strategy
+# Future Agent Handoff: DevCapsule Refactoring Strategy
 
-This file is intended for the next ChatGPT/Codex development agent working inside the IDE that was bootstrapped by the DockerForIDEIsolation project.
+This file is intended for the next ChatGPT/Codex development agent working inside the IDE that was bootstrapped by the DevCapsule project.
 
 It summarizes the intended direction after the initial `docker4pycharm` prototype and lays out the strategy for extending the project to IntelliJ IDEA, VS Code, and VSCodium without duplicating implementation logic.
 
@@ -10,11 +10,11 @@ package and CLI name. Older sketches in this document may still say
 pre-existing helper commands.
 
 Status update: as of 2026-07-09, active implementation work is in
-`docker4ides/`. The original `docker4pycharm/` shell implementation is kept as
+`devcapsule/`. The original `docker4pycharm/` shell implementation is kept as
 the historical PyCharm reference baseline. This brief remains useful for
 strategy and rationale, but the current task list and exact command shape live
 in the final handoff section of `README.md` and the active user documentation
-in `docker4ides/README.md`.
+in `devcapsule/README.md`.
 
 ---
 
@@ -99,7 +99,7 @@ The project should therefore be organized by **IDE family**, not by one-off scri
 A possible future structure:
 
 ```text
-DockerForIDEIsolation/
+DevCapsule/
   README.md
   user.md
   FUTURE_AGENT_REFACTORING_BRIEF.md

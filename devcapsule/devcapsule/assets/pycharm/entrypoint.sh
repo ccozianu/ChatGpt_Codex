@@ -96,7 +96,7 @@ start_dind() {
   fi
   if ! command -v dockerd >/dev/null 2>&1; then
     echo "Docker-in-Docker was enabled, but dockerd is not installed in this image." >&2
-    echo "Rebuild the image with the current docker4ides PyCharm image build path." >&2
+    echo "Rebuild the image with the current devcapsule PyCharm image build path." >&2
     exit 1
   fi
 

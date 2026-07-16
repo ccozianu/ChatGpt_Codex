@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from docker4ides.configurations.pycharm import DockerMode, IdeConfigMode, PycharmRunOptions, build_run_config
+from devcapsule.configurations.pycharm import DockerMode, IdeConfigMode, PycharmRunOptions, build_run_config
 
 
 def base_env(tmp_path: Path) -> dict[str, str]:
@@ -115,3 +115,18 @@ def test_explicit_project_state_overrides_project_state_root(tmp_path: Path) -> 
     )
 
     assert config.project_state == (tmp_path / "explicit-state").resolve()
+
+
+def test_gemini_state_defaults_to_host_home_dot_gemini(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+
+    config = build_run_config(
+        PycharmRunOptions(
+            project=project,
+            docker_mode=DockerMode.none,
+        ),
+        base_env(tmp_path),
+    )
+
+    assert config.gemini_state == (tmp_path / "home" / ".gemini").resolve()

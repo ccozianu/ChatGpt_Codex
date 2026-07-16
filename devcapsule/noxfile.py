@@ -11,7 +11,7 @@ nox.options.reuse_existing_virtualenvs = True
 
 PROJECT_ROOT = Path(__file__).parent
 REPO_ROOT = PROJECT_ROOT.parent
-PEX_PATH = PROJECT_ROOT / "dist" / "docker4ides.pex"
+PEX_PATH = PROJECT_ROOT / "dist" / "devcapsule.pex"
 
 
 def install_locked(session: nox.Session) -> None:
@@ -20,14 +20,14 @@ def install_locked(session: nox.Session) -> None:
 
 
 def check_python_syntax(session: nox.Session) -> None:
-    session.run("python", "-m", "compileall", "-q", str(PROJECT_ROOT / "docker4ides"))
+    session.run("python", "-m", "compileall", "-q", str(PROJECT_ROOT / "devcapsule"))
 
 
 def check_shell_syntax(session: nox.Session) -> None:
     scripts = [
         *sorted((REPO_ROOT / "docker4pycharm").glob("*.sh")),
         *sorted((PROJECT_ROOT / "scripts").glob("*.sh")),
-        *sorted((PROJECT_ROOT / "docker4ides" / "assets").rglob("*.sh")),
+        *sorted((PROJECT_ROOT / "devcapsule" / "assets").rglob("*.sh")),
     ]
     for script in scripts:
         session.run("bash", "-n", str(script), external=True)
@@ -42,19 +42,19 @@ def run_typecheck(session: nox.Session) -> None:
         "python",
         "-m",
         "mypy",
-        str(PROJECT_ROOT / "docker4ides"),
+        str(PROJECT_ROOT / "devcapsule"),
         str(PROJECT_ROOT / "tests"),
         str(PROJECT_ROOT / "noxfile.py"),
     )
 
 
 def run_smoke(session: nox.Session) -> None:
-    session.run("python", "-m", "docker4ides", "--help")
-    session.run("python", "-m", "docker4ides", "pycharm", "run", "--help")
-    session.run("python", "-m", "docker4ides", "pycharm", "build", "--help")
-    session.run("python", "-m", "docker4ides", "vscode_with_claude", "--help")
-    session.run("python", "-m", "docker4ides", "codium_with_claude", "build", "--help")
-    session.run("python", "-m", "docker4ides", "codium_with_claude", "run", "--help")
+    session.run("python", "-m", "devcapsule", "--help")
+    session.run("python", "-m", "devcapsule", "pycharm", "run", "--help")
+    session.run("python", "-m", "devcapsule", "pycharm", "build", "--help")
+    session.run("python", "-m", "devcapsule", "vscode_with_claude", "--help")
+    session.run("python", "-m", "devcapsule", "codium_with_claude", "build", "--help")
+    session.run("python", "-m", "devcapsule", "codium_with_claude", "run", "--help")
     session.run(str(REPO_ROOT / "docker4pycharm" / "run-pycharm-container.sh"), "--help", external=True)
 
 

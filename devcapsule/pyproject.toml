@@ -3,13 +3,13 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "docker4ides"
+name = "devcapsule"
 version = "0.1.0"
 description = "Profile-driven Docker launch tooling for isolated IDE development environments."
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [
-  { name = "DockerForIDEIsolation contributors" }
+  { name = "DevCapsule contributors" }
 ]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -35,23 +35,23 @@ dev = [
 ]
 
 [project.scripts]
-docker4ides = "docker4ides.cli:main"
+devcapsule = "devcapsule.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["docker4ides*"]
+include = ["devcapsule*"]
 
 [tool.setuptools.package-data]
-"docker4ides.assets.docker4pycharm" = [
+"devcapsule.assets.docker4pycharm" = [
   "Dockerfile",
   "*.sh",
   "image-assets/*.md",
 ]
-"docker4ides.assets.pycharm" = [
+"devcapsule.assets.pycharm" = [
   "*.sh",
   "image-assets/*.md",
 ]
-"docker4ides.assets.codium_with_claude" = [
+"devcapsule.assets.codium_with_claude" = [
   "*.sh",
 ]
 
@@ -61,7 +61,7 @@ pythonpath = ["."]
 
 [tool.mypy]
 python_version = "3.12"
-files = ["docker4ides", "tests", "noxfile.py"]
+files = ["devcapsule", "tests", "noxfile.py"]
 warn_unused_configs = true
 show_error_codes = true
 pretty = true

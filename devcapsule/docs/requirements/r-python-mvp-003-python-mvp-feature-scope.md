@@ -24,7 +24,7 @@ post-MVP framework work.
 
 - Keep `docker4pycharm/` as the stable compatibility/reference surface for the
   original PyCharm MVP
-- Keep `docker4ides pycharm run` as the Python-native day-to-day launcher with
+- Keep `devcapsule pycharm run` as the Python-native day-to-day launcher with
   parity for the documented launch surface
 - Remove Python `pycharm run` dependence on historical bootstrap scripts as an
   implementation path
@@ -66,4 +66,4 @@ post-MVP framework work.
 - `R-PYTHON-MVP-002`
 - `R-IMAGE-BUILD-001`
 - `R-FRAMEWORK-001`
-- `docker4ides/implementation-notes/bugs/2026-07-13-codium-run-option-parity.md`
+- `devcapsule/implementation-notes/bugs/2026-07-13-codium-run-option-parity.md`

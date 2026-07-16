@@ -33,7 +33,7 @@ def script_path(relative_path: str) -> Iterator[Path]:
         yield local_script
         return
 
-    with tempfile.TemporaryDirectory(prefix="docker4ides-compat-") as temp_dir:
+    with tempfile.TemporaryDirectory(prefix="devcapsule-compat-") as temp_dir:
         temp_root = Path(temp_dir)
         extracted_root = temp_root / "docker4pycharm"
         extract_packaged_docker4pycharm(extracted_root)
@@ -57,7 +57,7 @@ def repo_root() -> Path:
 
 
 def extract_packaged_docker4pycharm(destination: Path) -> None:
-    source = resources.files("docker4ides.assets.docker4pycharm")
+    source = resources.files("devcapsule.assets.docker4pycharm")
     copy_resource_tree(source, destination)
 
     for script in destination.glob("*.sh"):

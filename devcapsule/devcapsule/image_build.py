@@ -15,7 +15,7 @@ from typing import Protocol
 from python_on_whales import docker
 from python_on_whales.exceptions import DockerException
 
-from docker4ides.compat import CliError, copy_resource_tree
+from devcapsule.compat import CliError, copy_resource_tree
 
 
 @dataclass(frozen=True)
@@ -162,7 +162,7 @@ class BuildxImageBuilder:
 
     def build(self, spec: ImageBuildSpec, *, network: str = "default") -> None:
         plan = spec.build_plan()
-        with tempfile.TemporaryDirectory(prefix="docker4ides-buildx-context-") as temp_dir:
+        with tempfile.TemporaryDirectory(prefix="devcapsule-buildx-context-") as temp_dir:
             context_root = Path(temp_dir)
             dockerfile_path = render_build_context(plan, context_root)
             try:
@@ -286,7 +286,7 @@ def normalize_pycharm_source(source: Path, destination: Path) -> Path:
 
 
 def resource_to_tempdir(package: str) -> tempfile.TemporaryDirectory[str]:
-    temp_dir = tempfile.TemporaryDirectory(prefix="docker4ides-build-assets-")
+    temp_dir = tempfile.TemporaryDirectory(prefix="devcapsule-build-assets-")
     extract_resource_tree(package, Path(temp_dir.name))
     for script in Path(temp_dir.name).glob("*.sh"):
         script.chmod(script.stat().st_mode | 0o755)

@@ -6,8 +6,8 @@ from typing import Any
 
 import click
 
-from docker4ides.commands.base import BaseCommand
-from docker4ides.compat import run_script
+from devcapsule.commands.base import BaseCommand
+from devcapsule.compat import run_script
 
 
 class BootstrapCommand(BaseCommand):

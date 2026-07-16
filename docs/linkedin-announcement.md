@@ -4,7 +4,7 @@ Replace the placeholder URL after GitHub Pages is enabled for the repository.
 
 ```text
 I am starting to open up a project I have been working on with a few close
-friends: Docker4IDE.
+friends: DevCapsule.
 
 The idea is simple:
 
@@ -26,7 +26,7 @@ rehydration:
   repo-local markdown
 
 The first working target is Dockerized PyCharm. The larger v1 direction is a
-profile-driven Docker4IDE framework for IDEs and agentic tools, including
+profile-driven DevCapsule framework for IDEs and agentic tools, including
 workflows like Node/React/Prisma projects with AI coding agents.
 
 This is not intended to be security theater, and it is not trying to replace
@@ -45,7 +45,7 @@ real projects.
 Shorter version:
 
 ```text
-I am opening up Docker4IDE, a project about reproducible AI-ready IDE
+I am opening up DevCapsule, a project about reproducible AI-ready IDE
 environments and durable project memory.
 
 The goal: a developer or AI coding agent should be able to return to a project

@@ -19,16 +19,16 @@ external_refs: []
 Python MVP should provide an end-user distribution path that does not require
 users to create a virtual environment or understand editable installs. A
 release build should produce a single executable Python archive that exposes
-the same `docker4ides` CLI entry point.
+the same `devcapsule` CLI entry point.
 
 ## Implementation
 
-- `docker4ides/scripts/build-pex.sh`
-- `docker4ides/pyproject.toml`
-- `docker4ides/dev-requirements.txt`
-- `docker4ides/docker4ides/assets/docker4pycharm/`
-- `docker4ides/noxfile.py`
-- `docker4ides/README.md`
+- `devcapsule/scripts/build-pex.sh`
+- `devcapsule/pyproject.toml`
+- `devcapsule/dev-requirements.txt`
+- `devcapsule/devcapsule/assets/docker4pycharm/`
+- `devcapsule/noxfile.py`
+- `devcapsule/README.md`
 
 ## Verification
 

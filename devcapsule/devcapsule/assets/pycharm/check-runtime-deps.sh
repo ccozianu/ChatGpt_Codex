@@ -44,7 +44,7 @@ else
   export LIBGL_DRI3_DISABLE
 fi
 
-printf 'Docker4IDE runtime check\n'
+printf 'DevCapsule runtime check\n'
 printf '  IDE_HOME=%s\n' "$IDE_HOME"
 printf '  DISPLAY=%s\n' "${DISPLAY:-}"
 printf '  XDG_RUNTIME_DIR=%s\n' "${XDG_RUNTIME_DIR:-}"

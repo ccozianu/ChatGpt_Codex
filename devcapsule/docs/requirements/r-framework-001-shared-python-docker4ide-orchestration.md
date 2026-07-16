@@ -1,6 +1,6 @@
 ---
 id: R-FRAMEWORK-001
-title: Shared Python Docker4IDE Orchestration
+title: Shared Python DevCapsule Orchestration
 type: requirement
 kind: high-level-goal
 status: implemented
@@ -12,25 +12,25 @@ verification:
 external_refs: []
 ---
 
-# R-FRAMEWORK-001: Shared Python Docker4IDE Orchestration
+# R-FRAMEWORK-001: Shared Python DevCapsule Orchestration
 
 ## Statement
 
 The post-MVP implementation should refactor one-off IDE launcher logic into a
-shared Python `docker4ides` framework with reusable runtime orchestration,
+shared Python `devcapsule` framework with reusable runtime orchestration,
 profile loading, IDE-family adapters, and thin compatibility wrappers.
 
 ## Implementation
 
-- `docker4ides/pyproject.toml`
-- `docker4ides/docker4ides/cli.py`
-- `docker4ides/docker4ides/__main__.py`
-- `docker4ides/docker4ides/configurations/pycharm/`
-- `docker4ides/noxfile.py`
-- `docker4ides/docker4ides/commands/`
-- `docker4ides/tests/test_cli.py`
-- `docker4ides/docker4ides/project.py`
-- `docker4ides/tests/test_project.py`
+- `devcapsule/pyproject.toml`
+- `devcapsule/devcapsule/cli.py`
+- `devcapsule/devcapsule/__main__.py`
+- `devcapsule/devcapsule/configurations/pycharm/`
+- `devcapsule/noxfile.py`
+- `devcapsule/devcapsule/commands/`
+- `devcapsule/tests/test_cli.py`
+- `devcapsule/devcapsule/project.py`
+- `devcapsule/tests/test_project.py`
 
 ## Verification Or Evaluation
 

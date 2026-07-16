@@ -7,9 +7,9 @@ from unittest.mock import patch
 
 import click
 
-from docker4ides import cli, compat
-from docker4ides.configurations.pycharm._image_build import PycharmImageBuildOptions
-from docker4ides.configurations.vscode_with_claude import VscodeWithClaudeConfiguration
+from devcapsule import cli, compat
+from devcapsule.configurations.pycharm._image_build import PycharmImageBuildOptions
+from devcapsule.configurations.vscode_with_claude import VscodeWithClaudeConfiguration
 
 
 def test_top_level_help_returns_success(capsys) -> None:
@@ -28,8 +28,8 @@ def test_run_pycharm_uses_translated_python_launcher(tmp_path: Path) -> None:
     data_home = tmp_path / "data"
 
     with (
-        patch("docker4ides.configurations.pycharm._launcher.shutil.which", return_value=None),
-        patch("docker4ides.configurations.pycharm._launcher.subprocess.run") as run,
+        patch("devcapsule.configurations.pycharm._launcher.shutil.which", return_value=None),
+        patch("devcapsule.configurations.pycharm._launcher.subprocess.run") as run,
         patch.dict(
             os.environ,
             {
@@ -59,8 +59,8 @@ def test_run_pycharm_defaults_project_to_current_directory(tmp_path: Path, monke
     monkeypatch.chdir(project)
 
     with (
-        patch("docker4ides.configurations.pycharm._launcher.shutil.which", return_value=None),
-        patch("docker4ides.configurations.pycharm._launcher.subprocess.run") as run,
+        patch("devcapsule.configurations.pycharm._launcher.shutil.which", return_value=None),
+        patch("devcapsule.configurations.pycharm._launcher.subprocess.run") as run,
         patch.dict(
             os.environ,
             {
@@ -123,7 +123,7 @@ def test_build_pycharm_uses_python_buildx_builder(tmp_path: Path) -> None:
     (source / "bin").mkdir(parents=True)
     (source / "bin" / "pycharm.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
 
-    with patch("docker4ides.configurations.pycharm.configuration.build_pycharm_image") as build_image:
+    with patch("devcapsule.configurations.pycharm.configuration.build_pycharm_image") as build_image:
         build_image.return_value = 0
         result = cli.main(
             [
@@ -137,8 +137,6 @@ def test_build_pycharm_uses_python_buildx_builder(tmp_path: Path) -> None:
                 "ubuntu:24.04",
                 "--extra-apt-package",
                 "rsync",
-                "--ai-agent",
-                "codex-cli",
             ]
         )
 
@@ -150,7 +148,6 @@ def test_build_pycharm_uses_python_buildx_builder(tmp_path: Path) -> None:
         base_image="ubuntu:24.04",
         network="default",
         extra_apt_packages=("rsync",),
-        ai_agent="codex-cli",
     )
 
 
@@ -159,7 +156,7 @@ def test_build_pycharm_accepts_host_network(tmp_path: Path) -> None:
     (source / "bin").mkdir(parents=True)
     (source / "bin" / "pycharm.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
 
-    with patch("docker4ides.configurations.pycharm.configuration.build_pycharm_image") as build_image:
+    with patch("devcapsule.configurations.pycharm.configuration.build_pycharm_image") as build_image:
         build_image.return_value = 0
         result = cli.main(["pycharm", "build", "--pycharm", str(source), "--network", "host"])
 
@@ -259,4 +256,4 @@ def test_build_pex_script_is_available() -> None:
     )
 
     assert completed.returncode == 0
-    assert "dist/docker4ides.pex" in completed.stdout
+    assert "dist/devcapsule.pex" in completed.stdout

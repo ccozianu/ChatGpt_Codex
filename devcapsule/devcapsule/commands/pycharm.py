@@ -6,8 +6,8 @@ from typing import Any
 
 import click
 
-from docker4ides.commands.base import BaseCommand
-from docker4ides.configurations.pycharm import PycharmConfiguration
+from devcapsule.commands.base import BaseCommand
+from devcapsule.configurations.pycharm import PycharmConfiguration
 
 
 class PycharmCommand(BaseCommand):
