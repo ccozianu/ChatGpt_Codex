@@ -1,4 +1,7 @@
-# DockerForIDEIsolation
+# DevCapsule
+
+DevCapsule is the product-facing name for this repository. The active Python
+implementation and CLI package are also named `devcapsule`.
 
 This repository explores a practical way to make development environments
 reproducible, resumable, and explicit about host boundaries for both humans and
@@ -25,7 +28,7 @@ explain the product goal, durable human/agent workflow, active handoff, and
 documentation map without requiring the reader to distinguish old shell details
 from current Python implementation details.
 
-- `docker4ides/` is the active Python CLI/framework subproject. New framework
+- `devcapsule/` is the active Python CLI/framework subproject. New framework
   code, current user-facing command behavior, packaging, tests, and
   configuration protocol work belong there.
 - `docker4pycharm/` is the historical PyCharm shell implementation and
@@ -39,14 +42,14 @@ The current public command model for the active implementation is
 configuration-first:
 
 ```text
-docker4ides CONFIGURATION ACTION [options]
+devcapsule CONFIGURATION ACTION [options]
 ```
 
 Examples:
 
 ```text
-docker4ides pycharm run ...
-docker4ides pycharm build ...
+devcapsule pycharm run ...
+devcapsule pycharm build ...
 ```
 
 ## Product Principles
@@ -70,11 +73,11 @@ Start with:
 - `WORKFLOW.md` for the human/agent iteration protocol.
 - `REQUIREMENTS.md` for the implementation-agnostic root requirement overview.
 - `docs/requirements/` for the canonical detailed root requirement records.
-- `docker4ides/REQUIREMENTS.md` for the active Python implementation
+- `devcapsule/REQUIREMENTS.md` for the active Python implementation
   requirement overview.
-- `docker4ides/docs/requirements/` for canonical detailed `docker4ides`
+- `devcapsule/docs/requirements/` for canonical detailed `devcapsule`
   requirement records.
-- `docker4ides/README.md` for active Python CLI usage.
+- `devcapsule/README.md` for active Python CLI usage.
 - `docker4pycharm/README.md` for the historical PyCharm shell reference.
 
 ## Current State And Next Step
@@ -82,7 +85,7 @@ Start with:
 This section is the project handoff point. Future agents should update it when
 completing a stage, changing the project state materially, or ending a session.
 
-Current stage: `docker4pycharm` v0/MVP checkpoint complete; `docker4ides`
+Current stage: `docker4pycharm` v0/MVP checkpoint complete; `devcapsule`
 Python MVP is the active post-MVP refactoring stage.
 
 Current status:
@@ -90,15 +93,15 @@ Current status:
 - `docker4pycharm/` preserves the original working PyCharm shell/Docker
   prototype, including historical design context now stored in
   `docker4pycharm/historical-root-README.md`.
-- `docker4ides/` contains the active Python package, configuration-first CLI,
+- `devcapsule/` contains the active Python package, configuration-first CLI,
   distribution path, tests, and the PyCharm configuration package.
-- `docker4ides pycharm build` now uses a Python-owned `python-on-whales` /
+- `devcapsule pycharm build` now uses a Python-owned `python-on-whales` /
   Docker buildx backend plus
-  packaged PyCharm runtime assets under `docker4ides/`, instead of delegating
+  packaged PyCharm runtime assets under `devcapsule/`, instead of delegating
   image construction to `docker4pycharm/build-image.sh`.
 - The accepted end-user CLI model is
-  `docker4ides CONFIGURATION ACTION [options]`; noun-first paths such as
-  `docker4ides run pycharm` are intentionally unsupported.
+  `devcapsule CONFIGURATION ACTION [options]`; noun-first paths such as
+  `devcapsule run pycharm` are intentionally unsupported.
 - `codium_with_claude` is the active next proof-point configuration. It is a
   distinct VSCodium plus Claude Code environment; the earlier
   `vscode_with_claude` placeholder remains separate.
@@ -109,9 +112,9 @@ Recent documentation cleanup:
   `docker4pycharm/FUTURE_AGENT_REFACTORING_BRIEF.md`.
 - PyCharm AI plugin setup moved to `docker4pycharm/user.md`.
 - The Click command parsing brief moved to
-  `docker4ides/implementation-notes/click_based_cli_parsing_brief.md`.
+  `devcapsule/implementation-notes/click_based_cli_parsing_brief.md`.
 - Detailed Python/PyCharm implementation requirements moved to
-  `docker4ides/REQUIREMENTS.md`.
+  `devcapsule/REQUIREMENTS.md`.
 - Root `README.md`, root markdown files, and top-level `docs/` are now meant to
   stay implementation-agnostic.
 
@@ -125,18 +128,35 @@ Recent workflow refinement:
   `REQUIREMENTS.md` and one-file-per-item detailed records under
   `docs/requirements/`, with frontmatter metadata for future machine-readable
   use while keeping the repo as source of truth.
-- `docker4ides` requirements now follow the same pattern: overview/index in
-  `docker4ides/REQUIREMENTS.md`, canonical per-item files under
-  `docker4ides/docs/requirements/`, and a clearer separation between already
+- `devcapsule` requirements now follow the same pattern: overview/index in
+  `devcapsule/REQUIREMENTS.md`, canonical per-item files under
+  `devcapsule/docs/requirements/`, and a clearer separation between already
   met requirements, active V1 requirements, and explicitly later work.
+- Root product requirements now include a concrete go-to-market artifact
+  requirement for a compelling V1 adopter announcement, with the first draft
+  recorded in `docs/v1-announcement.md`.
+
+Recent positioning refinement:
+
+- On 2026-07-15, `docs/v1-announcement.md` was tightened from an exploratory
+  draft into a candidate V1 announcement artifact. It now leads with adopter
+  value, states the plain-language problem earlier, adds a concrete before/after
+  framing, and replaces open-ended refinement questions with a recommended
+  launch angle.
+- On 2026-07-15, the GitHub project was renamed to `DevCapsule` and the
+  product-facing documentation started shifting to `DevCapsule`.
+- On 2026-07-15, the active Python CLI/framework directory, package, entry
+  point, documentation paths, Nox gate, and PEX artifact were renamed from
+  `docker4ides` to `devcapsule`. The local validation gate passed after the
+  rename.
 
 Recent implementation fix:
 
-- `docker4ides` PEX artifacts now package the legacy PyCharm helper assets
+- `devcapsule` PEX artifacts now package the legacy PyCharm helper assets
   needed by delegated `pycharm build`, `pycharm check-runtime`, and
   `bootstrap project` commands, so those commands no longer require a sibling
   source checkout at runtime.
-- `docker4ides` now has a real `mypy` typecheck gate wired into contributor
+- `devcapsule` now has a real `mypy` typecheck gate wired into contributor
   dependencies, a dedicated `nox -s typecheck` session, and the default
   `nox -s build` gate. The initial gate runs cleanly on the current tree and
   covers the Python package, tests, and `noxfile.py`.
@@ -144,6 +164,12 @@ Recent implementation fix:
   with PyCharm: `--profile`, `--project-state-root`, and `--project-mount`
   are backed by a common planner module while broader Git/Docker/debug/sudo
   parity remains open.
+- The active `devcapsule` PyCharm and Codium image-build paths now bundle
+  a pinned Node.js archive under `/opt/node/node-{version}` plus pinned npm and
+  Gemini CLI tooling as the public-default developer CLI baseline. The old
+  PyCharm-specific `--ai-agent` image-build toggle was removed in favor of a
+  shared active-tooling baseline across the current Python-owned IDE build
+  paths.
 
 Recent manual validation:
 
@@ -168,7 +194,7 @@ Current proof-point implementation:
   2.1.207. GUI/X11 and Claude integration were manually validated on
   2026-07-13.
 - A build-verified Vite, React, and TypeScript five-in-a-row project now lives
-  under `docker4ides/tests/resources/sample_projects/` as a realistic manual
+  under `devcapsule/tests/resources/sample_projects/` as a realistic manual
   IDE workload and a future end-to-end-test fixture.
 - `codium_with_claude build` accepts `--ide-archive` for a local VSCodium tar
   archive, avoiding the VSCodium apt repository when that option is used.
@@ -181,7 +207,7 @@ Current proof-point implementation:
   exit to Chromium sandbox startup: Docker denies the user-namespace path and
   the archive-installed `/opt/codium/chrome-sandbox` has mode `0755` instead
   of the required root-owned `4755`. The completed validation record is
-  `docker4ides/implementation-notes/completed-tasks/2026-07-13-vscodium-sandbox-and-foreground-launch.md`.
+  `devcapsule/implementation-notes/completed-tasks/2026-07-13-vscodium-sandbox-and-foreground-launch.md`.
 - The local-archive build now verifies the sandbox helper and restores its
   root ownership and mode `4755`. The user confirmed `--no-sandbox` opens the
   IDE as a diagnostic; the supported launcher remains sandboxed.
@@ -190,7 +216,7 @@ Current proof-point implementation:
   debugging, sudo, writable-root, project mount, and profile/state-root
   controls are broadly useful across IDEs and should move into shared runtime
   planning. IDEA lock handling remains PyCharm-specific. The active parity bug
-  is `docker4ides/implementation-notes/bugs/2026-07-13-codium-run-option-parity.md`.
+  is `devcapsule/implementation-notes/bugs/2026-07-13-codium-run-option-parity.md`.
 - Codium now accepts an opt-in run-time `--network MODE` for both normal and
   debug-shell launches. The default remains Docker bridge networking;
   `--network host` is an explicit host-network isolation relaxation intended
@@ -202,16 +228,21 @@ Current proof-point implementation:
   Claude integration work. This accepts the Codium plus Claude MVP proof point.
   The validating command explicitly used host networking and `SYS_ADMIN` for
   Chromium sandbox namespaces; neither is an ambient default.
+- On 2026-07-16, shared runtime planning was extended so the active PyCharm and
+  Codium launchers bind-mount a host Gemini CLI state directory into the
+  container home at `~/.gemini`. By default that source is the host
+  `~/.gemini`; `DEVCAPSULE_GEMINI_STATE_DIR` overrides it when a different
+  persistent Gemini state root is required.
 
 Current architectural direction:
 
 - On 2026-07-11, the user made Python-native, reusable image building the
-  current priority. The supported `docker4ides` image-build path must stop
+  current priority. The supported `devcapsule` image-build path must stop
   delegating to or copying build implementation from `docker4pycharm`. The
   active Python package should own build planning and execution, with
   composable inputs for base images, IDEs, and AI-agent options.
 - On 2026-07-12, the user selected a Docker CLI-backed Python backend for the
-  active image-build path. `docker4ides` should use `python-on-whales` to drive
+  active image-build path. `devcapsule` should use `python-on-whales` to drive
   local Docker buildx while keeping image planning, configuration composition,
   and CLI behavior in repository-owned Python code.
 - `docker4pycharm/` remains useful as historical reference material, but it is
@@ -219,30 +250,128 @@ Current architectural direction:
 
 Current validation workflow:
 
-- `docker4ides` uses Nox as the main developer validation entry point. Nox
+- `devcapsule` uses Nox as the main developer validation entry point. Nox
   reuses its managed virtual environments by default for faster iteration.
-  Use `cd docker4ides && python -m nox -s tests` for Python compile checks plus
-  pytest, and `cd docker4ides && python -m nox -s build` for the full local
+  Use `cd devcapsule && python -m nox -s tests` for Python compile checks plus
+  pytest, and `cd devcapsule && python -m nox -s build` for the full local
   gate: Python compile checks, shell syntax checks, pytest, CLI smoke tests,
   PEX build, and PEX smoke tests.
 - When a clean slate is required, run
-  `cd docker4ides && python -m nox --no-reuse-existing-virtualenvs -s build`.
-  Removing `docker4ides/.nox/` before the command is also acceptable when
+  `cd devcapsule && python -m nox --no-reuse-existing-virtualenvs -s build`.
+  Removing `devcapsule/.nox/` before the command is also acceptable when
   deliberately discarding cached Nox environments.
 - Prefer adding automated Nox-covered checks over relying on one-off manual
   smoke tests. Manual validation is still useful for host Docker/image/IDE
   behavior that cannot yet be exercised in repository automation.
 
+Session close, 2026-07-16:
+
+Changed:
+
+- Added a design-decision ceremony. Root product/architecture decisions now
+  live in `docs/decisions/` with `_template.md`, and `WORKFLOW.md` documents
+  the two tiers, the promotion rule from lightweight implementation notes, the
+  propose/review/adopt/propagate/supersede steps, and the triggers. An agent
+  may propose; only the human adopts. Accepted records are immutable and are
+  replaced by superseding records rather than edited.
+- Wrote `docs/decisions/d-0001-capability-first-cli-model.md`, status
+  `proposed`. It recommends capability declaration plus a curated resolution
+  matrix over both the configuration-first status quo and a full composition
+  engine, splits declaration (`devcapsule.toml`) from resolution
+  (`devcapsule.lock`), and retains `pycharm` as a supported alias for
+  {python, python-ide, gemini}.
+- Added a capability-first CLI specification task as current task 1, ahead of
+  the Codium parity and extended-logging work.
+- Opened `devcapsule/implementation-notes/bugs/2026-07-16-codium-ambient-sudo-default.md`.
+
+Requirements:
+
+- If D-0001 is adopted it reinterprets R-IDE-CONFIG-001, which is currently
+  `implemented`. No requirement record has been changed yet. D-0001 also bears
+  on R-FRAMEWORK-001, R-IMAGE-BUILD-001, root R-PRODUCT-001, and root
+  R-PRODUCT-002.
+
+Validated:
+
+- Nothing. This session was documentation-only; no Python changed and no test
+  gate was run, because none was warranted.
+
+Not validated:
+
+- D-0001 is unadopted and its Option C recommendation is unreviewed.
+- The Codium ambient-sudo bug was found by reading
+  `devcapsule/assets/codium_with_claude/entrypoint.sh` and the launcher, not by
+  reproducing it on a host. Confirm before fixing.
+- D-0001 assumes that requesting a Python IDE and a JavaScript IDE means one
+  IDE understanding both languages, not two editor processes. If that reading
+  is wrong, section 4 of D-0001 needs rework.
+
+External state:
+
+- Unchanged. No images built, pushed, or pulled this session.
+
+Uncommitted changes:
+
+- Everything above is uncommitted, on top of the pre-existing uncommitted
+  `docker4ides` to `devcapsule` rename churn.
+
+Open decisions referenced by D-0001 but not yet written:
+
+- D-0002 agent autonomy inside the capsule.
+- D-0003 Gemini CLI as the default agent capability. The redistribution
+  rationale currently survives only in chat history and should be recorded.
+- D-0004 devcontainer Features as the capability format, adopt or reject.
+
+Loose ends:
+
+- Current task 1 does not yet link D-0001.
+- The `Next task` line below still names Codium parity first and now
+  contradicts the task list above it.
+
 Current task:
 
-1. Address the shared run-option parity gap recorded in
-   `docker4ides/implementation-notes/bugs/2026-07-13-codium-run-option-parity.md`,
+1. Specify a capability-first end-user CLI model, in which a developer declares
+   the capabilities a project needs instead of selecting a product
+   configuration by name.
+   Requirements: R-IDE-CONFIG-001 (reinterpreted), R-FRAMEWORK-001,
+   R-IMAGE-BUILD-001, R-PYTHON-MVP-003, root R-PRODUCT-001, root R-PRODUCT-002.
+   Done means: a reviewable CLI specification exists in the repository defining
+   how capabilities are declared; how a declared capability set resolves to a
+   named configuration and a prebuilt image; what happens for a combination
+   with no prebuilt image; and the split between project-required declaration
+   and personal IDE state.
+   The spec must settle four open decisions rather than defer them:
+   (a) whether a capability is an abstract requirement or a concrete versioned
+   component, given that reproducibility requires pinning;
+   (b) whether capability sets may keep implementation names such as `pycharm`,
+   or must be named by intent;
+   (c) what requesting two IDE capabilities in one environment means, given
+   that a container has one foreground process;
+   (d) adopt or reject devcontainer Features as the capability format, with
+   rationale either way.
+   Constraint: the existing `pycharm` configuration must remain functional and
+   supported as the default resolution of the capability set
+   {python, python-ide, gemini}. Gemini CLI is the default agent capability
+   because it can be redistributed inside DevCapsule images.
+   Because this changes the accepted statement of R-IDE-CONFIG-001, add a new
+   proposed requirement record instead of editing an implemented one in place.
+   Verification: specification and proposed requirement record committed and
+   listed in `index.md`; `devcapsule pycharm run` and `devcapsule pycharm build`
+   behavior unchanged; `cd devcapsule && python -m nox -s build` passes; source
+   and PEX help surfaces still show the supported command path.
+   Scope: specification only. Implementation is a separate later task.
+   Reopen if: implementation diverges from the accepted spec, or a capability
+   set ships without a documented resolution to either a prebuilt image or an
+   explicit build path.
+
+2. Address the shared run-option parity gap recorded in
+   `devcapsule/implementation-notes/bugs/2026-07-13-codium-run-option-parity.md`,
    beginning with a shared runtime-options model rather than copying PyCharm
    flags into the Codium launcher.
-   Requirements: `docker4ides/REQUIREMENTS.md` R-PYTHON-MVP-003,
+   Requirements: `devcapsule/REQUIREMENTS.md` R-PYTHON-MVP-003,
    R-FRAMEWORK-001, R-SCOPE-001, R-DOCKER-001.
    Verification: add shared option-planning tests, retain explicit isolation
-   boundaries, run `cd docker4ides && python -m nox -s build`, and manually
+   boundaries, run `cd devcapsule && python -m nox -s build`, and manually
    validate security-sensitive profiles.
 
 2. Add a sensible shared extended-logging option for configuration `run`
@@ -250,11 +379,22 @@ Current task:
    configuration-specific verbose IDE logging, keep the foreground process
    attached, preserve actionable failure evidence, and never expose Git,
    agent, or other credential values.
-   Requirements: `docker4ides/REQUIREMENTS.md` R-FRAMEWORK-001,
+   Requirements: `devcapsule/REQUIREMENTS.md` R-FRAMEWORK-001,
    R-PYTHON-MVP-003, R-SCOPE-001.
    Verification: cover PyCharm and Codium command planning, credential
    redaction, source and PEX help surfaces, and at least one manual failing IDE
    startup that leaves useful diagnostics.
+
+3. Claim and prepare the Docker Hub publication namespace for V1 release
+   images, then validate a real push/pull path for user-facing prebuilt
+   images.
+   Notes: `devcapsule/implementation-notes/2026-07-15-docker-hub-namespace-and-publication-plan.md`
+   Requirements: root `R-PRODUCT-001`, root `R-DOCS-002`,
+   `devcapsule/REQUIREMENTS.md` R-PYTHON-MVP-002 and R-DOCS-002.
+   Verification: confirm the chosen Docker Hub namespace exists under the
+   intended account/organization, document the repository naming scheme, push
+   at least one release-candidate image, and verify a clean pull from that
+   namespace.
 
 Next task:
 
@@ -264,7 +404,7 @@ Next task:
 Standing rule:
 
 1. Keep any isolation relaxation explicit and documented.
-   Requirements: `docker4ides/REQUIREMENTS.md` R-SCOPE-001, R-DOCKER-001 and
+   Requirements: `devcapsule/REQUIREMENTS.md` R-SCOPE-001, R-DOCKER-001 and
    root R-PRODUCT-002.
    Reopen if: a change adds host access, credentials, networking, devices, or
    filesystem mounts without matching documentation.

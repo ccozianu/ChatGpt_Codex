@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <module external.system.id="pyproject.toml" type="PYTHON_MODULE" version="4">
   <component name="NewModuleRootManager">
-    <content url="file://$MODULE_DIR$/docker4ides">
-      <sourceFolder url="file://$MODULE_DIR$/docker4ides" isTestSource="false" />
-      <excludeFolder url="file://$MODULE_DIR$/docker4ides/.venv" />
+    <content url="file://$MODULE_DIR$/devcapsule">
+      <sourceFolder url="file://$MODULE_DIR$/devcapsule" isTestSource="false" />
+      <excludeFolder url="file://$MODULE_DIR$/devcapsule/.venv" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.12 (docker4ides)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

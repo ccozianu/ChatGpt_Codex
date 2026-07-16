@@ -22,37 +22,44 @@ same change.
 - [R-PRODUCT-005 Incremental Human/Agent Execution Loop](docs/requirements/r-product-005-incremental-human-agent-execution-loop.md)
 - [R-DOCS-001 Root Documentation Stays Implementation-Agnostic](docs/requirements/r-docs-001-root-documentation-stays-implementation-agnostic.md)
 - [R-DOCS-002 Current User Docs Show Current Interfaces](docs/requirements/r-docs-002-current-user-docs-show-current-interfaces.md)
+- [R-GTM-001 Compelling V1 Announcement For Adopters](docs/requirements/r-gtm-001-compelling-v1-announcement-for-adopters.md)
 
-## Active Docker4IDEs Development
+## Design Decisions
 
-- [Docker4IDEs Python CLI](docker4ides/README.md)
-- [Docker4IDEs implementation requirements overview](docker4ides/REQUIREMENTS.md)
-- [R-ENV-001 Dockerized PyCharm Runtime](docker4ides/docs/requirements/r-env-001-dockerized-pycharm-runtime.md)
-- [R-STATE-001 Persistent IDE State And Plugins](docker4ides/docs/requirements/r-state-001-persistent-ide-state-and-plugins.md)
-- [R-SETTINGS-001 Per-IDE Settings Profile Seed](docker4ides/docs/requirements/r-settings-001-per-ide-settings-profile-seed.md)
-- [R-SCOPE-001 Explicit Host Filesystem Exposure](docker4ides/docs/requirements/r-scope-001-explicit-host-filesystem-exposure.md)
-- [R-DEV-001 Useful Development Tooling Baseline](docker4ides/docs/requirements/r-dev-001-useful-development-tooling-baseline.md)
-- [R-GIT-001 Git Identity And Credentials Without Host Credential Mounts](docker4ides/docs/requirements/r-git-001-git-identity-and-credentials-without-host-credential-mounts.md)
-- [R-DOCKER-001 Explicit Docker Capability Profiles](docker4ides/docs/requirements/r-docker-001-explicit-docker-capability-profiles.md)
-- [R-PROJECT-001 Per-Project IDE Runtime State](docker4ides/docs/requirements/r-project-001-per-project-ide-runtime-state.md)
-- [R-CONC-001 Concurrent Project Sessions](docker4ides/docs/requirements/r-conc-001-concurrent-project-sessions.md)
-- [R-PROC-001 Durable Human/Agent Project Memory](docker4ides/docs/requirements/r-proc-001-durable-human-agent-project-memory.md)
-- [R-DOCS-001 Generated Documentation Index](docker4ides/docs/requirements/r-docs-001-generated-documentation-index.md)
-- [R-DOCS-002 User-Level Documentation Coevolves With User-Visible Behavior](docker4ides/docs/requirements/r-docs-002-user-level-documentation-coevolves-with-user-visible-behavior.md)
-- [R-IDE-CONFIG-001 Configuration-First End-User CLI Model](docker4ides/docs/requirements/r-ide-config-001-configuration-first-end-user-cli-model.md)
-- [R-PYTHON-MVP-001 Source Checkout Install And Run](docker4ides/docs/requirements/r-python-mvp-001-source-checkout-install-and-run.md)
-- [R-PYTHON-MVP-002 Single-File Python CLI Artifact](docker4ides/docs/requirements/r-python-mvp-002-single-file-python-cli-artifact.md)
-- [R-PYTHON-MVP-003 Python MVP Feature Scope](docker4ides/docs/requirements/r-python-mvp-003-python-mvp-feature-scope.md)
-- [R-IMAGE-BUILD-001 Python-Native Composable Image Building](docker4ides/docs/requirements/r-image-build-001-python-native-composable-image-building.md)
-- [R-FRAMEWORK-001 Shared Python Docker4IDE Orchestration](docker4ides/docs/requirements/r-framework-001-shared-python-docker4ide-orchestration.md)
-- [Click-based CLI parsing brief](docker4ides/implementation-notes/click_based_cli_parsing_brief.md)
-- [PyCharm image vibe-coding bootstrap template](docker4ides/docker4ides/assets/pycharm/image-assets/vibe-coding-process.md)
-- [TypeScript five-in-a-row sample project](docker4ides/tests/resources/sample_projects/typescript_tictactoe_5inrow/README.md)
+- [Decision record template](docs/decisions/_template.md)
+- [D-0001 Capability-First CLI Model](docs/decisions/d-0001-capability-first-cli-model.md)
+
+## Active DevCapsule Development
+
+- [DevCapsule Python CLI](devcapsule/README.md)
+- [DevCapsule implementation requirements overview](devcapsule/REQUIREMENTS.md)
+- [R-ENV-001 Dockerized PyCharm Runtime](devcapsule/docs/requirements/r-env-001-dockerized-pycharm-runtime.md)
+- [R-STATE-001 Persistent IDE State And Plugins](devcapsule/docs/requirements/r-state-001-persistent-ide-state-and-plugins.md)
+- [R-SETTINGS-001 Per-IDE Settings Profile Seed](devcapsule/docs/requirements/r-settings-001-per-ide-settings-profile-seed.md)
+- [R-SCOPE-001 Explicit Host Filesystem Exposure](devcapsule/docs/requirements/r-scope-001-explicit-host-filesystem-exposure.md)
+- [R-DEV-001 Useful Development Tooling Baseline](devcapsule/docs/requirements/r-dev-001-useful-development-tooling-baseline.md)
+- [R-GIT-001 Git Identity And Credentials Without Host Credential Mounts](devcapsule/docs/requirements/r-git-001-git-identity-and-credentials-without-host-credential-mounts.md)
+- [R-DOCKER-001 Explicit Docker Capability Profiles](devcapsule/docs/requirements/r-docker-001-explicit-docker-capability-profiles.md)
+- [R-PROJECT-001 Per-Project IDE Runtime State](devcapsule/docs/requirements/r-project-001-per-project-ide-runtime-state.md)
+- [R-CONC-001 Concurrent Project Sessions](devcapsule/docs/requirements/r-conc-001-concurrent-project-sessions.md)
+- [R-PROC-001 Durable Human/Agent Project Memory](devcapsule/docs/requirements/r-proc-001-durable-human-agent-project-memory.md)
+- [R-DOCS-001 Generated Documentation Index](devcapsule/docs/requirements/r-docs-001-generated-documentation-index.md)
+- [R-DOCS-002 User-Level Documentation Coevolves With User-Visible Behavior](devcapsule/docs/requirements/r-docs-002-user-level-documentation-coevolves-with-user-visible-behavior.md)
+- [R-IDE-CONFIG-001 Configuration-First End-User CLI Model](devcapsule/docs/requirements/r-ide-config-001-configuration-first-end-user-cli-model.md)
+- [R-PYTHON-MVP-001 Source Checkout Install And Run](devcapsule/docs/requirements/r-python-mvp-001-source-checkout-install-and-run.md)
+- [R-PYTHON-MVP-002 Single-File Python CLI Artifact](devcapsule/docs/requirements/r-python-mvp-002-single-file-python-cli-artifact.md)
+- [R-PYTHON-MVP-003 Python MVP Feature Scope](devcapsule/docs/requirements/r-python-mvp-003-python-mvp-feature-scope.md)
+- [R-IMAGE-BUILD-001 Python-Native Composable Image Building](devcapsule/docs/requirements/r-image-build-001-python-native-composable-image-building.md)
+- [R-FRAMEWORK-001 Shared Python DevCapsule Orchestration](devcapsule/docs/requirements/r-framework-001-shared-python-docker4ide-orchestration.md)
+- [Click-based CLI parsing brief](devcapsule/implementation-notes/click_based_cli_parsing_brief.md)
+- [PyCharm image vibe-coding bootstrap template](devcapsule/devcapsule/assets/pycharm/image-assets/vibe-coding-process.md)
+- [TypeScript five-in-a-row sample project](devcapsule/tests/resources/sample_projects/typescript_tictactoe_5inrow/README.md)
 
 ## Product And Positioning
 
 - [Draft pitch: batteries included, boundaries explicit](docs/draft-pitch.md)
 - [LinkedIn announcement draft](docs/linkedin-announcement.md)
+- [V1 announcement draft](docs/v1-announcement.md)
 - [Working backwards press release](docs/working-backwards-press-release.md)
 
 ## Docker4PyCharm Historical Reference
@@ -74,16 +81,19 @@ same change.
 - [Docker-in-Docker implementation choice](docker4pycharm/implementation-notes/docker-in-docker-immplementation-choice.md)
 - [Docker in containerized development environments TLDR](docker4pycharm/implementation-notes/docker_in_devcontainer_tldr.md)
 - [Using PyCharm v0 for real Python projects](docker4pycharm/implementation-notes/using-v0-for-real-python-projects.md)
+- [Docker Hub namespace and publication plan](devcapsule/implementation-notes/2026-07-15-docker-hub-namespace-and-publication-plan.md)
 
 ## Bugs
 
-- [Codium run lacks shared developer runtime options](docker4ides/implementation-notes/bugs/2026-07-13-codium-run-option-parity.md)
+- [Codium grants ambient passwordless sudo by default](devcapsule/implementation-notes/bugs/2026-07-16-codium-ambient-sudo-default.md)
+- [PyCharm build emits fragile multiline RUN shell quoting](devcapsule/implementation-notes/bugs/2026-07-16-pycharm-build-multiline-exec-rendering.md)
+- [Codium run lacks shared developer runtime options](devcapsule/implementation-notes/bugs/2026-07-13-codium-run-option-parity.md)
 - [Bug template](docker4pycharm/implementation-notes/bugs/_template.md)
 - [Concurrent projects sharing global settings lock](docker4pycharm/implementation-notes/bugs/2026-06-24-concurrent-projects-shared-global-settings-lock.md)
 
 ## Completed, Retired, And Deferred Tasks
 
-- [VSCodium sandbox and foreground launch](docker4ides/implementation-notes/completed-tasks/2026-07-13-vscodium-sandbox-and-foreground-launch.md)
+- [VSCodium sandbox and foreground launch](devcapsule/implementation-notes/completed-tasks/2026-07-13-vscodium-sandbox-and-foreground-launch.md)
 - [Completed task archive README](docker4pycharm/implementation-notes/completed-tasks/README.md)
 - [Bootstrap process template V004 validation](docker4pycharm/implementation-notes/completed-tasks/2026-06-20-bootstrap-process-template-v004-validation.md)
 - [Default host Docker passthrough validation retired](docker4pycharm/implementation-notes/completed-tasks/2026-06-20-default-host-docker-passthrough-validation-retired.md)

@@ -124,7 +124,7 @@ Use markdown files with distinct responsibilities:
   project-level goals and concrete requirements.
 - `docs/requirements/`: one markdown file per root requirement, with
   frontmatter metadata and canonical detailed requirement text.
-- Subproject requirement overviews, such as `docker4ides/REQUIREMENTS.md`:
+- Subproject requirement overviews, such as `devcapsule/REQUIREMENTS.md`:
   implementation-specific requirement scope, status framing, and links to the
   canonical detailed requirement records for that subproject.
 - `AGENTS.md`: instructions every future agent should read before touching the
@@ -148,7 +148,7 @@ Use markdown files with distinct responsibilities:
 
 Top-level documentation must keep the repository split clear:
 
-- `docker4ides/` is the active Python CLI/framework subproject. New framework
+- `devcapsule/` is the active Python CLI/framework subproject. New framework
   behavior, configuration protocol work, packaging, and tests should normally
   be implemented there.
 - `docker4pycharm/` is the historical/reference PyCharm shell subproject. It
@@ -158,7 +158,7 @@ Top-level documentation must keep the repository split clear:
 
 When editing user-facing docs, avoid mixing these roles. Historical notes may
 describe old commands, but current instructions should point users to
-`docker4ides/` and the configuration-first CLI when describing active
+`devcapsule/` and the configuration-first CLI when describing active
 development.
 
 ## Requirements Register
@@ -210,7 +210,7 @@ Use this documentation split:
 
 - `REQUIREMENTS.md` records the requirement overview and links to the
   canonical detailed requirement files.
-- Target user docs such as `docker4ides/README.md` describe how the user does
+- Target user docs such as `devcapsule/README.md` describe how the user does
   it: installation path, command path, common examples, validation expectations,
   and current limitations.
 - The root `README.md` final section records current state, recent changes, and
@@ -392,9 +392,85 @@ Next task:
 
 Keep this concise. The goal is to make the next session start cleanly.
 
+## Design Decision Records
+
+Some choices outlive the implementation that provoked them. "We chose
+capabilities over named configurations" stays true across rewrites, new
+subprojects, and model changes. Those get a ceremony.
+
+Design decision records live at:
+
+```text
+docs/decisions/
+```
+
+They are root-level because they are implementation-agnostic and outlast any
+subproject. Use `docs/decisions/_template.md` as the starting point.
+
+### Two Tiers
+
+- `docs/decisions/`: product and architecture decisions. Ceremonial,
+  human-adopted, immutable once accepted. Use when a choice crosses
+  subprojects, changes an accepted requirement, or moves a security boundary.
+- `<subproject>/implementation-notes/`: lightweight decision notes, described
+  in the next section. Local, reversible, implementation-scoped, and writable
+  by an agent without ceremony.
+
+Promotion rule: a lightweight note that turns out to change a requirement,
+cross subprojects, or set a boundary graduates into a root decision record.
+Keeping the ceremony rare is what makes it mean something.
+
+### The Ceremony
+
+1. Propose.
+   - A human or an agent writes the record with `status: proposed`.
+   - It must carry at least two real options, each with an honest cost, plus a
+     recommendation.
+   - An agent may propose. An agent never adopts.
+2. Review.
+   - The human rejects, amends, or asks for more options.
+3. Adopt.
+   - The human states the decision. Status becomes `accepted`, and
+     `date-decided` plus `decided-by` are filled in.
+   - The agent records the act; it does not perform it.
+4. Propagate.
+   - An accepted decision produces or changes a requirement record, and a task
+     if work follows. The decision is linked from both.
+   - Decisions say why. Requirements say what must be true. Tasks say what to
+     do next. Do not let a decision record become a second backlog.
+5. Supersede, never edit.
+   - Once accepted, the Decision and Rationale sections are frozen.
+   - Changed your mind? Write a new record and mark the old one
+     `superseded-by`. Editing an accepted decision retcons history and destroys
+     the only property that makes it trustworthy as memory.
+
+### Status Values
+
+- `proposed`: written, not yet decided.
+- `accepted`: adopted by the human owner.
+- `rejected`: considered and intentionally not pursued.
+- `deferred`: accepted direction, intentionally outside the current target.
+- `superseded`: replaced by a later record.
+
+A decision is never `implemented` or `repo-validated`. A decision is not built;
+its consequences are. Those belong to requirements and tasks.
+
+### Triggers
+
+Write a design decision record when:
+
+- a choice changes scope, architecture, or security posture materially;
+- several defensible options remain and the choice will be re-litigated later;
+- an accepted requirement is being reinterpreted or superseded;
+- an isolation relaxation is being deliberately accepted.
+
+These mirror the escalation rules above, because the same conditions that
+warrant asking a human also warrant recording the answer.
+
 ## Decision Notes
 
-For decisions that may be revisited, use a small note under
+These are the lightweight tier described above. For decisions that may be
+revisited but stay local to one implementation, use a small note under
 `implementation-notes/`:
 
 ```markdown
@@ -441,7 +517,7 @@ Before editing or committing:
 
 When using a Dockerized IDE environment created by this project on another
 repository, the same process should live inside that repository, not only
-inside this DockerForIDEIsolation repo.
+inside this DevCapsule repo.
 
 An environment may include a reusable bootstrap template at a documented path,
 for example:
