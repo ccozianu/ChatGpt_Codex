@@ -278,8 +278,9 @@ Changed:
   `proposed`. It recommends capability declaration plus a curated resolution
   matrix over both the configuration-first status quo and a full composition
   engine, splits declaration (`devcapsule.toml`) from resolution
-  (`devcapsule.lock`), and retains `pycharm` as a supported alias for
-  {python, python-ide, gemini}.
+  (`devcapsule.lock`) and personal state, retains `pycharm` as an
+  implementation-pinning compatibility alias, and rejects devcontainer
+  Features as the top-level capability format.
 - Added a capability-first CLI specification task as current task 1, ahead of
   the Codium parity and extended-logging work.
 - Opened `devcapsule/implementation-notes/bugs/2026-07-16-codium-ambient-sudo-default.md`.
@@ -320,7 +321,9 @@ Open decisions referenced by D-0001 but not yet written:
 - D-0002 agent autonomy inside the capsule.
 - D-0003 Gemini CLI as the default agent capability. The redistribution
   rationale currently survives only in chat history and should be recorded.
-- D-0004 devcontainer Features as the capability format, adopt or reject.
+- A later decision may consider curated internal use or import compatibility
+  for devcontainer Features; D-0001 now rejects them as the project-facing
+  capability format.
 
 Loose ends:
 

@@ -94,161 +94,250 @@ apt dependency graphs, `/etc` mutation, and system users. Building this before
 V1, with two configurations and unfinished parity, is a multi-year detour.
 Resolvers are where package managers go to die.
 
-### Option C: Capability-first declaration with a curated resolution matrix
+### Option C: Capability-first declaration with a curated image matrix
 
 Users declare capabilities. A curated set of capability combinations resolves
-to named, prebuilt images. Combinations outside the matrix fail with an honest
-message and a request path, rather than being composed on demand.
+directly to complete, prebuilt images. Combinations outside the matrix fail
+with an honest message and a request path, rather than being composed on
+demand.
 
 Cost: not every combination works on day one, and the matrix is maintained by
-hand. Users who want an uncurated combination wait for us.
+hand. Users who want an uncurated combination wait for us. Each supported
+platform needs its own tested image digest.
 
 ## Decision
 
 Adopt **Option C**.
 
-### 1. Two files, two jobs
+### 1. Three surfaces, three jobs
 
-A repository declares what it needs in `devcapsule.toml`, hand-authored and
-committed:
+A repository declares portable project requirements and allowed host exposure
+in `devcapsule.toml`, hand-authored and committed:
 
 ```toml
 [capabilities]
-need = ["python", "python-ide", "docker", "gemini"]
+need = ["python", "python-ide", "docker-cli", "gemini"]
 
 [project]
-type = "python-lib"
 mount = "/workspace/project"
 
 [host]                      # every exposure, in one reviewable block
-docker = "none"
+docker-daemon = "none"      # none, host-socket, or nested
 network = "bridge"
 sudo = false
 writable-root = false
 debug-native = false
 
 [host.git]
-identity-from-host = true
-token-env = "GITHUB_TOKEN"
 token-hosts = ["github.com"]
-
-[agent]
-autonomy = "full"           # see D-0002
 ```
 
 Resolution produces `devcapsule.lock`, generated and committed, which pins
-exact component versions and the resolved image digest.
+the matrix version, target platform, exact component versions, registry
+reference, and complete image digest. `run` uses the locked digest; it does not
+silently re-resolve.
 
-This is the two-layer model every package manager converges on, and it is how
-this decision satisfies two requirements that otherwise conflict: the
-declaration is abstract enough to be ergonomic and portable, and the lock is
-concrete enough to be reproducible.
+Personal IDE state and credentials are a third surface. They live in
+user-owned state roots, environment variables, or a user-level DevCapsule
+configuration that is neither committed nor copied into the image. This
+includes IDE settings and extensions, Git identity and credential material,
+agent login state, token values, and the host paths of personal state roots.
+The project declaration may name required integration points and permitted
+credential hosts, but it must not contain credential values or assume one
+developer's host paths.
+
+Together these surfaces satisfy requirements that otherwise conflict: the
+manifest is abstract enough to be ergonomic and portable, the lock is concrete
+enough to be reproducible, and personal state remains persistent without
+becoming project policy or leaking into version control.
 
 ### 2. A capability is an abstract requirement; the lock holds concrete components
 
 `python-ide` is a requirement. `vscodium@1.126.04524` is a component. Users
 declare requirements; the resolver selects components and writes them to the
-lock. Project types (`python-lib`, `fastapi`) are named aliases over capability
-sets — friendly abstractions, not a competing taxonomy. This collapses the
-announcement's second noun into the first.
+lock. Project types (`python-lib`, `fastapi`) are input-time templates that
+expand to capabilities when `devcapsule init` or `devcapsule project new`
+writes the manifest. A manifest stores the expanded capability list, not both
+a type and a second potentially conflicting list. This collapses the
+announcement's second noun into the first while keeping the friendly
+project-creation vocabulary.
 
-### 3. Capability sets are named by intent; `pycharm` survives as an alias
+### 3. Capability sets are named by intent; `pycharm` pins an implementation
 
 Named sets take intent names (`python-lib`, `fastapi`). Naming a set after its
 implementation bakes in a lie the first time the implementation changes.
 
-`pycharm` is retained as a supported compatibility alias resolving to
-{python, python-ide, gemini}, and `devcapsule pycharm run` keeps working
-unchanged. R-IDE-CONFIG-001's grammar is not abolished; it becomes the explicit
-form. When `devcapsule.toml` is present it supplies the configuration, so bare
-`devcapsule run` is consistent with the model rather than a violation of it —
-the noun still comes first, it just comes from the file instead of argv.
+The abstract capability set {python, python-ide, gemini} resolves to the
+curated PyCharm image by default in the initial matrix. That default may change
+only through an explicit lock update.
 
-### 4. Two IDE capabilities resolve to one IDE
+`pycharm` separately remains a supported implementation-pinning compatibility
+alias. `devcapsule pycharm run` and `devcapsule pycharm build` continue to mean
+PyCharm even if the default provider of `python-ide` changes later. The alias
+does not merely expand to the abstract capability set, because doing so would
+make its name dishonest and break compatibility.
 
-Requesting `python-ide` and `javascript-ide` means "an IDE that understands
-both," not two editors. The resolver selects a single component satisfying both
-requirements; if none exists in the matrix, resolution fails and lists what was
-tried.
+R-IDE-CONFIG-001's grammar is not abolished; configuration-first commands
+remain the explicit compatibility form. When `devcapsule.toml` is present,
+bare project commands use its locked resolution instead of taking a
+configuration noun from argv.
 
-Exactly one resolved component may declare `provides-entrypoint`. This needs no
-supervisor and no second foreground process, because the collapse happens
-during resolution rather than at runtime.
+### 4. Two IDE capabilities resolve to one interactive surface
 
-### 5. Resolution order is canonical
+Requesting `python-ide` and `javascript-ide` means "one interactive IDE surface
+that understands both," not two editor processes. The matrix selects one
+complete image whose single interactive-surface component provides both
+capabilities; if no such image is curated, resolution fails and lists the
+nearest supported sets that were considered.
 
-Every capsule builds as an ordered chain: `base → language runtimes → tooling →
-agent CLI → IDE`. Popular *prefixes* get prebuilt, so `python+docker+pycharm`
-and `python+gemini+antigravity` share a cached `base→python` prefix. Ordered
-prefixes are the implementable version of the set-union intuition.
+Exactly one component in a resolved image may provide the interactive surface
+and own the normal container foreground lifecycle. Agent CLIs, terminals, and
+debug shells are tools or alternate launch modes, not additional interactive
+surface providers. This needs no supervisor and no second IDE process because
+the collapse happens during resolution rather than at runtime.
 
-### 6. Grammar
+### 5. The matrix resolves complete images, not layers
+
+The resolution matrix maps a normalized capability set plus target platform
+directly to one complete, tested image digest. It does not return a set of
+layers, run a dependency solver, or compose a new image locally. How DevCapsule
+builds those curated images and reuses Docker layer cache is an implementation
+decision outside this record. That build machinery may use ordered inputs, but
+it is not part of the end-user resolution contract.
+
+### 6. Lock lifecycle and failure behavior
+
+`devcapsule lock` normalizes the declared capability set, selects an exact
+supported matrix entry for the current or explicitly requested platform, and
+writes the lock. The lock records at least:
+
+- a lock-format version and resolution-matrix version;
+- the normalized requested capabilities and selected components;
+- the target operating system and architecture;
+- the immutable registry reference and complete image digest.
+
+`devcapsule run` requires a lock consistent with the manifest and current
+platform. A missing or stale lock produces an actionable instruction to run
+`devcapsule lock`; it never changes the selected image implicitly. An
+unavailable digest is a pull or registry error, not permission to select a
+different image. Lock regeneration is explicit, and the generated format must
+be deterministic so ordinary branch merges can distinguish a real resolution
+change from serialization noise.
+
+An unsupported capability set fails before build or run. The error reports the
+normalized request, target platform, nearest curated sets, and the documented
+request path. V1 does not fall back to local composition.
+
+### 7. Capability requirements and host permissions are distinct
+
+Capabilities describe what is present inside the capsule. Host declarations
+describe what the running capsule may access. For example, `docker-cli` means
+the client binary is installed; `host.docker-daemon = "host-socket"` grants
+access to the host daemon. Neither implies the other. Capability names must not
+encode ambient host privileges.
+
+The committed `[host]` block is the normal runtime policy. One-off CLI
+overrides remain available for diagnosis and exceptional local work, but they
+must be explicit, apply only to that invocation, print the effective relaxation
+before launch, and never modify the manifest or lock. Security-relaxing
+overrides may require interactive confirmation; automation must use a separate
+explicit acknowledgement option. The later CLI specification must classify
+which changes are relaxations and preserve noninteractive failure by default.
+
+### 8. Devcontainer Features are not the project capability format
+
+DevCapsule does not adopt devcontainer Features as the top-level capability
+declaration or resolution format. Features specify installable implementation
+units and lifecycle behavior, while DevCapsule capabilities are abstract
+project requirements resolved only through a curated complete-image matrix.
+Making Features the public format would expose the composition model rejected
+for V1 and would blur the boundary between declaring intent and executing
+third-party installation code.
+
+This rejection does not forbid a curated image builder from consuming selected
+Features internally, nor a later import or compatibility tool. Either would
+require its own trust, pinning, ordering, and redistribution policy; it would
+not change the `devcapsule.toml` capability model decided here.
+
+### 9. Grammar
 
 ```text
-devcapsule init --need python --need python-ide --need docker   # writes devcapsule.toml
-devcapsule lock                                                 # resolve; write devcapsule.lock
-devcapsule run                                                  # the file supplies the noun
-devcapsule run --docker host                                    # one-off override, not persisted
-devcapsule pycharm run                                          # explicit form; still supported
-devcapsule project new my-lib --type python-lib                 # `project` is a peer noun
-devcapsule project adopt .                                      # path positional, defaults to .
+devcapsule init --need python --need python-ide --need docker-cli # writes manifest
+devcapsule lock                                                   # writes lock
+devcapsule run                                                    # uses locked digest
+devcapsule run --docker-daemon host-socket                        # one-run relaxation
+devcapsule pycharm run                                            # pinned compatibility form
+devcapsule project new my-lib --type python-lib                   # expands a template
+devcapsule project adopt .                                        # path defaults to .
 ```
+
+The exact spelling of security-override acknowledgement and personal-state
+selection remains specification work, but the behavioral constraints above are
+part of this decision.
 
 ## Rationale
 
-**Declaration is cheap; composition is a research project.** Named capability
-sets with prebuilt images deliver most of the compelling story for a small
-fraction of the work. Arbitrary composition is a small fraction of the story
-for most of the work. Option C ships the part users feel and defers the part
-that is invisible when it works. When someone requests an uncurated
-combination, we add it to the matrix and rebuild overnight — unglamorous,
-invisible to the user, and it buys a year.
+**Declaration is cheap; composition is a research project.** Curated capability
+sets backed by complete prebuilt images deliver most of the compelling story
+for a small fraction of the work. Arbitrary composition is a small fraction of
+the story for most of the work. Option C ships the part users feel and defers
+the part that is invisible when it works. When someone requests an uncurated
+combination, maintainers can add and validate a new complete matrix entry
+without promising that the client can compose it.
 
 **The declaration makes the standing rule mechanical.** The `[host]` block puts
-every isolation relaxation on one reviewable surface. `sudo = true` becomes a
-line in a pull request diff that a human reviews. That converts "keep any
-isolation relaxation explicit and documented" from a rule people must remember
-into a property of the format. It is also a sharper claim than the
-announcement currently makes: host boundaries get code-reviewed, which no
-devcontainer competitor can say.
+the normal isolation policy on one reviewable surface. `sudo = true` becomes a
+line in a pull request diff that a human reviews. Exceptional overrides remain
+visible at launch rather than silently changing project policy. This converts
+"keep any isolation relaxation explicit and documented" from a rule people
+must remember into a property of the format and command behavior.
 
-**It dissolves the parity bug instead of fixing it twice.** Once configurations
-are data rather than code, there is one generic builder and one generic
-launcher. PyCharm and Codium stop being two hand-written things that drift.
-The parity work is then a down payment on this decision rather than throwaway
-effort — provided it is executed as "extract the generic launcher," not "copy
-PyCharm's flags into Codium."
+**It attacks the cause of the parity bug.** A shared manifest and runtime
+planner make common behavior data-driven and testable in one place. PyCharm and
+Codium may still need thin adapters for IDE-specific entrypoints, sandboxing,
+and validation, but those adapters no longer own copies of the shared host and
+state policy. The parity work is therefore a down payment on this decision when
+it extracts the common planner instead of copying flags.
 
 **The lock is what makes "seconds" true.** A pinned image digest is a pull, not
 a build. This makes Docker Hub publication load-bearing rather than launch
 housekeeping.
 
 Option A was rejected because the parity bug already demonstrates its failure
-at N=2. Option B was rejected on scope, not on merit: it is probably where this
-ends up, but arriving there before V1 means never shipping V1.
+at N=2. Option B was rejected on scope, not on merit: it may become justified
+later, but arriving there before V1 means never shipping V1.
 
 ## Consequences
 
 What becomes true:
 
-- Configurations become data. One generic builder, one generic launcher.
+- Shared runtime policy and resolution become data, with thin IDE-specific
+  build and launch adapters where behavior genuinely differs.
 - Host exposure is declared, diffable, and reviewable in one block.
-- Project type stops being a second noun and becomes an alias over capabilities.
-- `devcapsule pycharm run` keeps working; existing users are not broken.
+- Project type stops being stored as a second source of truth and becomes an
+  input-time template for capabilities.
+- Personal state and credentials are explicitly outside the committed project
+  declaration and lock.
+- `devcapsule pycharm run` keeps working and continues to mean PyCharm.
 
 What becomes harder:
 
 - The curated matrix is hand-maintained, and uncurated combinations fail. That
   failure must be honest and actionable, listing what was tried and how to
   request an addition. A vague failure here poisons the whole model.
-- `devcapsule.lock` needs a format, a resolver, and merge-conflict behavior.
+- Each supported platform requires a tested complete image and digest.
+- `devcapsule.lock` needs a deterministic format, explicit update behavior,
+  and useful merge-conflict handling.
 - Docker Hub publication becomes a prerequisite rather than a nice-to-have, so
   the existing namespace task is now on the critical path.
+- One-off isolation relaxations remain possible but must be conspicuous and
+  cannot silently rewrite committed policy.
 
 What is accepted as lost:
 
 - Arbitrary composition on day one. Users asking for combinations we have not
   curated get a clear "not yet," not magic.
+- Devcontainer Features are not the project-facing capability format for V1.
 
 Cleanups this decision forces, each currently a public-API wart:
 
@@ -268,11 +357,9 @@ Open questions deliberately left to sibling decisions:
   of it across agent runtimes.
 - **D-0003**: Gemini CLI as the default agent capability, recording the
   redistribution rationale that currently exists only in chat history.
-- **D-0004**: whether devcontainer Features become the capability format for
-  the tooling layer. This is the format question, orthogonal to this record's
-  model question, and it carries real strategic weight: adopting an existing
-  spec buys an ecosystem on day one and changes "more than just a devcontainer"
-  from a competitive claim into a compatibility story.
+- A later decision may consider curated internal use or import compatibility
+  for devcontainer Features. Their use as DevCapsule's top-level capability
+  format is rejected by this record.
 
 ## Reopen If
 
@@ -284,3 +371,7 @@ Open questions deliberately left to sibling decisions:
   inside a CLI.
 - Prebuilt image pull time stops being meaningfully faster than a local build,
   which would remove the main justification for the curated matrix.
+- Real projects need more than one simultaneously running interactive IDE
+  surface often enough that the single-surface model becomes an obstacle.
+- Project policy and personal state cannot remain cleanly separated without
+  making normal setup materially harder.
