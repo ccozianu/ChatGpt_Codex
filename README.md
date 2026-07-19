@@ -264,6 +264,20 @@ Current validation workflow:
   smoke tests. Manual validation is still useful for host Docker/image/IDE
   behavior that cannot yet be exercised in repository automation.
 
+Session checkpoint, 2026-07-19:
+
+- D-0001 Option C is the selected direction. Sections 1 through 3 have been
+  reviewed and settled for the working specification: hierarchical
+  configuration overlays, developer-owned authorization for project
+  recommendations, XDG/local-checkout configuration, project and checkout
+  identity, durable project-scoped IDE and runtime state, abstract
+  capabilities with concrete locked components, and deprecation of
+  configuration-first `run` commands in favor of `devcapsule run`.
+- D-0001 remains `proposed` while sections 4 through 9 await review. Resume at
+  section 4, "Two IDE capabilities resolve to one interactive surface."
+- This checkpoint changed documentation only. No implementation validation was
+  run or warranted.
+
 Session close, 2026-07-16:
 
 Changed:
@@ -352,10 +366,11 @@ Current task:
    that a container has one foreground process;
    (d) adopt or reject devcontainer Features as the capability format, with
    rationale either way.
-   Constraint: the existing `pycharm` configuration must remain functional and
-   supported as the default resolution of the capability set
-   {python, python-ide, gemini}. Gemini CLI is the default agent capability
-   because it can be redistributed inside DevCapsule images.
+   Constraint: PyCharm remains the default resolution of the capability set
+   {python, python-ide, gemini}; the existing `devcapsule pycharm run` path
+   remains functional during an explicit deprecation and migration window.
+   Gemini CLI is the default agent capability because it can be redistributed
+   inside DevCapsule images.
    Because this changes the accepted statement of R-IDE-CONFIG-001, add a new
    proposed requirement record instead of editing an implemented one in place.
    Verification: specification and proposed requirement record committed and
@@ -401,8 +416,10 @@ Current task:
 
 Next task:
 
-1. Use the shared IDE-configuration/runtime protocol to address Codium option
-   parity first, then shared extended run logging.
+1. Continue reviewing D-0001 at section 4 and settle sections 4 through 9.
+   After the capability-first specification is complete, use the shared
+   IDE-configuration/runtime protocol to address Codium option parity, then
+   shared extended run logging.
 
 Standing rule:
 

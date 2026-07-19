@@ -62,8 +62,9 @@ Constraints this decision must respect:
 
 - Reproducibility is the core product promise, so whatever is declared must be
   pinnable to exact versions.
-- The `pycharm` configuration must remain functional and supported as the
-  default answer for the capability set {python, python-ide, gemini}.
+- PyCharm must remain the default answer for the capability set
+  {python, python-ide, gemini}. The existing `devcapsule pycharm run` path must
+  remain functional during an explicit deprecation and migration window.
 - Gemini CLI is the default agent capability because it can be redistributed
   inside DevCapsule images.
 - Docker images are linear layer stacks, not sets. Composition is not union.
@@ -109,47 +110,164 @@ platform needs its own tested image digest.
 
 Adopt **Option C**.
 
-### 1. Three surfaces, three jobs
+Review checkpoint, 2026-07-19: the human and agent have settled sections 1
+through 3 below for the working specification. Sections 4 through 9 remain to
+be reviewed in the next session. The decision record remains `proposed` until
+that review is complete and the human adopts the finished record.
 
-A repository declares portable project requirements and allowed host exposure
-in `devcapsule.toml`, hand-authored and committed:
+### 1. Portable project declaration and developer-owned runtime realization
+
+Configuration is a hierarchical key-value tree. Ordinary values are resolved
+by applying four layers in increasing order of precedence:
+
+1. workstation configuration, which supplies this developer's defaults for
+   every project on the workstation;
+2. committed project-global `devcapsule.toml`, which supplies portable values
+   for every checkout and workstation instantiating the project;
+3. uncommitted project-local configuration owned by this developer on this
+   workstation; and
+4. run-once command-line values, which are intentionally not persisted.
+
+The last specified ordinary value wins. Policy constraints are not ordinary
+values: applicable constraints combine restrictively and a higher-precedence
+value cannot silently bypass them.
+
+The committed `devcapsule.toml` is hand-authored repository content. It
+declares portable capabilities, project identity, container-internal settings,
+and safe values:
 
 ```toml
 [capabilities]
 need = ["python", "python-ide", "docker-cli", "gemini"]
 
 [project]
+name = "DevCapsule"
+slug = "devcapsule"
+creator = "https://github.com/ccozianu"
 mount = "/workspace/project"
 
-[host]                      # every exposure, in one reviewable block
-docker-daemon = "none"      # none, host-socket, or nested
-network = "bridge"
-sudo = false
-writable-root = false
-debug-native = false
-
-[host.git]
-token-hosts = ["github.com"]
+[host.docker.mode.recommended]
+value = "host-socket"
+justification = "Required to run peer DevCapsule instances during the full test suite."
+enables = ["full-test-suite"]
 ```
 
-Resolution produces `devcapsule.lock`, generated and committed, which pins
-the matrix version, target platform, exact component versions, registry
-reference, and complete image digest. `run` uses the locked digest; it does not
-silently re-resolve.
+Committed repository content is untrusted for purposes of workstation access.
+It must not activate host Docker socket access, host networking, credential or
+agent-state mounts, arbitrary host-path mounts, devices, privileged mode,
+Linux capabilities, or similar host exposure. It may constrain such exposure
+or recommend a value, but a recommendation is not a configured value and does
+not participate directly in overlay precedence. Security-sensitive access is
+activated only by developer-owned project-local configuration or an explicit
+run-once choice. With neither, the safe value applies. If the requested action
+cannot work safely, DevCapsule stops and explains the missing authorization
+instead of silently relaxing isolation.
 
-Personal IDE state and credentials are a third surface. They live in
-user-owned state roots, environment variables, or a user-level DevCapsule
-configuration that is neither committed nor copied into the image. This
-includes IDE settings and extensions, Git identity and credential material,
-agent login state, token values, and the host paths of personal state roots.
-The project declaration may name required integration points and permitted
-credential hosts, but it must not contain credential values or assume one
-developer's host paths.
+Each security-sensitive recommendation contains a proposed `value`, a
+project-authored `justification`, and the functionality it `enables`.
+DevCapsule presents that text alongside a DevCapsule-authored explanation of
+the security effect; repository text must not define its own risk description.
+An unresolved interactive recommendation offers at least: deny for this run,
+allow for this run, persistently allow for this checkout, and persistently deny
+for this checkout. Denial is the default. Noninteractive execution never
+prompts or grants access: it uses an existing developer-owned decision or
+fails with an actionable instruction. A changed recommendation never mutates
+an earlier adoption silently, and workstation policy may prohibit a
+recommended value.
 
-Together these surfaces satisfy requirements that otherwise conflict: the
-manifest is abstract enough to be ergonomic and portable, the lock is concrete
-enough to be reproducible, and personal state remains persistent without
-becoming project policy or leaking into version control.
+The workstation configuration root is
+`$XDG_CONFIG_HOME/devcapsule/`. If `XDG_CONFIG_HOME` is unset or empty, it is
+`~/.config/devcapsule/`; non-XDG platforms use their platform-appropriate user
+configuration directory. `devcapsule config path` prints the actual resolved
+file. Workstation-wide values live in `config.toml` beneath that root.
+
+A project has a portable, self-asserted identity formed by a `creator` URI and
+a `slug`. A creator may be an HTTPS profile URL or a `mailto:` URI; a plain
+email entered during bootstrap is normalized to `mailto:`. DevCapsule warns
+that both values will be committed and may become public. The pair is useful
+for organization and local collision detection but is neither authenticated
+ownership nor a grant of trust. Federated identity, ownership transfer, forks,
+mirrors, and cross-workstation verification are deferred beyond this
+local-first specification.
+
+Project-local configuration lives under:
+
+```text
+$XDG_CONFIG_HOME/devcapsule/projects/<url-encoded-creator>/<url-encoded-slug>/
+```
+
+DevCapsule defines one canonical URI normalization and percent-encoding so an
+identity maps deterministically. The common one-checkout case uses a single,
+plain TOML file:
+
+```text
+devcapsule.toml
+```
+
+That file records a human-readable checkout name, its workstation-observed
+canonical path, and its local values. When the same project identity gains a
+second checkout, additional records use:
+
+```text
+checkouts/<checkout-name>.toml
+```
+
+The first record is not moved or renamed. Checkout names are workstation-owned
+labels, and each record repeats its decoded creator, slug, checkout name, and
+canonical path so it remains understandable and salvageable with an ordinary
+text editor. DevCapsule verifies the observed path before applying the record.
+A fresh clone, fork, or second checkout cannot inherit another checkout's
+security approvals merely by copying or claiming the same committed project
+identity. Removing a checkout does not promote another automatically.
+
+Personal IDE state and credentials also remain developer-owned and outside the
+committed declaration and image. This includes IDE settings and extensions,
+Git identity and credential material, agent login state, token values, and the
+host paths of personal state roots. The project may describe an integration it
+needs, but it cannot supply credentials, assume a developer's host paths, or
+authorize their exposure.
+
+IDE application state is durable and project-scoped by default. DevCapsule
+persists the IDE's own configuration, home, and extension or plugin state in a
+developer-owned project state directory and mounts it again for later sessions.
+This allows values entered through IDE settings, including secrets stored by
+the IDE or a plugin, to survive container replacement without teaching
+DevCapsule plugin-specific storage formats or copying secret values into TOML.
+Disposable caches and logs remain separable from this durable state.
+
+DevCapsule also provides a persistent project-runtime state mount by default,
+replacing the need to repeat `--project-state` on each launch. It is scoped to
+the local checkout and kept outside the source tree. It holds rebuildable but
+expensive state such as IDE indexes and system data, logs, downloaded Python
+and npm packages, and other language-tool or build caches. Runtime components
+map their conventional cache locations into named locations beneath this
+mount—for example through `XDG_CACHE_HOME`, `PIP_CACHE_DIR`, and the npm cache
+setting—rather than assuming that every tool follows XDG paths automatically.
+Deleting project-runtime state may make the next launch or build slower but
+must not delete source, IDE preferences, or credentials.
+
+Durable IDE state, project-runtime state, and the project source are therefore
+three distinct mounts with different lifecycles and trust implications. Their
+host paths are selected by convention from the observed project and checkout;
+ordinary use does not require command-line path options. A developer-owned
+configuration value may relocate them when workstation storage layout requires
+it.
+
+A developer may instead opt a project into a workstation-global state profile
+for a particular IDE implementation. This shares that IDE's settings and
+stored credentials with every checkout explicitly assigned to the profile, so
+it is never selected by committed project configuration or by default. Because
+durable IDE state may contain credentials, a new checkout must separately
+authorize mounting either the project-scoped state or a global IDE profile; a
+copied project identity alone is insufficient. The exact XDG data and state
+paths and the command used to select a global profile remain CLI specification
+work.
+
+Resolution separately produces `devcapsule.lock`, generated and committed,
+which pins the matrix version, target platform, exact component versions,
+registry reference, and complete image digest. The lock is resolution output,
+not a fifth general-purpose configuration overlay. `run` uses the locked
+digest; it does not silently re-resolve.
 
 ### 2. A capability is an abstract requirement; the lock holds concrete components
 
@@ -162,25 +280,43 @@ a type and a second potentially conflicting list. This collapses the
 announcement's second noun into the first while keeping the friendly
 project-creation vocabulary.
 
-### 3. Capability sets are named by intent; `pycharm` pins an implementation
+### 3. Capability sets are named by intent; configuration-first run is deprecated
 
 Named sets take intent names (`python-lib`, `fastapi`). Naming a set after its
 implementation bakes in a lie the first time the implementation changes.
 
 The abstract capability set {python, python-ide, gemini} resolves to the
-curated PyCharm image by default in the initial matrix. That default may change
-only through an explicit lock update.
+curated PyCharm image by default in the initial matrix. The selected concrete
+IDE is recorded in `devcapsule.lock` and may change only through an explicit
+lock update. A project that genuinely depends on one implementation may add an
+implementation constraint to resolution, but ordinary users declare intent
+and do not select an IDE product in the run command. The exact constraint
+spelling remains schema work.
 
-`pycharm` separately remains a supported implementation-pinning compatibility
-alias. `devcapsule pycharm run` and `devcapsule pycharm build` continue to mean
-PyCharm even if the default provider of `python-ide` changes later. The alias
-does not merely expand to the abstract capability set, because doing so would
-make its name dishonest and break compatibility.
+The primary launch form is `devcapsule run`, normally invoked from within the
+project. DevCapsule discovers `devcapsule.toml`, identifies the local checkout,
+loads the configuration layers and durable-state conventions from section 1,
+and runs the image digest selected by the lock. An explicit project path may be
+accepted when launching from elsewhere.
 
-R-IDE-CONFIG-001's grammar is not abolished; configuration-first commands
-remain the explicit compatibility form. When `devcapsule.toml` is present,
-bare project commands use its locked resolution instead of taking a
-configuration noun from argv.
+Configuration-first launch forms such as `devcapsule pycharm run` are
+deprecated. They remain temporarily as migration shims with an actionable
+warning, but they are not the enduring implementation-pinning interface and
+may be removed after the compatibility window. Image build and maintainer
+workflows are separate from the normal project launch grammar and will be
+specified independently.
+
+Routine launch state does not remain a collection of product-specific flags.
+Image selection comes from the lock; project and checkout identity select
+state paths by convention; IDE configuration and plugins persist in the IDE
+state mount; project caches persist in the project-runtime state mount; and
+Git identity, credentials, Docker access, debugging privileges, sudo,
+networking relaxations, and other workstation choices come from
+developer-owned configuration and the recommendation flow. Alternate launch
+modes such as a diagnostic shell should be actions rather than IDE-specific
+flags. Command-line values remain for inspection, explicit project selection,
+and conspicuous run-once exceptions; the exact generic override spelling is
+part of the remaining grammar review.
 
 ### 4. Two IDE capabilities resolve to one interactive surface
 
@@ -236,7 +372,9 @@ the client binary is installed; `host.docker-daemon = "host-socket"` grants
 access to the host daemon. Neither implies the other. Capability names must not
 encode ambient host privileges.
 
-The committed `[host]` block is the normal runtime policy. One-off CLI
+The committed declaration may state that host integration is useful or needed,
+but it cannot authorize that integration. Persistent authorization belongs to
+the developer-owned configuration for the observed checkout. One-off CLI
 overrides remain available for diagnosis and exceptional local work, but they
 must be explicit, apply only to that invocation, print the effective relaxation
 before launch, and never modify the manifest or lock. Security-relaxing
@@ -285,12 +423,13 @@ the part that is invisible when it works. When someone requests an uncurated
 combination, maintainers can add and validate a new complete matrix entry
 without promising that the client can compose it.
 
-**The declaration makes the standing rule mechanical.** The `[host]` block puts
-the normal isolation policy on one reviewable surface. `sudo = true` becomes a
-line in a pull request diff that a human reviews. Exceptional overrides remain
-visible at launch rather than silently changing project policy. This converts
-"keep any isolation relaxation explicit and documented" from a rule people
-must remember into a property of the format and command behavior.
+**The declaration makes the standing rule mechanical.** A project can explain
+why it recommends an integration, while only developer-owned configuration can
+authorize the corresponding host exposure. The choice and its security effect
+remain visible at adoption and launch instead of being implied by repository
+content. This converts "keep any isolation relaxation explicit and documented"
+from a rule people must remember into a property of the format and command
+behavior.
 
 **It attacks the cause of the parity bug.** A shared manifest and runtime
 planner make common behavior data-driven and testable in one place. PyCharm and
@@ -313,12 +452,14 @@ What becomes true:
 
 - Shared runtime policy and resolution become data, with thin IDE-specific
   build and launch adapters where behavior genuinely differs.
-- Host exposure is declared, diffable, and reviewable in one block.
+- Project recommendations are committed and reviewable, while actual host
+  exposure authorization remains developer-owned and checkout-specific.
 - Project type stops being stored as a second source of truth and becomes an
   input-time template for capabilities.
 - Personal state and credentials are explicitly outside the committed project
   declaration and lock.
-- `devcapsule pycharm run` keeps working and continues to mean PyCharm.
+- `devcapsule pycharm run` keeps working and continues to mean PyCharm during
+  its explicit deprecation and migration window.
 
 What becomes harder:
 
