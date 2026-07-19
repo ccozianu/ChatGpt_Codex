@@ -103,6 +103,7 @@ BASE_APT_PACKAGES = (
     "libglx-mesa0",
     "libgl1-mesa-dri",
     "mesa-utils",
+    "vim",
 )
 
 DEFAULT_ENV = (
