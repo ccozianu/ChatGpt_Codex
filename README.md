@@ -264,7 +264,25 @@ Current validation workflow:
   smoke tests. Manual validation is still useful for host Docker/image/IDE
   behavior that cannot yet be exercised in repository automation.
 
-Session checkpoint, 2026-07-19:
+Session checkpoint, 2026-07-21:
+
+- D-0001 sections 4 through 9 are now settled for the V1 working
+  specification. One IDE owns the container lifecycle; curated base images may
+  be materialized locally with certified worry-free add-ons such as Node.js
+  and OpenJDK; locks pin all materialization inputs and carry update advisories;
+  tools do not imply host permissions; DevCapsule is independent of the Dev
+  Container specification; and the command grammar is capability-first.
+- Committed project files live under `.devcapsule/`. `devcapsule run-image`
+  provides an expert, lock-independent path for local images without bypassing
+  host-access authorization.
+- D-0001 remains `proposed`. The next task is to specify the exact host-backed
+  state and configuration directory layout, mount points, lifecycles,
+  authorization, inspection, relocation, and cleanup behavior. This must
+  confirm the state model before the human adopts D-0001.
+- This checkpoint changed documentation only. No implementation validation was
+  run or warranted.
+
+Superseded session checkpoint, 2026-07-19:
 
 - D-0001 Option C is the selected direction. Sections 1 through 3 have been
   reviewed and settled for the working specification: hierarchical
@@ -341,46 +359,25 @@ Open decisions referenced by D-0001 but not yet written:
 
 Loose ends:
 
-- Current task 1 does not yet link D-0001.
-- The `Next task` line below still names Codium parity first and now
-  contradicts the task list above it.
+- D-0001 remains proposed until the host-backed state specification confirms
+  its state model and the human adopts it.
+- Because D-0001 reinterprets implemented requirement R-IDE-CONFIG-001, the
+  corresponding proposed requirement record still needs to be added.
 
 Current task:
 
-1. Specify a capability-first end-user CLI model, in which a developer declares
-   the capabilities a project needs instead of selecting a product
-   configuration by name.
+1. Specify host-backed state and configuration directories for the
+   capability-first model in D-0001.
    Requirements: R-IDE-CONFIG-001 (reinterpreted), R-FRAMEWORK-001,
-   R-IMAGE-BUILD-001, R-PYTHON-MVP-003, root R-PRODUCT-001, root R-PRODUCT-002.
-   Done means: a reviewable CLI specification exists in the repository defining
-   how capabilities are declared; how a declared capability set resolves to a
-   named configuration and a prebuilt image; what happens for a combination
-   with no prebuilt image; and the split between project-required declaration
-   and personal IDE state.
-   The spec must settle four open decisions rather than defer them:
-   (a) whether a capability is an abstract requirement or a concrete versioned
-   component, given that reproducibility requires pinning;
-   (b) whether capability sets may keep implementation names such as `pycharm`,
-   or must be named by intent;
-   (c) what requesting two IDE capabilities in one environment means, given
-   that a container has one foreground process;
-   (d) adopt or reject devcontainer Features as the capability format, with
-   rationale either way.
-   Constraint: PyCharm remains the default resolution of the capability set
-   {python, python-ide, gemini}; the existing `devcapsule pycharm run` path
-   remains functional during an explicit deprecation and migration window.
-   Gemini CLI is the default agent capability because it can be redistributed
-   inside DevCapsule images.
-   Because this changes the accepted statement of R-IDE-CONFIG-001, add a new
-   proposed requirement record instead of editing an implemented one in place.
-   Verification: specification and proposed requirement record committed and
-   listed in `index.md`; `devcapsule pycharm run` and `devcapsule pycharm build`
-   behavior unchanged; `cd devcapsule && python -m nox -s build` passes; source
-   and PEX help surfaces still show the supported command path.
-   Scope: specification only. Implementation is a separate later task.
-   Reopen if: implementation diverges from the accepted spec, or a capability
-   set ships without a documented resolution to either a prebuilt image or an
-   explicit build path.
+   R-PYTHON-MVP-003, R-SCOPE-001, root R-PRODUCT-002.
+   Done means: the specification defines exact XDG-compliant host paths and
+   container mount points for project source, durable IDE state, rebuildable
+   runtime state, personal integrations, and local DevCapsule configuration;
+   their lifecycles and trust boundaries; checkout authorization; global IDE
+   profiles; `run-image` behavior; and commands for inspection, relocation,
+   and cleanup.
+   Scope: specification only. Confirm the resulting state model against
+   D-0001 before asking the human to adopt that decision.
 
 2. Address the shared run-option parity gap recorded in
    `devcapsule/implementation-notes/bugs/2026-07-13-codium-run-option-parity.md`,
@@ -416,8 +413,8 @@ Current task:
 
 Next task:
 
-1. Continue reviewing D-0001 at section 4 and settle sections 4 through 9.
-   After the capability-first specification is complete, use the shared
+1. Specify the host-backed state and configuration directory model described
+   in current task 1. After D-0001 is complete and adopted, use the shared
    IDE-configuration/runtime protocol to address Codium option parity, then
    shared extended run logging.
 

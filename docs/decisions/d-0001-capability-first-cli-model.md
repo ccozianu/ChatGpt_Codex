@@ -63,8 +63,7 @@ Constraints this decision must respect:
 - Reproducibility is the core product promise, so whatever is declared must be
   pinnable to exact versions.
 - PyCharm must remain the default answer for the capability set
-  {python, python-ide, gemini}. The existing `devcapsule pycharm run` path must
-  remain functional during an explicit deprecation and migration window.
+  {python, python-ide, gemini}.
 - Gemini CLI is the default agent capability because it can be redistributed
   inside DevCapsule images.
 - Docker images are linear layer stacks, not sets. Composition is not union.
@@ -95,25 +94,26 @@ apt dependency graphs, `/etc` mutation, and system users. Building this before
 V1, with two configurations and unfinished parity, is a multi-year detour.
 Resolvers are where package managers go to die.
 
-### Option C: Capability-first declaration with a curated image matrix
+### Option C: Capability-first declaration with curated bases and add-ons
 
-Users declare capabilities. A curated set of capability combinations resolves
-directly to complete, prebuilt images. Combinations outside the matrix fail
-with an honest message and a request path, rather than being composed on
-demand.
+Users declare capabilities. A curated matrix resolves them to complete base
+images and may add pinned, relocatable toolchains from a small certified
+catalog. Combinations outside the matrix and catalog fail with an honest
+message and a request path rather than being composed arbitrarily.
 
-Cost: not every combination works on day one, and the matrix is maintained by
-hand. Users who want an uncurated combination wait for us. Each supported
-platform needs its own tested image digest.
+Cost: the matrix, add-on catalog, and allowed combinations are maintained and
+tested by hand. Users who want an uncurated combination wait for us. The first
+local materialization may also require substantial downloads.
 
 ## Decision
 
 Adopt **Option C**.
 
-Review checkpoint, 2026-07-19: the human and agent have settled sections 1
-through 3 below for the working specification. Sections 4 through 9 remain to
-be reviewed in the next session. The decision record remains `proposed` until
-that review is complete and the human adopts the finished record.
+Review checkpoint, 2026-07-21: the human and agent have settled sections 1
+through 9 below for the V1 working specification. The exact host-backed state
+and configuration directory layout is the next specification task. This
+decision record remains `proposed` until that work confirms the state model
+and the human adopts the finished record.
 
 ### 1. Portable project declaration and developer-owned runtime realization
 
@@ -122,7 +122,8 @@ by applying four layers in increasing order of precedence:
 
 1. workstation configuration, which supplies this developer's defaults for
    every project on the workstation;
-2. committed project-global `devcapsule.toml`, which supplies portable values
+2. committed project-global `.devcapsule/devcapsule.toml`, which supplies
+   portable values
    for every checkout and workstation instantiating the project;
 3. uncommitted project-local configuration owned by this developer on this
    workstation; and
@@ -132,9 +133,9 @@ The last specified ordinary value wins. Policy constraints are not ordinary
 values: applicable constraints combine restrictively and a higher-precedence
 value cannot silently bypass them.
 
-The committed `devcapsule.toml` is hand-authored repository content. It
-declares portable capabilities, project identity, container-internal settings,
-and safe values:
+The committed `.devcapsule/devcapsule.toml` is hand-authored repository
+content. It declares portable capabilities, project identity,
+container-internal settings, and safe values:
 
 ```toml
 [capabilities]
@@ -263,48 +264,46 @@ copied project identity alone is insufficient. The exact XDG data and state
 paths and the command used to select a global profile remain CLI specification
 work.
 
-Resolution separately produces `devcapsule.lock`, generated and committed,
-which pins the matrix version, target platform, exact component versions,
-registry reference, and complete image digest. The lock is resolution output,
-not a fifth general-purpose configuration overlay. `run` uses the locked
-digest; it does not silently re-resolve.
+Resolution separately produces `.devcapsule/devcapsule.lock`, generated and
+committed, which pins the matrix and add-on catalog versions, target platform,
+base-image digest, exact components and add-on artifact digests, and the
+materialization recipe version. The lock is resolution output, not a fifth
+general-purpose configuration overlay. `run` uses these locked inputs; it does
+not silently re-resolve.
 
 ### 2. A capability is an abstract requirement; the lock holds concrete components
 
 `python-ide` is a requirement. `vscodium@1.126.04524` is a component. Users
 declare requirements; the resolver selects components and writes them to the
 lock. Project types (`python-lib`, `fastapi`) are input-time templates that
-expand to capabilities when `devcapsule init` or `devcapsule project new`
+expand to capabilities when `devcapsule init` or `devcapsule new`
 writes the manifest. A manifest stores the expanded capability list, not both
 a type and a second potentially conflicting list. This collapses the
 announcement's second noun into the first while keeping the friendly
 project-creation vocabulary.
 
-### 3. Capability sets are named by intent; configuration-first run is deprecated
+### 3. Capability sets are named by intent
 
 Named sets take intent names (`python-lib`, `fastapi`). Naming a set after its
 implementation bakes in a lie the first time the implementation changes.
 
 The abstract capability set {python, python-ide, gemini} resolves to the
 curated PyCharm image by default in the initial matrix. The selected concrete
-IDE is recorded in `devcapsule.lock` and may change only through an explicit
-lock update. A project that genuinely depends on one implementation may add an
-implementation constraint to resolution, but ordinary users declare intent
-and do not select an IDE product in the run command. The exact constraint
-spelling remains schema work.
+IDE is recorded in `.devcapsule/devcapsule.lock` and may change only through
+an explicit lock update. A project that genuinely depends on one
+implementation may add an implementation constraint to resolution, but
+ordinary users declare intent and do not select an IDE product in the run
+command. The exact constraint spelling remains schema work.
 
 The primary launch form is `devcapsule run`, normally invoked from within the
-project. DevCapsule discovers `devcapsule.toml`, identifies the local checkout,
-loads the configuration layers and durable-state conventions from section 1,
-and runs the image digest selected by the lock. An explicit project path may be
-accepted when launching from elsewhere.
+project. DevCapsule discovers `.devcapsule/devcapsule.toml`, identifies the
+local checkout, loads the configuration layers and durable-state conventions
+from section 1, and runs the materialized image selected by the lock. An
+explicit project path may be accepted when launching from elsewhere.
 
-Configuration-first launch forms such as `devcapsule pycharm run` are
-deprecated. They remain temporarily as migration shims with an actionable
-warning, but they are not the enduring implementation-pinning interface and
-may be removed after the compatibility window. Image build and maintainer
-workflows are separate from the normal project launch grammar and will be
-specified independently.
+The pre-V1 configuration-first forms such as `devcapsule pycharm run` carry no
+compatibility commitment and may be removed. Image build and maintainer
+workflows are separate from the normal project launch grammar.
 
 Routine launch state does not remain a collection of product-specific flags.
 Image selection comes from the lock; project and checkout identity select
@@ -332,14 +331,40 @@ debug shells are tools or alternate launch modes, not additional interactive
 surface providers. This needs no supervisor and no second IDE process because
 the collapse happens during resolution rather than at runtime.
 
-### 5. The matrix resolves complete images, not layers
+When the foreground IDE terminates, cleanly or otherwise, the container
+terminates and propagates its exit status. DevCapsule does not restart it
+automatically. It preserves actionable failure evidence, while the durable
+source, IDE, and runtime-state mounts allow a later invocation to resume the
+workflow.
 
-The resolution matrix maps a normalized capability set plus target platform
-directly to one complete, tested image digest. It does not return a set of
-layers, run a dependency solver, or compose a new image locally. How DevCapsule
-builds those curated images and reuses Docker layer cache is an implementation
-decision outside this record. That build machinery may use ordered inputs, but
-it is not part of the end-user resolution contract.
+### 5. Resolution selects a curated base and worry-free add-ons
+
+The resolution matrix selects one complete, tested base image for the
+normalized capability set and target platform. The resolver may additionally
+select user-requested toolchains from a versioned DevCapsule catalog of
+worry-free add-ons. Users request capabilities such as `nodejs` or `java`; they
+do not need to know whether the resolver provides them in the base or as an
+add-on.
+
+A worry-free add-on is a pinned, relocatable toolchain installed under an
+isolated prefix. It does not use apt, create services or system users, run
+arbitrary installation scripts, or mutate the base filesystem outside its
+declared paths and environment settings. Node.js and OpenJDK are the initial
+candidate add-ons.
+
+Allowed add-on combinations are explicitly certified against supported base
+families and platforms. DevCapsule does not assume that two independently
+supported add-ons are mutually compatible. A request outside the certified
+combinations fails with an actionable explanation.
+
+DevCapsule materializes the resolved image on the developer's workstation from
+the pinned base and add-on artifacts. Materialization is deterministic and is
+limited to copying or extracting verified artifacts, applying declared
+environment settings, and recording metadata. It does not compile the
+toolchains, run general-purpose installers, or perform dependency resolution.
+Docker layer and artifact caching make repeated materialization inexpensive.
+Popular combinations may later be published as complete images without
+changing the project declaration or capability model.
 
 ### 6. Lock lifecycle and failure behavior
 
@@ -350,64 +375,112 @@ writes the lock. The lock records at least:
 - a lock-format version and resolution-matrix version;
 - the normalized requested capabilities and selected components;
 - the target operating system and architecture;
-- the immutable registry reference and complete image digest.
+- the immutable base-image registry reference and digest;
+- the add-on catalog version, exact add-on versions, and artifact digests;
+- the deterministic add-on order and materialization recipe version.
 
 `devcapsule run` requires a lock consistent with the manifest and current
 platform. A missing or stale lock produces an actionable instruction to run
 `devcapsule lock`; it never changes the selected image implicitly. An
-unavailable digest is a pull or registry error, not permission to select a
-different image. Lock regeneration is explicit, and the generated format must
-be deterministic so ordinary branch merges can distinguish a real resolution
-change from serialization noise.
+unavailable base or add-on artifact is a pull or registry error, not permission
+to select a different input. Lock regeneration is explicit, and the generated
+format must be deterministic so ordinary branch merges can distinguish a real
+resolution change from serialization noise. The resulting local image ID
+belongs to uncommitted workstation state; if it is missing, DevCapsule
+rematerializes it from the locked inputs.
 
-An unsupported capability set fails before build or run. The error reports the
-normalized request, target platform, nearest curated sets, and the documented
-request path. V1 does not fall back to local composition.
+An unsupported capability set fails before materialization or run. The error
+reports the normalized request, target platform, nearest curated sets, and the
+documented request path. V1 does not fall back to arbitrary composition.
 
-### 7. Capability requirements and host permissions are distinct
+Locks make environments reproducible, not permanently frozen. DevCapsule never
+updates a lock implicitly, but V1 periodically checks trusted catalog metadata
+and warns when a locked component has a known relevant security advisory, is
+approaching or past end of support, or has a recommended compatible update.
+The warning provides the explicit `devcapsule lock --update` command. That
+command shows proposed changes before rewriting the lock. Offline use
+continues with cached metadata and reports when that metadata is stale.
+Ordinary warnings do not block launch; this record does not define an artifact
+revocation policy.
 
-Capabilities describe what is present inside the capsule. Host declarations
-describe what the running capsule may access. For example, `docker-cli` means
-the client binary is installed; `host.docker-daemon = "host-socket"` grants
-access to the host daemon. Neither implies the other. Capability names must not
-encode ambient host privileges.
+### 7. Having a tool does not grant access to the host
 
-The committed declaration may state that host integration is useful or needed,
-but it cannot authorize that integration. Persistent authorization belongs to
-the developer-owned configuration for the observed checkout. One-off CLI
-overrides remain available for diagnosis and exceptional local work, but they
-must be explicit, apply only to that invocation, print the effective relaxation
-before launch, and never modify the manifest or lock. Security-relaxing
-overrides may require interactive confirmation; automation must use a separate
-explicit acknowledgement option. The later CLI specification must classify
-which changes are relaxations and preserve noninteractive failure by default.
+A capability says which tools and runtimes are available inside the capsule.
+It does not give those tools permission to access resources on the developer's
+workstation. Host access is configured separately so that installing a useful
+tool never grants an unrelated security permission as a side effect.
 
-### 8. Devcontainer Features are not the project capability format
+For example, the `docker-cli` capability puts the Docker command-line client
+inside the capsule. It does not let that client control the workstation's
+Docker daemon. Access to the host Docker socket is a separate choice owned by
+the developer. In the same way, including Git, an AI agent, a debugger, or a
+device-supporting tool does not automatically expose credentials, agent login
+state, host processes, or physical devices to the capsule.
 
-DevCapsule does not adopt devcontainer Features as the top-level capability
-declaration or resolution format. Features specify installable implementation
-units and lifecycle behavior, while DevCapsule capabilities are abstract
-project requirements resolved only through a curated complete-image matrix.
-Making Features the public format would expose the composition model rejected
-for V1 and would blur the boundary between declaring intent and executing
-third-party installation code.
+The committed project declaration may explain that a host integration is
+useful or required for part of the project. It may recommend a setting and
+describe what that setting enables, but it cannot approve the access. A
+developer must approve security-sensitive host access for their own checkout,
+either persistently in developer-owned configuration or explicitly for one
+run. Without that approval, DevCapsule keeps the safer setting and explains
+which functionality will be unavailable.
 
-This rejection does not forbid a curated image builder from consuming selected
-Features internally, nor a later import or compatibility tool. Either would
-require its own trust, pinning, ordering, and redistribution policy; it would
-not change the `devcapsule.toml` capability model decided here.
+A one-run choice applies only to that invocation and never changes the project
+declaration, lock, or persistent developer configuration. Before launching,
+DevCapsule shows the host access being granted and its security effect.
+Interactive use may ask for confirmation. Noninteractive use never grants the
+access merely because the project requested it; automation must provide an
+explicit acknowledgement defined for that purpose or the command fails with
+an actionable explanation.
+
+The CLI specification must identify every option that relaxes isolation and
+apply these rules consistently to Docker access, networking, credentials,
+personal state, host paths, devices, Linux capabilities, privileged mode, and
+similar workstation resources.
+
+### 8. DevCapsule is independent of the Dev Container specification
+
+DevCapsule's manifest, capabilities, resolution, lock, add-on, and runtime
+models are independent of the Dev Container specification. Dev Container
+Features are not DevCapsule's project capability or add-on format. The detailed
+rationale will be recorded separately.
+
+This boundary does not prohibit a future optional import, export, or
+interoperability tool. Such a tool would not define or change DevCapsule's
+native model.
 
 ### 9. Grammar
 
 ```text
-devcapsule init --need python --need python-ide --need docker-cli # writes manifest
-devcapsule lock                                                   # writes lock
-devcapsule run                                                    # uses locked digest
-devcapsule run --docker-daemon host-socket                        # one-run relaxation
-devcapsule pycharm run                                            # pinned compatibility form
-devcapsule project new my-lib --type python-lib                   # expands a template
-devcapsule project adopt .                                        # path defaults to .
+devcapsule init [PATH] --need python --need python-ide --need nodejs
+devcapsule new NAME --type python-lib
+devcapsule lock
+devcapsule lock --update
+devcapsule run
+devcapsule run --project PATH
+devcapsule run --docker-daemon host-socket
+devcapsule run --network host
+devcapsule run --device nvidia
+devcapsule run-image IMAGE [--force]
+devcapsule run-image IMAGE --shell
+devcapsule config path
+devcapsule config show
+devcapsule status
 ```
+
+`init` adopts an existing project and creates `.devcapsule/`. `new` creates a
+project from a type template, which expands to capabilities rather than being
+stored as a second source of truth. `run` discovers the project from the
+current directory unless `--project` identifies another path.
+
+`run-image` is an expert escape hatch for image construction and diagnosis. It
+accepts a local Docker image name, tag, ID, or DevCapsule alias and does not
+read the project lock, resolve capabilities, pull an alternative, update, or
+build. It fails if the requested image is not local. It still applies
+DevCapsule's safe project mount, display, foreground lifecycle, and
+developer-owned host-access decisions. `--force` skips DevCapsule image
+metadata and compatibility checks; it never bypasses host-access authorization
+or silently relaxes isolation.
 
 The exact spelling of security-override acknowledgement and personal-state
 selection remains specification work, but the behavioral constraints above are
@@ -415,13 +488,13 @@ part of this decision.
 
 ## Rationale
 
-**Declaration is cheap; composition is a research project.** Curated capability
-sets backed by complete prebuilt images deliver most of the compelling story
-for a small fraction of the work. Arbitrary composition is a small fraction of
-the story for most of the work. Option C ships the part users feel and defers
-the part that is invisible when it works. When someone requests an uncurated
-combination, maintainers can add and validate a new complete matrix entry
-without promising that the client can compose it.
+**Bounded composition is useful; arbitrary composition is a research
+project.** Curated bases plus worry-free add-ons cover common mixed-language
+work without creating a dependency solver. Node.js and OpenJDK can live in
+isolated prefixes and be applied deterministically; apt dependency graphs,
+services, system users, and arbitrary third-party installers cannot. When
+someone requests an uncurated combination, maintainers can certify a new entry
+without promising that the client can compose anything.
 
 **The declaration makes the standing rule mechanical.** A project can explain
 why it recommends an integration, while only developer-owned configuration can
@@ -438,9 +511,12 @@ and validation, but those adapters no longer own copies of the shared host and
 state policy. The parity work is therefore a down payment on this decision when
 it extracts the common planner instead of copying flags.
 
-**The lock is what makes "seconds" true.** A pinned image digest is a pull, not
-a build. This makes Docker Hub publication load-bearing rather than launch
-housekeeping.
+**The lock makes materialization predictable and repeatable.** A first use may
+still download a large IDE, GPU stack, or toolchain, but it does not compile
+the toolchains or rediscover the recipe. Docker reuses the pinned base,
+artifacts, and materialized layers on later runs. DevCapsule can report and
+minimize unavoidable cost; it cannot make large development environments
+small.
 
 Option A was rejected because the parity bug already demonstrates its failure
 at N=2. Option B was rejected on scope, not on merit: it may become justified
@@ -458,17 +534,19 @@ What becomes true:
   input-time template for capabilities.
 - Personal state and credentials are explicitly outside the committed project
   declaration and lock.
-- `devcapsule pycharm run` keeps working and continues to mean PyCharm during
-  its explicit deprecation and migration window.
+- A small catalog of worry-free add-ons supports useful mixed-language
+  environments without exposing arbitrary composition.
+- `run-image` remains available as an expert path for local image construction
+  and diagnosis without weakening host-access rules.
 
 What becomes harder:
 
 - The curated matrix is hand-maintained, and uncurated combinations fail. That
   failure must be honest and actionable, listing what was tried and how to
   request an addition. A vague failure here poisons the whole model.
-- Each supported platform requires a tested complete image and digest.
-- `devcapsule.lock` needs a deterministic format, explicit update behavior,
-  and useful merge-conflict handling.
+- Each supported platform requires tested base and add-on combinations.
+- `.devcapsule/devcapsule.lock` needs a deterministic format, explicit update
+  behavior, useful merge-conflict handling, and maintained advisory metadata.
 - Docker Hub publication becomes a prerequisite rather than a nice-to-have, so
   the existing namespace task is now on the critical path.
 - One-off isolation relaxations remain possible but must be conspicuous and
@@ -478,7 +556,7 @@ What is accepted as lost:
 
 - Arbitrary composition on day one. Users asking for combinations we have not
   curated get a clear "not yet," not magic.
-- Devcontainer Features are not the project-facing capability format for V1.
+- The Dev Container specification does not define DevCapsule's native format.
 
 Cleanups this decision forces, each currently a public-API wart:
 
@@ -498,9 +576,8 @@ Open questions deliberately left to sibling decisions:
   of it across agent runtimes.
 - **D-0003**: Gemini CLI as the default agent capability, recording the
   redistribution rationale that currently exists only in chat history.
-- A later decision may consider curated internal use or import compatibility
-  for devcontainer Features. Their use as DevCapsule's top-level capability
-  format is rejected by this record.
+- A later document will record the detailed rationale for keeping DevCapsule
+  independent of the Dev Container specification.
 
 ## Reopen If
 
@@ -510,8 +587,8 @@ Open questions deliberately left to sibling decisions:
 - The resolver acquires version solving. At that point this is a package
   manager and deserves its own decision record rather than growing quietly
   inside a CLI.
-- Prebuilt image pull time stops being meaningfully faster than a local build,
-  which would remove the main justification for the curated matrix.
+- Local materialization becomes too slow or duplicates too much data despite
+  Docker layer and artifact caching.
 - Real projects need more than one simultaneously running interactive IDE
   surface often enough that the single-surface model becomes an obstacle.
 - Project policy and personal state cannot remain cleanly separated without
