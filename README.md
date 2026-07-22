@@ -264,6 +264,29 @@ Current validation workflow:
   smoke tests. Manual validation is still useful for host Docker/image/IDE
   behavior that cannot yet be exercised in repository automation.
 
+Session checkpoint, 2026-07-22:
+
+- Added the V1 state and persistence specification at
+  `docs/specifications/state-and-persistence.md`. It defines a
+  checkout-scoped persistent container home, dynamic component-owned state
+  slots, XDG-separated configuration/data/state/cache roots, directory and
+  Docker-volume storage, collision and concurrency rules, developer-owned
+  authorization, state-management commands, and `run-image` behavior.
+- D-0001 now uses persistent home as the universal fallback instead of a fixed
+  IDE-state/config/plugins model. Components may declare namespaced slots such
+  as `pycharm/plugins`, `codium/extensions`, or `postgres/data` only when they
+  need lifecycle or storage behavior beyond `HOME`.
+- The state specification includes a concrete migration from the current
+  PyCharm dogfood command: its existing home, config, plugins, system, logs,
+  and caches are adopted once, while the local debug image is launched through
+  `run-image` with checkout-owned Docker and sudo decisions.
+- D-0001 remains `proposed`. The next step is human review of the completed
+  state specification. The user has prioritized a narrow PyCharm dogfood
+  implementation of persistent home and component state before settling the
+  remaining generic privilege and implementation-constraint grammar.
+- This checkpoint changed documentation only. No implementation validation was
+  run or warranted.
+
 Session checkpoint, 2026-07-21:
 
 - D-0001 sections 4 through 9 are now settled for the V1 working
@@ -366,18 +389,16 @@ Loose ends:
 
 Current task:
 
-1. Specify host-backed state and configuration directories for the
-   capability-first model in D-0001.
+1. Implement the narrow PyCharm dogfood slice of the state and persistence
+   specification supporting D-0001.
    Requirements: R-IDE-CONFIG-001 (reinterpreted), R-FRAMEWORK-001,
    R-PYTHON-MVP-003, R-SCOPE-001, root R-PRODUCT-002.
-   Done means: the specification defines exact XDG-compliant host paths and
-   container mount points for project source, durable IDE state, rebuildable
-   runtime state, personal integrations, and local DevCapsule configuration;
-   their lifecycles and trust boundaries; checkout authorization; global IDE
-   profiles; `run-image` behavior; and commands for inspection, relocation,
-   and cleanup.
-   Scope: specification only. Confirm the resulting state model against
-   D-0001 before asking the human to adopt that decision.
+   Done means: the PyCharm launcher mounts a checkout-scoped persistent home at
+   `/home/devcapsule`, uses component-owned config/plugins/system/log/cache
+   mounts, can adopt the existing dogfood directories, and successfully starts
+   the current dogfood project with the local debug image. Add focused planner
+   and command tests, then run the Nox build gate before manual host validation.
+   Keep existing host Docker and sudo access explicit and developer-owned.
 
 2. Address the shared run-option parity gap recorded in
    `devcapsule/implementation-notes/bugs/2026-07-13-codium-run-option-parity.md`,
@@ -389,7 +410,7 @@ Current task:
    boundaries, run `cd devcapsule && python -m nox -s build`, and manually
    validate security-sensitive profiles.
 
-2. Add a sensible shared extended-logging option for configuration `run`
+3. Add a sensible shared extended-logging option for configuration `run`
    subcommands. It should print a sanitized runtime/Docker plan, enable
    configuration-specific verbose IDE logging, keep the foreground process
    attached, preserve actionable failure evidence, and never expose Git,
@@ -400,7 +421,7 @@ Current task:
    redaction, source and PEX help surfaces, and at least one manual failing IDE
    startup that leaves useful diagnostics.
 
-3. Claim and prepare the Docker Hub publication namespace for V1 release
+4. Claim and prepare the Docker Hub publication namespace for V1 release
    images, then validate a real push/pull path for user-facing prebuilt
    images.
    Notes: `devcapsule/implementation-notes/2026-07-15-docker-hub-namespace-and-publication-plan.md`
@@ -413,10 +434,9 @@ Current task:
 
 Next task:
 
-1. Specify the host-backed state and configuration directory model described
-   in current task 1. After D-0001 is complete and adopted, use the shared
-   IDE-configuration/runtime protocol to address Codium option parity, then
-   shared extended run logging.
+1. Implement and validate the PyCharm dogfood persistence slice described in
+   current task 1. Use that evidence to refine and adopt D-0001 before settling
+   the deferred generic privilege and implementation-constraint grammar.
 
 Standing rule:
 

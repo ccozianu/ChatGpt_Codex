@@ -110,10 +110,10 @@ local materialization may also require substantial downloads.
 Adopt **Option C**.
 
 Review checkpoint, 2026-07-21: the human and agent have settled sections 1
-through 9 below for the V1 working specification. The exact host-backed state
-and configuration directory layout is the next specification task. This
-decision record remains `proposed` until that work confirms the state model
-and the human adopts the finished record.
+through 9 below for the V1 working specification. The supporting host-backed
+state model was completed in `docs/specifications/state-and-persistence.md` on
+2026-07-22. This decision record remains `proposed` until the human reviews
+that supporting specification and adopts the finished record.
 
 ### 1. Portable project declaration and developer-owned runtime realization
 
@@ -221,48 +221,46 @@ A fresh clone, fork, or second checkout cannot inherit another checkout's
 security approvals merely by copying or claiming the same committed project
 identity. Removing a checkout does not promote another automatically.
 
-Personal IDE state and credentials also remain developer-owned and outside the
+Personal tool state and credentials remain developer-owned and outside the
 committed declaration and image. This includes IDE settings and extensions,
-Git identity and credential material, agent login state, token values, and the
-host paths of personal state roots. The project may describe an integration it
-needs, but it cannot supply credentials, assume a developer's host paths, or
-authorize their exposure.
+Git identity and credential material, agent login and conversation state,
+token values, and database contents. The project may describe an integration
+it needs, but it cannot supply credentials, assume a developer's host paths,
+or authorize their exposure.
 
-IDE application state is durable and project-scoped by default. DevCapsule
-persists the IDE's own configuration, home, and extension or plugin state in a
-developer-owned project state directory and mounts it again for later sessions.
-This allows values entered through IDE settings, including secrets stored by
-the IDE or a plugin, to survive container replacement without teaching
-DevCapsule plugin-specific storage formats or copying secret values into TOML.
-Disposable caches and logs remain separable from this durable state.
+Every normal launch receives a DevCapsule-managed persistent home, scoped to
+the observed checkout by default and mounted as the container user's standard
+`HOME`. This is not the developer's real host home. It lets IDEs, Codex,
+Gemini CLI, Claude Code, Antigravity, and tools unknown to DevCapsule preserve
+their normal settings, credentials, and conversations without tool-specific
+launcher code.
 
-DevCapsule also provides a persistent project-runtime state mount by default,
-replacing the need to repeat `--project-state` on each launch. It is scoped to
-the local checkout and kept outside the source tree. It holds rebuildable but
-expensive state such as IDE indexes and system data, logs, downloaded Python
-and npm packages, and other language-tool or build caches. Runtime components
-map their conventional cache locations into named locations beneath this
-mount—for example through `XDG_CACHE_HOME`, `PIP_CACHE_DIR`, and the npm cache
-setting—rather than assuming that every tool follows XDG paths automatically.
-Deleting project-runtime state may make the next launch or build slower but
-must not delete source, IDE preferences, or credentials.
+The persistent home is a fallback, not the only persistence mechanism. A
+curated component may declare namespaced state slots with its required
+container path, lifecycle, sensitivity, scope, storage implementation,
+ownership, concurrency, and deletion behavior. Names such as
+`pycharm/plugins`, `codium/extensions`, and `postgres/data` belong to their
+components rather than forming a hard-coded global IDE model. Components that
+keep their state correctly beneath `HOME` need no additional slots.
 
-Durable IDE state, project-runtime state, and the project source are therefore
-three distinct mounts with different lifecycles and trust implications. Their
-host paths are selected by convention from the observed project and checkout;
-ordinary use does not require command-line path options. A developer-owned
-configuration value may relocate them when workstation storage layout requires
-it.
+DevCapsule stores its own configuration and authorization records beneath the
+workstation configuration root. Persistent homes and durable component data
+use the workstation data root; operational history uses the state root; and
+rebuildable indexes, packages, and other caches use the cache root. This keeps
+container-writable payloads away from DevCapsule's policy files and gives
+cleanup commands a reliable lifecycle boundary.
 
-A developer may instead opt a project into a workstation-global state profile
-for a particular IDE implementation. This shares that IDE's settings and
-stored credentials with every checkout explicitly assigned to the profile, so
-it is never selected by committed project configuration or by default. Because
-durable IDE state may contain credentials, a new checkout must separately
-authorize mounting either the project-scoped state or a global IDE profile; a
-copied project identity alone is insufficient. The exact XDG data and state
-paths and the command used to select a global profile remain CLI specification
-work.
+Host paths are selected by convention from the verified project and checkout;
+ordinary use does not require path options. A developer-owned setting may
+relocate a slot. Named profiles may deliberately share a home or component
+state, but every checkout separately authorizes a profile that may expose
+credentials or conversations. Committed project configuration can neither
+select a profile nor provide an arbitrary host path.
+
+The exact layout, state-contract schema, conflict rules, authorization,
+inspection, relocation, cleanup, and `run-image` behavior are specified in
+`docs/specifications/state-and-persistence.md` and form part of this working
+decision.
 
 Resolution separately produces `.devcapsule/devcapsule.lock`, generated and
 committed, which pins the matrix and add-on catalog versions, target platform,
@@ -482,9 +480,11 @@ developer-owned host-access decisions. `--force` skips DevCapsule image
 metadata and compatibility checks; it never bypasses host-access authorization
 or silently relaxes isolation.
 
-The exact spelling of security-override acknowledgement and personal-state
-selection remains specification work, but the behavioral constraints above are
-part of this decision.
+The exact spelling of security-override acknowledgement, implementation
+constraints, and generic privilege options is deferred until after the first
+dogfood implementation of this contract. Their behavioral and security
+constraints are part of this decision; the implementation must not invent
+ambient access while their final spelling remains open.
 
 ## Rationale
 

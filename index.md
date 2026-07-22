@@ -29,6 +29,10 @@ same change.
 - [Decision record template](docs/decisions/_template.md)
 - [D-0001 Capability-First CLI Model](docs/decisions/d-0001-capability-first-cli-model.md)
 
+## Specifications
+
+- [DevCapsule V1 state and persistence](docs/specifications/state-and-persistence.md)
+
 ## Active DevCapsule Development
 
 - [DevCapsule Python CLI](devcapsule/README.md)
