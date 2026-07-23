@@ -93,15 +93,16 @@ Current status:
 - `docker4pycharm/` preserves the original working PyCharm shell/Docker
   prototype, including historical design context now stored in
   `docker4pycharm/historical-root-README.md`.
-- `devcapsule/` contains the active Python package, configuration-first CLI,
-  distribution path, tests, and the PyCharm configuration package.
+- `devcapsule/` contains the active Python package, transitional
+  configuration-first CLI, distribution path, tests, and the PyCharm
+  configuration package.
 - `devcapsule pycharm build` now uses a Python-owned `python-on-whales` /
   Docker buildx backend plus
   packaged PyCharm runtime assets under `devcapsule/`, instead of delegating
   image construction to `docker4pycharm/build-image.sh`.
-- The accepted end-user CLI model is
-  `devcapsule CONFIGURATION ACTION [options]`; noun-first paths such as
-  `devcapsule run pycharm` are intentionally unsupported.
+- D-0001 adopts capability-first project declarations, platform locks, and
+  `devcapsule run` as the target end-user model. The currently implemented
+  `devcapsule CONFIGURATION ACTION [options]` paths are transitional.
 - `codium_with_claude` is the active next proof-point configuration. It is a
   distinct VSCodium plus Claude Code environment; the earlier
   `vscode_with_claude` placeholder remains separate.
@@ -312,7 +313,7 @@ Superseded session checkpoint, 2026-07-19:
   configuration overlays, developer-owned authorization for project
   recommendations, XDG/local-checkout configuration, project and checkout
   identity, durable project-scoped IDE and runtime state, abstract
-  capabilities with concrete locked components, and deprecation of
+  capabilities with concrete platform-locked components, and deprecation of
   configuration-first `run` commands in favor of `devcapsule run`.
 - D-0001 remains `proposed` while sections 4 through 9 await review. Resume at
   section 4, "Two IDE capabilities resolve to one interactive surface."
@@ -332,8 +333,8 @@ Changed:
 - Wrote `docs/decisions/d-0001-capability-first-cli-model.md`, status
   `proposed`. It recommends capability declaration plus a curated resolution
   matrix over both the configuration-first status quo and a full composition
-  engine, splits declaration (`devcapsule.toml`) from resolution
-  (`devcapsule.lock`) and personal state, retains `pycharm` as an
+  engine, splits declaration (`devcapsule.toml`) from platform-specific
+  resolution locks and personal state, retains `pycharm` as an
   implementation-pinning compatibility alias, and rejects devcontainer
   Features as the top-level capability format.
 - Added a capability-first CLI specification task as current task 1, ahead of
@@ -387,18 +388,135 @@ Loose ends:
 - Because D-0001 reinterprets implemented requirement R-IDE-CONFIG-001, the
   corresponding proposed requirement record still needs to be added.
 
+Implementation checkpoint, 2026-07-22:
+
+- The first PyCharm dogfood slice is implemented. The launcher now mounts
+  persistent home at `/home/devcapsule`, separates PyCharm config, plugins,
+  system, logs, and tool cache, and maps the existing dogfood directory roots
+  into those component locations.
+- Added top-level `devcapsule run-image IMAGE` with explicit
+  `--docker-daemon host-socket` and `--development-sudo`; it uses
+  `--pull=never` so this expert path cannot silently fetch a missing image.
+- The full Nox build gate passes with 60 tests, mypy, source smoke tests, PEX
+  build, and PEX smoke tests. The local image label was confirmed as
+  `devcapsule.configuration=pycharm`.
+- Manual GUI validation must run on the host because the host directory names
+  supplied by the current dogfood command are intentionally not visible inside
+  this capsule. Use the command in `devcapsule/README.md`.
+
+Manual validation checkpoint, 2026-07-23:
+
+- The user confirmed that the updated codebase successfully built
+  `mycodespace.ai/pycharm:debug-v018`. Image construction for this dogfood slice
+  is therefore validated.
+- The user then launched `debug-v018` through `run-image` with the existing
+  dogfood state directories and confirmed the dogfood slice is validated.
+  Inspection from the running capsule confirmed that the existing dogfood host home is
+  mounted at `/home/devcapsule`, the intended checkout is mounted as the
+  project, existing agent state is active from the persistent home, Docker and
+  passwordless development sudo are available after being explicitly
+  requested, and PyCharm remains foreground-attached beneath PID 1 so its exit
+  owns the container lifecycle.
+- The narrow PyCharm persistence implementation supporting D-0001 is therefore
+  manually validated. No additional automated gate was run for this
+  documentation-only checkpoint; the implementation's full Nox build gate had
+  already passed with 60 tests.
+- Docker-daemon inspection of the live container confirmed `AutoRemove=true`,
+  no restart policy, an unprivileged `1000:1000` container user, the expected
+  persistent-home and nested component mounts, explicit Docker-socket and sudo
+  group exposure, and `tini` supervising the foreground PyCharm process.
+  Inspection also found `NetworkMode=host`. The current PyCharm launcher
+  hard-codes this legacy relaxation even though the `run-image` invocation did
+  not authorize it explicitly. This does not reopen the narrow persistence
+  result. D-0001 now settles the required behavior, and the implementation fix
+  is tracked in the dedicated ambient-host-network bug.
+- PyCharm prompted for JetBrains Account login, license validation, and terms
+  acceptance on the first `debug-v018` dogfood launch. Inspection found that
+  the expected state was not missing: the persistent config contains the
+  pre-existing JetBrains account token, KeePass database, license trace, and
+  PyCharm key files, while persistent home contains earlier JetBrains consent
+  and Java preference records. The IDE log specifically reports that login is
+  required to continue using the JetBrains Account license. The image also has
+  a newly generated `/etc/machine-id` and no desktop keyring/session bus.
+  Therefore persistence of the known files is validated, but uninterrupted
+  reuse of third-party authentication and licensing is not. A changed machine
+  identity, unusable password-store secret, expired server-side session, or
+  changed JetBrains terms may legitimately require reauthentication. Do not
+  persist the host machine identity or promise login continuity until this is
+  tested across another launch and checked against JetBrains licensing and
+  credential-storage behavior.
+- On two subsequent restarts, the user confirmed that Help -> About continued
+  to show the retained license token, but PyCharm prompted for the JetBrains
+  User License Agreement every time. Inspection confirmed that the persistent
+  home contains JetBrains's `consentOptions`, `PrivacyPolicy`, and Java user
+  preference trees. However, the PyCharm 2026.1
+  `noncommerciallicense/prefs.xml` remains an empty preference map after
+  acceptance, while `/etc/machine-id` remains container-local. This separates
+  durable license-token persistence from agreement acceptance. The user
+  classified the repeated prompt as annoying but survivable, so it is now a
+  documented PyCharm limitation on the backlog rather than a blocker for the
+  state-model review. Do not mount the host machine identity as a workaround.
+- Follow-up dogfood use exposed a project-path migration regression:
+  `run-image` did launch PyCharm through Docker, but it did not expose
+  `--project-mount` and therefore selected a newly generated container path.
+  Adopted PyCharm state still refers to
+  `/workspace/301e4208ef81-ChatGPT_Codex`, including the saved project virtual
+  environment. The expert command now accepts an explicit project mount, and
+  the dogfood migration command preserves that established path.
+- Both PyCharm launch paths generated an `/etc/passwd` entry whose home remained
+  `/ide-global-settings/home` after the persistence migration. That stale
+  account home caused Java preferences, IDE filesystem probes, and apparently
+  JetBrains license state lookup to target an unmounted directory. The shared
+  launcher now declares `/home/devcapsule`, matching `HOME` and the persistent
+  home mount. Restart validation indicates this also restores license
+  continuity; the full pytest suite passes with 61 tests.
+
 Current task:
 
-1. Implement the narrow PyCharm dogfood slice of the state and persistence
-   specification supporting D-0001.
-   Requirements: R-IDE-CONFIG-001 (reinterpreted), R-FRAMEWORK-001,
-   R-PYTHON-MVP-003, R-SCOPE-001, root R-PRODUCT-002.
-   Done means: the PyCharm launcher mounts a checkout-scoped persistent home at
-   `/home/devcapsule`, uses component-owned config/plugins/system/log/cache
-   mounts, can adopt the existing dogfood directories, and successfully starts
-   the current dogfood project with the local debug image. Add focused planner
-   and command tests, then run the Nox build gate before manual host validation.
-   Keep existing host Docker and sudo access explicit and developer-owned.
+- On 2026-07-23, Costin Cozianu adopted D-0001 after final review of the
+  capability-first CLI and supporting state specification. The adopted model
+  uses committed manifests and platform locks, developer-owned checkout input,
+  generated local resolution, explicit host authorization, and a broad expert
+  `run-image` escape hatch. R-IDE-CONFIG-001 now records the capability-first
+  target; the existing configuration-first commands are transitional.
+- D-0001 final review has settled `run-image` as the legacy, compatibility,
+  dogfood, and recovery escape hatch. It may use discovered
+  `.devcapsule/devcapsule.toml` values, command-line values take precedence as
+  run-once choices, and missing required effective values cause an actionable
+  failure. It never reads the lock or turns committed recommendations into
+  host authorization.
+- D-0001 final review has also settled initialization safety: `devcapsule init`
+  is create-only and fails without modifying files when a project is already
+  initialized. It never silently merges or overwrites an existing declaration.
+- D-0001 final review has settled lock platform scope. Generated locks are
+  committed as `.devcapsule/devcapsule.<platform-alias>.lock`, initially
+  `devcapsule.linux-amd64.lock`. `devcapsule lock` generates only for its
+  execution platform; cross-target lock generation and cross-platform IDE
+  execution are outside V1 scope.
+- D-0001 final review has settled manifest versioning. The required top-level
+  key is `devcapsule-schema-version = 1`; missing or unsupported versions fail
+  explicitly, compatible additions retain the version, and breaking schema
+  changes increment it. Locks use an independent format version.
+- D-0001 final review has settled developer-owned checkout input and generated
+  resolution. The default checkout uses `devcapsule.checkout.toml` plus
+  `devcapsule.resolved.toml` beneath its XDG project-identity directory and
+  needs no checkout name; additional checkouts use named pairs. Generated
+  locks and resolved files carry SHA-256 digests over schema-validated RFC 8785
+  canonical JSON. Stale artifacts fail with regeneration instructions, while
+  `devcapsule run --force` may use them once without rewriting or bypassing
+  workstation policy.
+- D-0001 final review has settled expert Docker control. `run-image` permits
+  broad explicit mount and Docker-specific choices, performs structural and
+  conflict validation, and warns rather than enforcing a broad forbidden list;
+  restrictive workstation policy remains the upper boundary. The existing
+  implicit PyCharm host network is tracked separately as
+  `devcapsule/implementation-notes/bugs/2026-07-23-pycharm-ambient-host-network.md`.
+
+1. Implement the first dogfood adoption slice from adopted D-0001: create the
+   committed `.devcapsule/devcapsule.toml`, developer-owned checkout input and
+   generated resolution, and persistent `state adopt` records. Correct the
+   daemon-inspected legacy PyCharm `NetworkMode=host` default while wiring the
+   adopted runtime model.
 
 2. Address the shared run-option parity gap recorded in
    `devcapsule/implementation-notes/bugs/2026-07-13-codium-run-option-parity.md`,
@@ -434,9 +552,9 @@ Current task:
 
 Next task:
 
-1. Implement and validate the PyCharm dogfood persistence slice described in
-   current task 1. Use that evidence to refine and adopt D-0001 before settling
-   the deferred generic privilege and implementation-constraint grammar.
+1. Implement the narrow DevCapsule dogfood adoption path defined by adopted
+   D-0001, beginning with `devcapsule init`, checkout-local resolution, and
+   in-place adoption of the existing PyCharm state directories.
 
 Standing rule:
 

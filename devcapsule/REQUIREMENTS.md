@@ -96,7 +96,7 @@ Explicitly later or deferred:
 
 ### Active Python CLI And V1 Scope
 
-- `R-IDE-CONFIG-001` — [Configuration-First End-User CLI Model](docs/requirements/r-ide-config-001-configuration-first-end-user-cli-model.md)
+- `R-IDE-CONFIG-001` — [Capability-First End-User CLI Model](docs/requirements/r-ide-config-001-configuration-first-end-user-cli-model.md)
 - `R-PYTHON-MVP-001` — [Source Checkout Install And Run](docs/requirements/r-python-mvp-001-source-checkout-install-and-run.md)
 - `R-PYTHON-MVP-002` — [Single-File Python CLI Artifact](docs/requirements/r-python-mvp-002-single-file-python-cli-artifact.md)
 - `R-PYTHON-MVP-003` — [Python MVP Feature Scope](docs/requirements/r-python-mvp-003-python-mvp-feature-scope.md)

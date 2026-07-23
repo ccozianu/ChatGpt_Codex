@@ -40,6 +40,7 @@ single end-to-end pass/fail test.
 
 ## Related
 
+- `docs/decisions/d-0001-capability-first-cli-model.md`
 - `R-PRODUCT-002`
 - `R-PRODUCT-003`
 - `R-DOCS-002`

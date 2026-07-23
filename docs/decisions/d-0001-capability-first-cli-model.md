@@ -1,10 +1,10 @@
 ---
 id: D-0001
 title: Capability-First CLI Model
-status: proposed
+status: adopted
 date-proposed: 2026-07-16
-date-decided:
-decided-by:
+date-decided: 2026-07-23
+decided-by: Costin Cozianu
 requirements:
   - R-IDE-CONFIG-001
   - R-FRAMEWORK-001
@@ -109,11 +109,9 @@ local materialization may also require substantial downloads.
 
 Adopt **Option C**.
 
-Review checkpoint, 2026-07-21: the human and agent have settled sections 1
-through 9 below for the V1 working specification. The supporting host-backed
-state model was completed in `docs/specifications/state-and-persistence.md` on
-2026-07-22. This decision record remains `proposed` until the human reviews
-that supporting specification and adopts the finished record.
+Adopted 2026-07-23 by Costin Cozianu after final human-agent review of sections
+1 through 9 and the supporting host-backed state model in
+`docs/specifications/state-and-persistence.md`.
 
 ### 1. Portable project declaration and developer-owned runtime realization
 
@@ -138,6 +136,8 @@ content. It declares portable capabilities, project identity,
 container-internal settings, and safe values:
 
 ```toml
+devcapsule-schema-version = 1
+
 [capabilities]
 need = ["python", "python-ide", "docker-cli", "gemini"]
 
@@ -152,6 +152,13 @@ value = "host-socket"
 justification = "Required to run peer DevCapsule instances during the full test suite."
 enables = ["full-test-suite"]
 ```
+
+`devcapsule-schema-version` is a required positive integer. `devcapsule init`
+always writes it. Backward-compatible schema additions retain the current
+version; a change that alters the meaning of existing content increments it.
+DevCapsule fails with an actionable error when the key is missing or its value
+is unsupported, and never guesses or silently upgrades a manifest version.
+Generated platform locks carry their own independent format version.
 
 Committed repository content is untrusted for purposes of workstation access.
 It must not activate host Docker socket access, host networking, credential or
@@ -198,28 +205,93 @@ $XDG_CONFIG_HOME/devcapsule/projects/<url-encoded-creator>/<url-encoded-slug>/
 ```
 
 DevCapsule defines one canonical URI normalization and percent-encoding so an
-identity maps deterministically. The common one-checkout case uses a single,
-plain TOML file:
+identity maps deterministically. The common one-checkout case uses two clearly
+named files:
 
 ```text
-devcapsule.toml
+devcapsule.checkout.toml
+devcapsule.resolved.toml
 ```
 
-That file records a human-readable checkout name, its workstation-observed
-canonical path, and its local values. When the same project identity gains a
-second checkout, additional records use:
+`devcapsule.checkout.toml` is durable developer-owned input. It records the
+decoded project identity, workstation-observed canonical checkout path,
+adopted state mappings, and persistent host-access decisions. The default
+checkout needs no name. It is mode `0600`, contains no credential values, and
+is never committed.
+
+```toml
+devcapsule-checkout-schema-version = 1
+
+[project]
+creator = "https://github.com/ccozianu"
+slug = "devcapsule"
+
+[checkout]
+path = "/workspace/301e4208ef81-ChatGPT_Codex"
+
+[state.adopted]
+home = "/home/developer/.local/share/legacy-devcapsule/home"
+"pycharm/config" = "/home/developer/.local/share/legacy-devcapsule/config"
+
+[host]
+docker-daemon = "host-socket"
+development-sudo = true
+network = "bridge"
+```
+
+Missing `[state.adopted]` or `[host]` tables mean that no external state or
+special host access is configured. Entries in `[host]` are direct,
+developer-owned authorization for this checkout. They contain decisions, not
+tokens or credential material. `state adopt` updates `[state.adopted]`
+atomically.
+
+`devcapsule.resolved.toml` is generated local output. It records the effective
+values produced from workstation defaults, the committed declaration, and the
+checkout file. It is not an additional configuration layer and must not be
+edited as source. Run-once command-line values are applied after it and are not
+written into it. It carries its own `devcapsule-resolved-schema-version` and a
+`[sources]` table containing the manifest, platform-lock, workstation-config,
+and checkout-input SHA-256 digests. A missing optional source is represented
+explicitly rather than by hashing an invented empty document.
+
+When the same project identity gains another checkout, paired records use:
 
 ```text
-checkouts/<checkout-name>.toml
+checkouts/<checkout-name>.checkout.toml
+checkouts/<checkout-name>.resolved.toml
 ```
 
-The first record is not moved or renamed. Checkout names are workstation-owned
-labels, and each record repeats its decoded creator, slug, checkout name, and
-canonical path so it remains understandable and salvageable with an ordinary
-text editor. DevCapsule verifies the observed path before applying the record.
-A fresh clone, fork, or second checkout cannot inherit another checkout's
-security approvals merely by copying or claiming the same committed project
-identity. Removing a checkout does not promote another automatically.
+The default records are not moved or renamed. Additional checkout names are
+workstation-owned labels. Each checkout input repeats its decoded creator,
+slug, optional checkout name, and canonical path so it remains understandable
+and salvageable with an ordinary text editor. DevCapsule verifies the observed
+path before applying the record. A fresh clone, fork, or second checkout cannot
+inherit another checkout's security approvals merely by copying or claiming
+the same committed project identity. Removing a checkout does not promote
+another automatically.
+
+Generated locks and resolved files record SHA-256 digests of the
+schema-validated inputs from which they were produced. DevCapsule parses TOML,
+validates it against the applicable schema, encodes the resulting value tree
+as RFC 8785 canonical JSON, and hashes those bytes. V1 manifest schemas use
+only value types supported by that canonical representation. TOML whitespace,
+comments, and key ordering therefore do not make generated output stale.
+Python's standard `tomllib` supplies parsing; the dependency-free Apache-2.0
+`rfc8785` package is the accepted canonical encoder.
+
+A platform lock records the digest of the committed declaration relevant to
+resolution. A local resolved file records the digests of its committed
+declaration, matching platform lock, workstation configuration, and checkout
+input. If a digest no longer matches, normal launch refuses to run and prints
+the exact regeneration command: `devcapsule lock` for a stale platform lock
+and `devcapsule config resolve` for stale local resolution. Modification times
+are informational only and never establish freshness.
+
+`devcapsule run --force` may run once using stale generated values after a
+conspicuous warning. It does not rewrite generated files, persist an approval,
+grant host access absent from the stale resolution, or override restrictive
+workstation policy. This is distinct from `run-image --force`, which skips
+image metadata and compatibility checks.
 
 Personal tool state and credentials remain developer-owned and outside the
 committed declaration and image. This includes IDE settings and extensions,
@@ -262,12 +334,13 @@ inspection, relocation, cleanup, and `run-image` behavior are specified in
 `docs/specifications/state-and-persistence.md` and form part of this working
 decision.
 
-Resolution separately produces `.devcapsule/devcapsule.lock`, generated and
-committed, which pins the matrix and add-on catalog versions, target platform,
-base-image digest, exact components and add-on artifact digests, and the
-materialization recipe version. The lock is resolution output, not a fifth
-general-purpose configuration overlay. `run` uses these locked inputs; it does
-not silently re-resolve.
+Resolution separately produces a generated and committed platform lock named
+`.devcapsule/devcapsule.<platform-alias>.lock`, for example
+`.devcapsule/devcapsule.linux-amd64.lock`. It pins the matrix and add-on catalog
+versions, target platform, base-image digest, exact components and add-on
+artifact digests, and the materialization recipe version. The lock is
+resolution output, not a fifth general-purpose configuration overlay. `run`
+uses these locked inputs; it does not silently re-resolve.
 
 ### 2. A capability is an abstract requirement; the lock holds concrete components
 
@@ -287,8 +360,8 @@ implementation bakes in a lie the first time the implementation changes.
 
 The abstract capability set {python, python-ide, gemini} resolves to the
 curated PyCharm image by default in the initial matrix. The selected concrete
-IDE is recorded in `.devcapsule/devcapsule.lock` and may change only through
-an explicit lock update. A project that genuinely depends on one
+IDE is recorded in the matching platform lock and may change only through an
+explicit lock update. A project that genuinely depends on one
 implementation may add an implementation constraint to resolution, but
 ordinary users declare intent and do not select an IDE product in the run
 command. The exact constraint spelling remains schema work.
@@ -367,19 +440,33 @@ changing the project declaration or capability model.
 ### 6. Lock lifecycle and failure behavior
 
 `devcapsule lock` normalizes the declared capability set, selects an exact
-supported matrix entry for the current or explicitly requested platform, and
-writes the lock. The lock records at least:
+supported matrix entry for the current execution platform, and writes
+`.devcapsule/devcapsule.<platform-alias>.lock`. Stable aliases use normalized
+OCI names in the form `<os>-<architecture>[-<variant>]`; the initial alias is
+`linux-amd64`, corresponding to `linux/amd64`. A host-relative name such as
+`native` is never stored in a filename or lock.
+
+V1 does not generate locks for a different target platform. A developer adds
+a lock for another supported platform by running and validating DevCapsule on
+that platform. Cross-compiling project artifacts from within one capsule is a
+separate toolchain concern and does not require cross-platform IDE execution
+or cross-target lock generation.
+
+Each platform lock records at least:
 
 - a lock-format version and resolution-matrix version;
+- the SHA-256 digest of the canonical validated project declaration used for
+  resolution;
 - the normalized requested capabilities and selected components;
 - the target operating system and architecture;
 - the immutable base-image registry reference and digest;
 - the add-on catalog version, exact add-on versions, and artifact digests;
 - the deterministic add-on order and materialization recipe version.
 
-`devcapsule run` requires a lock consistent with the manifest and current
-platform. A missing or stale lock produces an actionable instruction to run
-`devcapsule lock`; it never changes the selected image implicitly. An
+`devcapsule run` requires the lock matching its execution platform to be
+consistent with the manifest. A missing or stale matching lock produces an
+actionable instruction to run `devcapsule lock` on that platform; it never
+changes the selected image implicitly. An
 unavailable base or add-on artifact is a pull or registry error, not permission
 to select a different input. Lock regeneration is explicit, and the generated
 format must be deterministic so ordinary branch merges can distinguish a real
@@ -455,6 +542,7 @@ devcapsule new NAME --type python-lib
 devcapsule lock
 devcapsule lock --update
 devcapsule run
+devcapsule run --force
 devcapsule run --project PATH
 devcapsule run --docker-daemon host-socket
 devcapsule run --network host
@@ -463,20 +551,50 @@ devcapsule run-image IMAGE [--force]
 devcapsule run-image IMAGE --shell
 devcapsule config path
 devcapsule config show
+devcapsule config resolve
 devcapsule status
 ```
 
-`init` adopts an existing project and creates `.devcapsule/`. `new` creates a
-project from a type template, which expands to capabilities rather than being
-stored as a second source of truth. `run` discovers the project from the
-current directory unless `--project` identifies another path.
+`init` adopts an existing project and creates `.devcapsule/`. It is
+create-only: if the project is already initialized for DevCapsule, `init`
+fails without changing existing files and directs the operator to explicit
+inspection or update commands. It never merges with or overwrites an existing
+DevCapsule declaration implicitly. `new` creates a project from a type
+template, which expands to capabilities rather than being stored as a second
+source of truth. `run` discovers the project from the current directory unless
+`--project` identifies another path.
 
-`run-image` is an expert escape hatch for image construction and diagnosis. It
-accepts a local Docker image name, tag, ID, or DevCapsule alias and does not
-read the project lock, resolve capabilities, pull an alternative, update, or
-build. It fails if the requested image is not local. It still applies
-DevCapsule's safe project mount, display, foreground lifecycle, and
-developer-owned host-access decisions. `--force` skips DevCapsule image
+`run-image` is the legacy, compatibility, dogfood, and recovery escape hatch
+for cases in which the normal resolved path is unavailable or insufficient. It
+accepts a local Docker image name, tag, ID, or DevCapsule alias and may run
+with or without a project declaration. It does not read the project lock,
+resolve capabilities, pull an alternative, update, or build. It fails if the
+requested image is not local.
+
+When `run-image` discovers `.devcapsule/devcapsule.toml`, it uses applicable
+values from that declaration unless they are overridden explicitly on the
+command line. Effective values use the ordinary configuration hierarchy from
+section 1: workstation defaults, the project declaration, developer-owned
+checkout configuration, and finally command-line values. Command-line values
+have the highest ordinary-value precedence and represent choices for that
+invocation only. After resolving the overlays, `run-image` fails with an
+actionable error if a value required for the requested operation was supplied
+by neither the configuration layers nor the command line and has no safe
+default.
+
+Committed recommendations remain recommendations and never become effective
+host permissions merely because `run-image` discovered them. Explicit
+command-line host-access options are run-once developer authorization, but
+they cannot override restrictive workstation policy. `run-image` still
+applies DevCapsule's project-mount planning, display, foreground lifecycle, and
+developer-owned host-access rules. Because it is the expert recovery path, it
+permits broad, explicit mount and Docker-specific command-line choices. It
+requires structurally valid values, rejects conflicting destinations within
+the generated plan, and makes unusual or risky choices conspicuous, but does
+not maintain a broad forbidden-path or forbidden-option list. The developer is
+allowed to depart substantially from curated defaults and is warned that doing
+so assumes responsibility for Docker behavior and host exposure. Restrictive
+workstation policy remains the upper boundary. `--force` skips DevCapsule image
 metadata and compatibility checks; it never bypasses host-access authorization
 or silently relaxes isolation.
 
@@ -545,8 +663,8 @@ What becomes harder:
   failure must be honest and actionable, listing what was tried and how to
   request an addition. A vague failure here poisons the whole model.
 - Each supported platform requires tested base and add-on combinations.
-- `.devcapsule/devcapsule.lock` needs a deterministic format, explicit update
-  behavior, useful merge-conflict handling, and maintained advisory metadata.
+- Platform locks need a deterministic format, explicit update behavior, useful
+  merge-conflict handling, and maintained advisory metadata.
 - Docker Hub publication becomes a prerequisite rather than a nice-to-have, so
   the existing namespace task is now on the critical path.
 - One-off isolation relaxations remain possible but must be conspicuous and

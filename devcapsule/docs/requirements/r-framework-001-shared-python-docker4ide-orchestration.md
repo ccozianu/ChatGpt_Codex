@@ -19,6 +19,9 @@ external_refs: []
 The post-MVP implementation should refactor one-off IDE launcher logic into a
 shared Python `devcapsule` framework with reusable runtime orchestration,
 profile loading, IDE-family adapters, and thin compatibility wrappers.
+Under adopted D-0001, the shared framework also owns capability resolution,
+configuration overlays, platform locks, checkout-local resolution, state
+contracts, and host-access authorization; IDE adapters remain thin.
 
 ## Implementation
 
@@ -43,5 +46,6 @@ profile loading, IDE-family adapters, and thin compatibility wrappers.
 
 ## Related
 
+- `docs/decisions/d-0001-capability-first-cli-model.md`
 - `docker4pycharm/FUTURE_AGENT_REFACTORING_BRIEF.md`
 - root `README.md`

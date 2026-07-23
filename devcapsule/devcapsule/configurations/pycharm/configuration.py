@@ -48,6 +48,11 @@ class PycharmConfiguration:
             help="Shared IDE config/home root.",
         ),
         click.Option(
+            ["--home"],
+            type=click.Path(path_type=Path),
+            help="Persistent DevCapsule home mounted at /home/devcapsule.",
+        ),
+        click.Option(
             ["--project-state"],
             type=click.Path(path_type=Path),
             help="Per-project IDE cache/log/workspace root.",
@@ -242,6 +247,7 @@ class PycharmConfiguration:
             image=kwargs["image"],
             name=kwargs["name"],
             global_settings=kwargs["global_settings"],
+            persistent_home=kwargs["home"],
             project_state=kwargs["project_state"],
             project_state_root=kwargs["project_state_root"],
             config_mode=self._resolve_config_mode(

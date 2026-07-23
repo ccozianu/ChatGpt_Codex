@@ -51,6 +51,7 @@ def run_typecheck(session: nox.Session) -> None:
 def run_smoke(session: nox.Session) -> None:
     session.run("python", "-m", "devcapsule", "--help")
     session.run("python", "-m", "devcapsule", "pycharm", "run", "--help")
+    session.run("python", "-m", "devcapsule", "run-image", "--help")
     session.run("python", "-m", "devcapsule", "pycharm", "build", "--help")
     session.run("python", "-m", "devcapsule", "vscode_with_claude", "--help")
     session.run("python", "-m", "devcapsule", "codium_with_claude", "build", "--help")
@@ -69,6 +70,7 @@ def build_pex(session: nox.Session) -> None:
 def smoke_pex(session: nox.Session) -> None:
     session.run("python", str(PEX_PATH), "--help")
     session.run("python", str(PEX_PATH), "pycharm", "run", "--help")
+    session.run("python", str(PEX_PATH), "run-image", "--help")
     session.run("python", str(PEX_PATH), "pycharm", "build", "--help")
     session.run("python", str(PEX_PATH), "vscode_with_claude", "--help")
     session.run("python", str(PEX_PATH), "codium_with_claude", "build", "--help")

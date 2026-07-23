@@ -39,5 +39,6 @@ Verification evidence may include:
 
 ## Related
 
+- `docs/decisions/d-0001-capability-first-cli-model.md`
 - `R-PRODUCT-001`
 - `R-DOCS-002`

@@ -1,6 +1,6 @@
 # DevCapsule V1 State And Persistence Specification
 
-Status: working specification supporting proposed decision D-0001.
+Status: adopted supporting specification for D-0001.
 
 ## Purpose
 
@@ -52,10 +52,13 @@ never personal state or credentials.
 ## Project And Checkout Namespace
 
 All automatically managed state uses the canonical project identity and the
-workstation-owned checkout name already defined by D-0001:
+checkout identity already defined by D-0001. The default, normally sole
+checkout needs no name; additional checkouts use workstation-owned names. The
+examples below abbreviate either namespace as `{checkout}`.
 
 ```text
-projects/<encoded-creator>/<encoded-slug>/checkouts/<checkout-name>/
+projects/<encoded-creator>/<encoded-slug>/<default-checkout-state>
+projects/<encoded-creator>/<encoded-slug>/checkouts/<checkout-name>/<state>
 ```
 
 The encoding and checkout record are shared with project-local configuration.
@@ -63,7 +66,13 @@ DevCapsule verifies the checkout's observed canonical path before using its
 state. A clone or second worktree receives a different checkout namespace and
 cannot inherit credentials merely by copying the committed project identity.
 
-Examples below abbreviate this namespace as `{checkout}`.
+Developer-owned checkout input and generated resolution are stored under the
+configuration root as `devcapsule.checkout.toml` and
+`devcapsule.resolved.toml`. Additional checkout pairs use
+`checkouts/<checkout-name>.checkout.toml` and
+`checkouts/<checkout-name>.resolved.toml`. Adopted host paths and persistent
+host-access decisions belong only in checkout input. The resolved file is a
+regenerable effective view and never becomes another configuration layer.
 
 ## Persistent Home
 
@@ -270,12 +279,28 @@ than filesystem deletion.
 `devcapsule run` uses the persistent home and all state contracts pinned by the
 project lock.
 
-`devcapsule run-image IMAGE` cannot infer component contracts from the project
-lock. If the local image carries valid DevCapsule state-contract labels or
-metadata, it uses them. Otherwise it mounts only the project and the default
-persistent home. `--force` may skip missing or incompatible image metadata but
-does not invent component mounts, mount the developer's real home, reuse a
-profile without authorization, or weaken any host-access rule.
+`devcapsule run-image IMAGE` is the legacy, compatibility, dogfood, and
+recovery escape hatch. It may run with or without a project declaration and
+does not infer component contracts from the project lock. When it discovers
+`.devcapsule/devcapsule.toml`, it uses applicable values from that declaration
+unless the operator overrides them on the command line. Effective ordinary
+values follow D-0001's configuration hierarchy: workstation defaults, the
+project declaration, developer-owned checkout configuration, and finally
+command-line values. Validation occurs after overlay resolution; a value that
+is required for the requested operation but has no safe default must be
+provided by configuration or the command line, otherwise the command fails
+with an actionable error.
+
+Command-line host-access options are explicit authorization for that run only.
+A committed recommendation does not grant access, and a command-line value
+cannot override restrictive workstation policy. If the local image carries
+valid DevCapsule state-contract labels or metadata, `run-image` uses them.
+Otherwise it mounts only the project and the default persistent home. `--force`
+may skip missing or incompatible image metadata but does not invent component
+mounts, mount the developer's real home, reuse a profile without authorization,
+or weaken any host-access rule. `run-image` never reads the project lock,
+resolves capabilities, silently selects or pulls another image, updates, or
+builds.
 
 ## Migration From The Current Launchers
 
@@ -356,13 +381,15 @@ Gemini, Codex, Claude, or other agent state may instead be copied beneath the
 adopted home in its normal tool location. DevCapsule must not mount the real
 host home merely to avoid that one-time migration.
 
-Because `mycodespace.ai/pycharm:debug-v017` is a locally constructed diagnostic
-image rather than the image selected by a project lock, the recurring launch
-uses the expert path:
+The updated codebase has produced
+`mycodespace.ai/pycharm:debug-v018` as the next locally constructed diagnostic
+image. Because it is not selected by a project lock, the recurring launch uses
+the expert path:
 
 ```text
-devcapsule run-image mycodespace.ai/pycharm:debug-v017 \
+devcapsule run-image mycodespace.ai/pycharm:debug-v018 \
   --project $HOME/work.provisional/costin3/myProjects/zExperiments/IDEsInDocker/DockerIsolationIDE/ChatGPT_Codex/ \
+  --project-mount /workspace/301e4208ef81-ChatGPT_Codex \
   --docker-daemon host-socket \
   --development-sudo
 ```
@@ -389,13 +416,51 @@ The Docker-daemon and sudo decisions may instead be persisted in the
 developer-owned checkout configuration, reducing the normal dogfood launch to:
 
 ```text
-devcapsule run-image mycodespace.ai/pycharm:debug-v017 \
-  --project $HOME/work.provisional/costin3/myProjects/zExperiments/IDEsInDocker/DockerIsolationIDE/ChatGPT_Codex/
+devcapsule run-image mycodespace.ai/pycharm:debug-v018 \
+  --project $HOME/work.provisional/costin3/myProjects/zExperiments/IDEsInDocker/DockerIsolationIDE/ChatGPT_Codex/ \
+  --project-mount /workspace/301e4208ef81-ChatGPT_Codex
 ```
 
 The target outcome is that state locations and recurring host permissions are
 configured once and inspected when needed, rather than reconstructed in every
 shell invocation.
+
+The explicit project mount above is part of the in-place migration. Existing
+PyCharm state records interpreters and workspace locations using the absolute
+path `/workspace/301e4208ef81-ChatGPT_Codex`; changing that destination makes
+valid saved paths such as the project's `.venv/bin/python` appear missing even
+though PyCharm is still running inside Docker. New checkouts may use the normal
+generated project mount, but adopted IDE state must retain its established
+container path or be migrated deliberately.
+
+### Resolved PyCharm License-Persistence Regression
+
+The initial PyCharm 2026.1 dogfood launches appeared not to retain all
+JetBrains license and agreement state even though the expected files existed
+beneath the persistent home. The cause was an incomplete home-directory
+migration rather than a missing state slot or unstable machine identity.
+
+The launcher mounted and exported the new persistent home at
+`/home/devcapsule`, but its generated `/etc/passwd` entry still declared the
+container user's home as `/ide-global-settings/home`. Java preferences and IDE
+filesystem probes consequently resolved the obsolete, unmounted account home.
+The logs reported that the Java preferences directory could not be created and
+showed a `NoSuchFileException` for `/ide-global-settings/home`.
+
+Both `pycharm run` and `run-image` use the same launcher, so correcting the
+generated account entry to `/home/devcapsule` fixed both paths. Restart
+validation confirmed that the dogfood environment and JetBrains activation
+then remained available across launches. The regression has an automated test
+which verifies that the generated passwd home matches the mounted persistent
+home.
+
+This result reinforces the state contract: the container account database,
+`HOME`, XDG paths, and the persistent-home mount must identify the same home.
+DevCapsule must not mount the host's machine identity or broad host application
+data as a licensing workaround. Persistence of DevCapsule-managed state does
+not guarantee that every third-party server-side session remains valid, but no
+additional JetBrains-specific mount is required for the validated dogfood
+case.
 
 The exact generic privilege acknowledgement syntax, implementation-constraint
 syntax, and longer Dev Container rationale are deliberately deferred until

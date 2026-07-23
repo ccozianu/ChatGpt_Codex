@@ -19,6 +19,9 @@ external_refs: []
 Supported DevCapsule image builds must be planned and executed by the active
 Python package without depending on the historical `docker4pycharm` build
 implementation.
+Adopted D-0001 constrains V1 composition to a curated base-image matrix plus
+pinned, relocatable, certified add-ons recorded in platform-specific locks;
+arbitrary image composition is not required.
 
 ## Implementation
 
@@ -39,6 +42,7 @@ implementation.
 
 ## Related
 
+- `docs/decisions/d-0001-capability-first-cli-model.md`
 - `R-PYTHON-MVP-002`
 - `R-PYTHON-MVP-003`
 - `R-FRAMEWORK-001`

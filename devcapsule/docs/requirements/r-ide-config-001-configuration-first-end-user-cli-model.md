@@ -1,9 +1,9 @@
 ---
 id: R-IDE-CONFIG-001
-title: Configuration-First End-User CLI Model
+title: Capability-First End-User CLI Model
 type: requirement
 kind: concrete-requirement
-status: implemented
+status: accepted
 priority: current stabilization
 source_of_truth: repo
 verification:
@@ -12,19 +12,29 @@ verification:
 external_refs: []
 ---
 
-# R-IDE-CONFIG-001: Configuration-First End-User CLI Model
+# R-IDE-CONFIG-001: Capability-First End-User CLI Model
 
 ## Statement
 
-End users should interact with DevCapsule through a configuration-first
-command model:
+End users should declare portable capabilities in
+`.devcapsule/devcapsule.toml`, commit the matching platform lock, and normally
+launch through:
 
 ```text
-devcapsule CONFIGURATION ACTION [options]
+devcapsule run
 ```
 
-Noun-first compatibility paths such as `devcapsule run pycharm` are
-intentionally unsupported in the Python CLI.
+The resolver selects curated concrete components from the abstract capability
+set. Project recommendations cannot grant host access; effective host
+authorization remains developer-owned. `devcapsule run-image IMAGE` is the
+legacy, compatibility, dogfood, and recovery escape hatch.
+
+## Transition
+
+The currently implemented `devcapsule CONFIGURATION ACTION` surface is the
+pre-V1 model superseded in direction by adopted D-0001. It remains available
+while the capability-first manifest, platform lock, checkout resolution, and
+shared runtime planner are implemented.
 
 ## Implementation
 
@@ -39,6 +49,7 @@ intentionally unsupported in the Python CLI.
 
 ## Related
 
+- `docs/decisions/d-0001-capability-first-cli-model.md`
 - `R-PYTHON-MVP-001`
 - `R-PYTHON-MVP-002`
 - `R-PYTHON-MVP-003`

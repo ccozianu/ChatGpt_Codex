@@ -71,7 +71,6 @@ BASE_APT_PACKAGES = (
     "shellcheck",
     "tree",
     "less",
-    "vim-tiny",
     "nano",
     "sudo",
     "libpq5",

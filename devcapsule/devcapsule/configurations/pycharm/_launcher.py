@@ -64,6 +64,7 @@ class PycharmRunOptions:
     image: str | None = None
     name: str | None = None
     global_settings: Path | None = None
+    persistent_home: Path | None = None
     project_state: Path | None = None
     project_state_root: Path | None = None
     config_mode: IdeConfigMode | None = None
@@ -94,8 +95,11 @@ class PycharmRunConfig:
     name: str
     project: Path
     global_settings: Path
+    persistent_home: Path
     project_state: Path
-    gemini_state: Path
+    ide_system: Path
+    ide_log: Path
+    tool_cache: Path
     ide_config: Path
     ide_config_mode: str
     plugins: Path
@@ -210,9 +214,37 @@ def build_run_config(options: PycharmRunOptions, env: Mapping[str, str]) -> Pych
     global_settings = runtime_plan.global_settings
     project_state = runtime_plan.project_state
 
+    xdg_data_home = Path(
+        env.get("XDG_DATA_HOME") or str(Path(env.get("HOME", "~")).expanduser() / ".local/share")
+    ).expanduser()
+    xdg_state_home = Path(
+        env.get("XDG_STATE_HOME") or str(Path(env.get("HOME", "~")).expanduser() / ".local/state")
+    ).expanduser()
+    xdg_cache_home = Path(
+        env.get("XDG_CACHE_HOME") or str(Path(env.get("HOME", "~")).expanduser() / ".cache")
+    ).expanduser()
+    data_namespace = xdg_data_home / "devcapsule" / "projects" / "by-path" / runtime_plan.project_id
+    state_namespace = xdg_state_home / "devcapsule" / "projects" / "by-path" / runtime_plan.project_id
+    cache_namespace = xdg_cache_home / "devcapsule" / "projects" / "by-path" / runtime_plan.project_id
+
+    legacy_global_settings = (
+        options.global_settings is not None
+        or bool(env.get("PYCHARM_GLOBAL_SETTINGS_DIR"))
+        or bool(profile)
+    )
+    persistent_home = resolve_existing_or_create(
+        options.persistent_home
+        or env.get("DEVCAPSULE_HOME_DIR")
+        or (global_settings / "home" if legacy_global_settings else data_namespace / "home")
+    )
+
     ide_config_arg = options.ide_config if options.ide_config is not None else env.get("PYCHARM_IDE_CONFIG_DIR", "")
     if ide_config_mode == "shared":
-        ide_config = resolve_existing_or_create(global_settings / "config")
+        ide_config = resolve_existing_or_create(
+            global_settings / "config"
+            if legacy_global_settings
+            else data_namespace / "components" / "pycharm" / "config"
+        )
     elif ide_config_mode == "project":
         ide_config = resolve_existing_or_create(project_state / "config")
     else:
@@ -222,7 +254,28 @@ def build_run_config(options: PycharmRunOptions, env: Mapping[str, str]) -> Pych
             )
         ide_config = resolve_existing_or_create(ide_config_arg)
 
-    plugins = resolve_existing_or_create(options.plugins or env.get("PYCHARM_PLUGIN_DIR") or plugins_default)
+    plugins = resolve_existing_or_create(
+        options.plugins
+        or env.get("PYCHARM_PLUGIN_DIR")
+        or (plugins_default if options.profile else data_namespace / "components" / "pycharm" / "plugins")
+    )
+
+    legacy_project_state = options.project_state is not None or options.project_state_root is not None
+    ide_system = resolve_existing_or_create(
+        project_state / "system"
+        if legacy_project_state
+        else cache_namespace / "components" / "pycharm" / "system"
+    )
+    ide_log = resolve_existing_or_create(
+        project_state / "log"
+        if legacy_project_state
+        else state_namespace / "components" / "pycharm" / "log"
+    )
+    tool_cache = resolve_existing_or_create(
+        project_state / "home" / ".cache"
+        if legacy_project_state
+        else cache_namespace / "components" / "pycharm" / "cache"
+    )
 
     if not ignore_config_lock and ide_config_mode != "project" and (ide_config / ".lock").exists():
         raise PycharmRunError(config_lock_message(ide_config, project, project_state))
@@ -258,8 +311,11 @@ def build_run_config(options: PycharmRunOptions, env: Mapping[str, str]) -> Pych
         name=options.name or f"pycharm-isolated-{host_user.name}-{int(time.time())}",
         project=project,
         global_settings=global_settings,
+        persistent_home=persistent_home,
         project_state=project_state,
-        gemini_state=runtime_plan.gemini_state,
+        ide_system=ide_system,
+        ide_log=ide_log,
+        tool_cache=tool_cache,
         ide_config=ide_config,
         ide_config_mode=ide_config_mode,
         plugins=plugins,
@@ -312,17 +368,17 @@ def build_docker_args(
         "--env",
         f"PROJECT_PATH={config.project_mount}",
         "--env",
-        "HOME=/ide-global-settings/home",
+        "HOME=/home/devcapsule",
         "--env",
-        "CODEX_HOME=/ide-global-settings/home/.codex",
+        "CODEX_HOME=/home/devcapsule/.codex",
         "--env",
-        "XDG_CONFIG_HOME=/ide-global-settings/home/.config",
+        "XDG_CONFIG_HOME=/home/devcapsule/.config",
         "--env",
-        "XDG_CACHE_HOME=/ide-project-state/home/.cache",
+        "XDG_CACHE_HOME=/home/devcapsule/.cache",
         "--env",
-        "XDG_DATA_HOME=/ide-global-settings/home/.local/share",
+        "XDG_DATA_HOME=/home/devcapsule/.local/share",
         "--env",
-        "IDE_GLOBAL_SETTINGS_PATH=/ide-global-settings",
+        "IDE_GLOBAL_SETTINGS_PATH=/home/devcapsule",
         "--env",
         "IDE_CONFIG_PATH=/ide-config",
         "--env",
@@ -346,13 +402,15 @@ def build_docker_args(
         "--mount",
         f"type=bind,src={config.project},dst={config.project_mount}",
         "--mount",
-        f"type=bind,src={config.global_settings},dst=/ide-global-settings",
+        f"type=bind,src={config.persistent_home},dst=/home/devcapsule",
         "--mount",
         f"type=bind,src={config.ide_config},dst=/ide-config",
         "--mount",
-        f"type=bind,src={config.project_state},dst=/ide-project-state",
+        f"type=bind,src={config.ide_system},dst=/ide-project-state/system",
         "--mount",
-        f"type=bind,src={config.gemini_state},dst=/ide-global-settings/home/.gemini",
+        f"type=bind,src={config.ide_log},dst=/ide-project-state/log",
+        "--mount",
+        f"type=bind,src={config.tool_cache},dst=/home/devcapsule/.cache",
         "--mount",
         f"type=bind,src={config.plugins},dst=/ide-plugins",
         "--mount",
@@ -537,7 +595,7 @@ def write_user_files(config: PycharmRunConfig, files: TempRuntimeFiles) -> None:
         "\n".join(
             [
                 "root:x:0:0:root:/root:/bin/bash",
-                f"{host_user.name}:x:{host_user.uid}:{host_user.gid}:PyCharm Docker User:/ide-global-settings/home:/bin/bash",
+                f"{host_user.name}:x:{host_user.uid}:{host_user.gid}:PyCharm Docker User:/home/devcapsule:/bin/bash",
                 "",
             ]
         )
@@ -731,10 +789,12 @@ or rerun with --ignore-config-lock to let PyCharm decide."""
 def print_storage_summary(config: PycharmRunConfig) -> None:
     print(
         f"""PyCharm storage:
-  Shared global settings: {config.global_settings}
+  Persistent home:       {config.persistent_home}
   PyCharm config:         {config.ide_config} ({config.ide_config_mode})
   Shared plugins:         {config.plugins}
-  Per-project state:      {config.project_state}
+  PyCharm system:         {config.ide_system}
+  PyCharm logs:           {config.ide_log}
+  Tool cache:             {config.tool_cache}
   Container project path: {config.project_mount}""",
         file=sys.stderr,
     )

@@ -51,6 +51,63 @@ def test_run_pycharm_uses_translated_python_launcher(tmp_path: Path) -> None:
     assert any(arg.startswith(f"type=bind,src={project.resolve()},dst=") for arg in command)
     assert "--cap-drop" in command
     assert "--read-only" in command
+    assert "HOME=/home/devcapsule" in command
+    assert any(arg.endswith(",dst=/home/devcapsule") for arg in command)
+    assert any(arg.endswith(",dst=/ide-project-state/system") for arg in command)
+    assert any(arg.endswith(",dst=/ide-project-state/log") for arg in command)
+    assert any(arg.endswith(",dst=/home/devcapsule/.cache") for arg in command)
+    assert not any(arg.endswith(",dst=/ide-global-settings/home/.gemini") for arg in command)
+
+
+def test_run_image_uses_pycharm_persistence_adapter(tmp_path: Path) -> None:
+    project = tmp_path / "example"
+    project.mkdir()
+    global_settings = tmp_path / "global-settings"
+    plugins = tmp_path / "plugins"
+    project_state = tmp_path / "project-state"
+
+    with (
+        patch("devcapsule.configurations.pycharm._launcher.shutil.which", return_value=None),
+        patch("devcapsule.configurations.pycharm._launcher.subprocess.run") as run,
+        patch.dict(
+            os.environ,
+            {
+                "DISPLAY": ":1",
+                "HOME": str(tmp_path / "host-home"),
+                "XDG_DATA_HOME": str(tmp_path / "data"),
+                "PYCHARM_GIT_IDENTITY_FROM_HOST": "0",
+            },
+            clear=False,
+        ),
+    ):
+        run.return_value.returncode = 0
+        result = cli.main(
+            [
+                "run-image",
+                "mycodespace.ai/pycharm:debug-v017",
+                "--project",
+                str(project),
+                "--project-mount",
+                "/workspace/existing-checkout",
+                "--global-settings",
+                str(global_settings),
+                "--plugins",
+                str(plugins),
+                "--project-state",
+                str(project_state),
+            ]
+        )
+
+    assert result == 0
+    command = run.call_args.args[0]
+    assert "mycodespace.ai/pycharm:debug-v017" in command
+    assert "--pull=never" in command
+    assert "--workdir" in command
+    assert command[command.index("--workdir") + 1] == "/workspace/existing-checkout"
+    assert f"type=bind,src={project.resolve()},dst=/workspace/existing-checkout" in command
+    assert f"type=bind,src={(global_settings / 'home').resolve()},dst=/home/devcapsule" in command
+    assert f"type=bind,src={(global_settings / 'config').resolve()},dst=/ide-config" in command
+    assert f"type=bind,src={plugins.resolve()},dst=/ide-plugins" in command
 
 
 def test_run_pycharm_defaults_project_to_current_directory(tmp_path: Path, monkeypatch) -> None:

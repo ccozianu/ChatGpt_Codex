@@ -177,6 +177,7 @@ devcapsule pycharm run --project /path/to/project
 devcapsule pycharm run
 devcapsule pycharm run --project /path/to/project --config-mode project
 devcapsule pycharm run --profile codex --project-state-root /path/to/workspace/.state
+devcapsule run-image pycharm-isolated:latest --project /path/to/project
 devcapsule pycharm build --pycharm /path/to/pycharm.tar.gz
 devcapsule pycharm check-runtime
 devcapsule vscode_with_claude --help
@@ -251,13 +252,46 @@ debugging, sudo, and additional filesystem options available from
 `pycharm run`. The intended shared versus IDE-specific behavior is tracked in
 `implementation-notes/bugs/2026-07-13-codium-run-option-parity.md`.
 
-`pycharm run` defaults `--project` to the current directory. Use `--profile
-NAME` to group shared PyCharm settings and plugins under
-`~/.config/docker-pycharm-NAME/`, and `--project-state-root DIR` to mirror
-per-project state under a separate state tree. Gemini CLI state is
-bind-mounted into the container at `~/.gemini` from the host `~/.gemini` by
-default; override that host source path with `DEVCAPSULE_GEMINI_STATE_DIR`
-when needed.
+`pycharm run` defaults `--project` to the current directory. Its default
+persistent home is checkout-scoped beneath `$XDG_DATA_HOME/devcapsule/` and is
+mounted at `/home/devcapsule`; standard `HOME`, Codex, Gemini, Claude, and other
+tool state naturally persist there. `--home DIR` or `DEVCAPSULE_HOME_DIR`
+selects a developer-owned alternative. The developer's actual host home is
+never mounted as the container home.
+
+PyCharm config and plugins are durable component state. PyCharm system data and
+tool caches use `$XDG_CACHE_HOME/devcapsule/`, while logs use
+`$XDG_STATE_HOME/devcapsule/`. For the current dogfood migration, existing
+`--global-settings`, `--plugins`, and `--project-state` values are adopted in
+place: their `home`, `config`, `plugins`, `system`, `log`, and `home/.cache`
+subdirectories are mounted independently at the new container destinations.
+
+`run-image IMAGE` is the expert, lock-independent PyCharm-compatible image path
+for construction and diagnosis. It passes `--pull=never` to Docker, so a
+missing local image fails instead of pulling or resolving another image. It
+defaults to no Docker-daemon access. Use
+`--docker-daemon host-socket` and `--development-sudo` only as explicit
+run-once relaxations. The broader capability-first state-management CLI remains
+under development.
+
+The first dogfood validation intentionally supplies the existing directories
+once, before the planned `state adopt` command persists those mappings:
+
+```bash
+./dist/devcapsule.pex run-image mycodespace.ai/pycharm:debug-v018 \
+  --global-settings ~/.config/docker-pycharm-codex/state/ \
+  --plugins ~/.config/docker-pycharm-codex/plugins \
+  --project "$HOME/work.provisional/costin3/myProjects/zExperiments/IDEsInDocker/DockerIsolationIDE/ChatGPT_Codex/" \
+  --project-mount /workspace/301e4208ef81-ChatGPT_Codex \
+  --project-state /home/costin/work.provisional/costin3/.state/myProjects/zExperiments/IDEsInDocker/DockerIsolationIDE/ChatGPT_Codex \
+  --docker-daemon host-socket \
+  --development-sudo
+```
+
+The explicit project mount preserves the absolute path already stored in the
+adopted PyCharm workspace and interpreter configuration. Omitting it during
+this migration makes saved paths such as
+`/workspace/301e4208ef81-ChatGPT_Codex/.venv/bin/python` appear missing.
 
 Unsupported command shapes such as `devcapsule run pycharm`,
 `devcapsule build pycharm`, and `devcapsule bootstrap-project` are
