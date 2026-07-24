@@ -67,7 +67,47 @@ stays consistent:
 DC=(python3.12 "$DEVCAPSULE")
 ```
 
-## 2. Inspect The Committed Inputs
+## 2. Recreate `.devcapsule/` With `init` And `lock`
+
+The WIP branch already contains the intended committed `.devcapsule/`
+directory. Move it aside so this test exercises the bootstrap command that a
+project uses before those generated project files are committed:
+
+```bash
+export COMMITTED_DEVCAPSULE="$PROJECT/.devcapsule.committed-wip-backup"
+export GENERATED_DEVCAPSULE="$PROJECT/.devcapsule.generated-manual-test"
+
+test ! -e "$COMMITTED_DEVCAPSULE"
+test ! -e "$GENERATED_DEVCAPSULE"
+mv "$PROJECT/.devcapsule" "$COMMITTED_DEVCAPSULE"
+```
+
+Do not run `git add`, `git commit`, or a destructive Git cleanup while the
+tracked directory is parked under the backup name.
+
+Initialize the existing checkout and generate its first dogfood lock:
+
+```bash
+"${DC[@]}" init "$PROJECT" \
+  --name DevCapsule \
+  --slug devcapsule \
+  --creator https://github.com/ccozianu \
+  --project-mount /workspace/301e4208ef81-ChatGPT_Codex \
+  --need python \
+  --need python-ide \
+  --need docker-cli \
+  --need gemini
+
+"${DC[@]}" lock \
+  --project "$PROJECT" \
+  --image mycodespace.ai/pycharm:debug-v018
+```
+
+Expected: `init` creates `.devcapsule/devcapsule.toml`; `lock` creates the
+current-platform `devcapsule.linux-amd64.lock`. Neither command modifies the
+parked committed backup.
+
+Inspect the generated inputs:
 
 ```bash
 sed -n '1,200p' "$PROJECT/.devcapsule/devcapsule.toml"
@@ -80,10 +120,14 @@ Confirm before continuing:
 - the container project mount is
   `/workspace/301e4208ef81-ChatGPT_Codex`;
 - the lock selects `mycodespace.ai/pycharm:debug-v018`;
-- the Docker socket appears only as a recommendation in the committed
-  manifest, not as authorization.
+- neither generated file grants Docker-daemon or sudo access.
 
-Optional create-only safety check:
+The parked WIP manifest contains an additional project-authored Docker
+recommendation. `init` does not currently synthesize recommendations, and
+their absence does not change the runtime result because committed
+recommendations cannot grant host access.
+
+Now verify create-only safety against the newly initialized project:
 
 ```bash
 before=$(sha256sum "$PROJECT/.devcapsule/devcapsule.toml")
@@ -306,12 +350,44 @@ mv "$RESOLVED_FILE" "$HOME/.config/devcapsule/manual-test-backup/"
 Then use the previously validated `run-image` command. Do not delete any of the
 legacy state directories.
 
+Restore the tracked WIP declaration after either a successful test or a
+rollback. Preserve the generated version temporarily for comparison:
+
+```bash
+test -d "$COMMITTED_DEVCAPSULE"
+mv "$PROJECT/.devcapsule" "$GENERATED_DEVCAPSULE"
+mv "$COMMITTED_DEVCAPSULE" "$PROJECT/.devcapsule"
+git -C "$PROJECT" status --short
+```
+
+Expected: the tracked `.devcapsule/` files are restored and Git no longer
+reports them deleted. The generated comparison directory is untracked and can
+be removed after any useful comparison:
+
+```bash
+diff -ru "$PROJECT/.devcapsule" "$GENERATED_DEVCAPSULE" || true
+rm -rf "$GENERATED_DEVCAPSULE"
+```
+
+If the developer-owned checkout record was retained after a successful test,
+restoring the committed manifest changes its source digest relative to the
+generated local resolution. Refresh that resolution before a later launch:
+
+```bash
+"${DC[@]}" config resolve --project "$PROJECT"
+```
+
+Skip that command after the rollback above moved the checkout record aside;
+state must be adopted again before resolution in that case.
+
 ## Acceptance Record
 
 Report these results back to the agent:
 
 ```text
 Preflight and resolution: PASS / FAIL
+Fresh `devcapsule init` and `lock`: PASS / FAIL
+Create-only refusal preserves manifest: PASS / FAIL
 PyCharm opens established project: PASS / FAIL
 Existing settings/plugins/agent state: PASS / FAIL
 Docker access with explicit option: PASS / FAIL
