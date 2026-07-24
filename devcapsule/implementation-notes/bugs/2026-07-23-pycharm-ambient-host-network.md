@@ -2,7 +2,8 @@
 
 Date opened: 2026-07-23
 
-Status: open; diagnosed and evidenced, no fix implemented
+Status: partially fixed in repository; manual validation and explicit
+host-network selection remain open
 
 Requirements: R-SCOPE-001, R-DOCKER-001, R-FRAMEWORK-001, root R-PRODUCT-002
 
@@ -39,6 +40,17 @@ operator choice in the resulting Docker plan.
 
 The Python launcher retained the historical PyCharm prototype's unconditional
 host-network setting while runtime authorization was being refactored.
+
+## Fix Progress
+
+On 2026-07-24 the unconditional `--network=host` argument was removed from the
+shared PyCharm launcher. The capability-first end-to-end planning test now
+asserts that the generated default Docker command does not contain host
+networking. Normal `devcapsule run` accepts only bridge networking in this
+first slice and directs expert exceptions to `run-image`.
+
+The bug remains open because the shared explicit network option and
+Docker-daemon inspection targets have not yet been implemented and validated.
 
 ## Proposed Fix Direction
 

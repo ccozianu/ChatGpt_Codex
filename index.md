@@ -86,6 +86,7 @@ same change.
 - [Docker in containerized development environments TLDR](docker4pycharm/implementation-notes/docker_in_devcontainer_tldr.md)
 - [Using PyCharm v0 for real Python projects](docker4pycharm/implementation-notes/using-v0-for-real-python-projects.md)
 - [Docker Hub namespace and publication plan](devcapsule/implementation-notes/2026-07-15-docker-hub-namespace-and-publication-plan.md)
+- [Capability-first PyCharm dogfood manual test](devcapsule/implementation-notes/2026-07-24-capability-first-dogfood-manual-test.md)
 
 ## Bugs
 

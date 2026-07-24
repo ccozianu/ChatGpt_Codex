@@ -473,6 +473,20 @@ Manual validation checkpoint, 2026-07-23:
 
 Current task:
 
+- On 2026-07-24, the first executable capability-first dogfood slice was
+  implemented. Top-level `init`, `lock`, `state adopt`, `config resolve`, and
+  `run` now create and consume the adopted manifest, platform-lock,
+  developer-owned checkout, generated-resolution, and state-slot shapes. The
+  repository now carries its own `.devcapsule/devcapsule.toml` and
+  `devcapsule.linux-amd64.lock`, selecting the already validated local
+  `mycodespace.ai/pycharm:debug-v018` image. PyCharm no longer receives ambient
+  `--network=host`; bridge networking is the default. Automated tests cover
+  the complete configuration-to-Docker-plan path.
+- This first lock implementation deliberately accepts an existing local image
+  tag. Immutable image digest capture, the general curated capability matrix,
+  workstation configuration overlays, persistent host-choice commands, and
+  manual host GUI validation of `devcapsule run` remain open.
+
 - On 2026-07-23, Costin Cozianu adopted D-0001 after final review of the
   capability-first CLI and supporting state specification. The adopted model
   uses committed manifests and platform locks, developer-owned checkout input,
@@ -512,11 +526,14 @@ Current task:
   implicit PyCharm host network is tracked separately as
   `devcapsule/implementation-notes/bugs/2026-07-23-pycharm-ambient-host-network.md`.
 
-1. Implement the first dogfood adoption slice from adopted D-0001: create the
-   committed `.devcapsule/devcapsule.toml`, developer-owned checkout input and
-   generated resolution, and persistent `state adopt` records. Correct the
-   daemon-inspected legacy PyCharm `NetworkMode=host` default while wiring the
-   adopted runtime model.
+1. Manually validate the first capability-first dogfood launch on the host:
+   adopt the six existing PyCharm state directories, resolve local checkout
+   configuration, and launch `mycodespace.ai/pycharm:debug-v018` with
+   `devcapsule run --docker-daemon host-socket --development-sudo`. Inspect the
+   resulting container to confirm the existing project mount and state, bridge
+   network, Docker access, sudo, foreground lifecycle, and IDE usability.
+   Follow
+   `devcapsule/implementation-notes/2026-07-24-capability-first-dogfood-manual-test.md`.
 
 2. Address the shared run-option parity gap recorded in
    `devcapsule/implementation-notes/bugs/2026-07-13-codium-run-option-parity.md`,
@@ -552,9 +569,10 @@ Current task:
 
 Next task:
 
-1. Implement the narrow DevCapsule dogfood adoption path defined by adopted
-   D-0001, beginning with `devcapsule init`, checkout-local resolution, and
-   in-place adoption of the existing PyCharm state directories.
+1. Run the documented state-adoption sequence and manually validate
+   `devcapsule run` against the existing PyCharm dogfood environment. Then add
+   a developer-owned command for persisting host choices and replace the
+   local-tag dogfood lock bridge with immutable curated resolution.
 
 Standing rule:
 
